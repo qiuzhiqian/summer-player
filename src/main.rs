@@ -25,6 +25,9 @@ struct Cli {
     #[arg(short, long, help = "Select output device by index")]
     device: Option<usize>,
 
+    #[arg(short, long, help = "Show audio file information and duration without playing")]
+    info: bool,
+
     #[arg(help = "Path to audio file")]
     file: Option<String>,
 }
@@ -54,14 +57,25 @@ fn main() {
         std::process::exit(1);
     }
 
-    println!("Playing: {}", file_path);
-    
-    // 加载并播放音频文件
-    match play_audio(&file_path, cli.device) {
-        Ok(_) => println!("Playback finished successfully"),
-        Err(e) => {
-            eprintln!("Error during playback: {}", e);
-            std::process::exit(1);
+    if cli.info {
+        // 只显示音频信息而不播放
+        match get_audio_info(&file_path) {
+            Ok(_) => {},
+            Err(e) => {
+                eprintln!("Error reading audio file: {}", e);
+                std::process::exit(1);
+            }
+        }
+    } else {
+        println!("Playing: {}", file_path);
+        
+        // 加载并播放音频文件
+        match play_audio(&file_path, cli.device) {
+            Ok(_) => println!("Playback finished successfully"),
+            Err(e) => {
+                eprintln!("Error during playback: {}", e);
+                std::process::exit(1);
+            }
         }
     }
 }
@@ -143,6 +157,11 @@ fn play_audio(file_path: &str, device_index: Option<usize>) -> Result<(), Box<dy
     // 获取音频参数
     let channels = track.codec_params.channels.map(|c| c.count()).unwrap_or(2);
     let sample_rate = track.codec_params.sample_rate.unwrap_or(44100);
+    
+    // 计算并显示音频时长
+    if let Some(duration) = calculate_audio_duration(track, sample_rate) {
+        println!("Duration: {}", format_duration(duration));
+    }
     
     println!("Audio info: {} channels, {} Hz", channels, sample_rate);
     
@@ -287,6 +306,71 @@ fn play_audio(file_path: &str, device_index: Option<usize>) -> Result<(), Box<dy
     Ok(())
 }
 
+fn get_audio_info(file_path: &str) -> Result<(), Box<dyn std::error::Error>> {
+    // 打开音频文件
+    let file = File::open(file_path)?;
+    let mss = MediaSourceStream::new(Box::new(file), Default::default());
+    
+    // 创建提示信息
+    let mut hint = Hint::new();
+    if let Some(ext) = Path::new(file_path).extension() {
+        if let Some(ext_str) = ext.to_str() {
+            hint.with_extension(ext_str);
+        }
+    }
+    
+    // 探测音频格式
+    let mut probed = default::get_probe()
+        .format(&hint, mss, &FormatOptions::default(), &MetadataOptions::default())?;
+    
+    println!("File: {}", file_path);
+    
+    // 显示元数据
+    if let Some(metadata) = probed.metadata.get() {
+        if let Some(current) = metadata.current() {
+            println!("Metadata:");
+            for tag in current.tags() {
+                if let Some(std_key) = tag.std_key {
+                    println!("  {:?}: {:?}", std_key, tag.value);
+                } else {
+                    println!("  {}: {:?}", tag.key, tag.value);
+                }
+            }
+        }
+    }
+    
+    // 获取音频轨道
+    let track = probed
+        .format
+        .tracks()
+        .iter()
+        .find(|t| t.codec_params.codec != CODEC_TYPE_NULL)
+        .ok_or("No supported audio tracks found")?;
+    
+    // 获取音频参数
+    let channels = track.codec_params.channels.map(|c| c.count()).unwrap_or(2);
+    let sample_rate = track.codec_params.sample_rate.unwrap_or(44100);
+    
+    // 计算并显示音频时长
+    if let Some(duration) = calculate_audio_duration(track, sample_rate) {
+        println!("Duration: {}", format_duration(duration));
+    } else {
+        println!("Duration: Unknown");
+    }
+    
+    println!("Audio info: {} channels, {} Hz", channels, sample_rate);
+    
+    if let Some(bits_per_sample) = track.codec_params.bits_per_sample {
+        println!("Bits per sample: {}", bits_per_sample);
+    }
+    
+    if let Some(frames) = track.codec_params.n_frames {
+        println!("Total frames: {}", frames);
+    }
+    
+    Ok(())
+}
+
 fn write_audio_buffer(buffer: &AudioBuffer, decoded: &AudioBufferRef, target_channels: usize) -> Result<(), Box<dyn std::error::Error>> {
     // 创建输出缓冲区
     let mut output = vec![Vec::new(); target_channels];
@@ -397,5 +481,38 @@ where
     for (c, dst) in output.iter_mut().enumerate() {
         let src = input.chan(c);
         dst.extend(src.iter().map(|&s| s.into_sample()));
+    }
+}
+
+fn calculate_audio_duration(track: &symphonia::core::formats::Track, sample_rate: u32) -> Option<f64> {
+    // 尝试从轨道的时间基准和帧数计算时长
+    if let Some(n_frames) = track.codec_params.n_frames {
+        if let Some(time_base) = track.codec_params.time_base {
+            // 使用时间基准更准确地计算时长
+            let duration_seconds = n_frames as f64 * time_base.numer as f64 / time_base.denom as f64;
+            return Some(duration_seconds);
+        } else {
+            // 如果没有时间基准，使用采样率计算
+            return Some(n_frames as f64 / sample_rate as f64);
+        }
+    }
+    
+    // 如果没有帧数信息，尝试从其他源计算
+    // 这里可以添加更多的时长计算方法
+    
+    None
+}
+
+fn format_duration(seconds: f64) -> String {
+    let total_seconds = seconds as u64;
+    let hours = total_seconds / 3600;
+    let minutes = (total_seconds % 3600) / 60;
+    let secs = total_seconds % 60;
+    let milliseconds = ((seconds - total_seconds as f64) * 1000.0) as u64;
+    
+    if hours > 0 {
+        format!("{:02}:{:02}:{:02}.{:03}", hours, minutes, secs, milliseconds)
+    } else {
+        format!("{:02}:{:02}.{:03}", minutes, secs, milliseconds)
     }
 }

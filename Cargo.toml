@@ -1,7 +1,11 @@
 [package]
 name = "player"
-version = "0.1.0"
+version = "0.3.0"
 edition = "2024"
+description = "A command-line audio player with duration calculation and file info display"
+authors = ["Your Name <your.email@example.com>"]
+license = "MIT"
+readme = "README.md"
 
 [dependencies]
 clap = { version = "4.1.6", features = ["derive"] }

@@ -9,6 +9,8 @@
 - 🎛️ 使用 `cpal` 库进行音频输出
 - 📱 支持设备选择和管理
 - 🎼 支持音频文件元数据显示
+- ⏱️ **音频时长计算** - 自动计算并显示音频文件的播放时长
+- 📋 **音频信息查看** - 不播放音频即可查看文件信息
 - 🎧 **真正的音频播放** - 解码后的音频数据通过环形缓冲区传递到音频输出设备
 
 ## 依赖项
@@ -45,6 +47,12 @@ cargo run -- path/to/your/audio/file.mp3
 cargo run -- --device 0 path/to/your/audio/file.mp3
 ```
 
+#### 查看音频文件信息（不播放）
+
+```bash
+cargo run -- --info path/to/your/audio/file.mp3
+```
+
 #### 查看帮助信息
 
 ```bash
@@ -71,12 +79,46 @@ cargo run -- song.mp4
 
 # 使用指定设备播放
 cargo run -- --device 4 song.mp3
+
+# 查看音频文件信息和时长（不播放）
+cargo run -- --info song.mp3
+
+# 查看音频文件的详细信息
+cargo run -- -i song.mp3
+```
+
+## 音频信息功能
+
+使用 `--info` 或 `-i` 选项可以查看音频文件的详细信息，包括：
+
+- 文件路径和格式
+- 音频时长（HH:MM:SS.mmm 格式）
+- 采样率（Hz）
+- 声道数
+- 位深度（如果可用）
+- 总帧数（如果可用）
+- 元数据（标题、艺术家、专辑等）
+
+示例输出：
+```
+File: song.mp3
+Metadata:
+  Title: "My Song"
+  Artist: "Artist Name"
+  Album: "Album Name"
+Duration: 03:45.123
+Audio info: 2 channels, 44100 Hz
+Bits per sample: 16
+Total frames: 9945600
 ```
 
 ## 程序结构
 
 - `main.rs` - 主程序入口
 - `play_audio()` - 音频播放功能
+- `get_audio_info()` - 音频信息获取功能
+- `calculate_audio_duration()` - 音频时长计算功能
+- `format_duration()` - 时长格式化功能
 - `list_audio_devices()` - 设备列表功能
 - `create_stream()` - 音频流创建功能
 - `write_audio_buffer()` - 音频缓冲区写入功能
@@ -129,6 +171,14 @@ cargo run -- --device 4 song.mp3
 4. 检查系统音频服务是否正常运行
 
 ## 更新日志
+
+### v0.3.0 - 音频时长计算功能
+
+- ✅ **新增时长计算**：自动计算并显示音频文件的播放时长
+- ✅ **音频信息查看**：新增 `--info` 选项，无需播放即可查看文件信息
+- ✅ **时长格式化**：支持 HH:MM:SS.mmm 格式的时长显示
+- ✅ **改进的时长计算**：支持基于时间基准和采样率的精确计算
+- ✅ **更多音频信息**：显示位深度、总帧数等详细信息
 
 ### v0.2.1 - 完整的音频格式支持
 
