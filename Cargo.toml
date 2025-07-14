@@ -2,7 +2,7 @@
 name = "player"
 version = "0.3.0"
 edition = "2024"
-description = "A command-line audio player with duration calculation and file info display"
+description = "A TUI audio player with progress display, playback controls, and file info"
 authors = ["Your Name <your.email@example.com>"]
 license = "MIT"
 readme = "README.md"
@@ -11,3 +11,6 @@ readme = "README.md"
 clap = { version = "4.1.6", features = ["derive"] }
 cpal = "0.15.0"
 symphonia = { version = "0.5", features = ["mp3", "aac", "isomp4"] }
+iced = { version = "0.12", features = ["tokio"] }
+tokio = { version = "1.0", features = ["full"] }
+rfd = "0.14"
