@@ -12,7 +12,7 @@ use cpal::{FromSample, Sample, SampleFormat, SizedSample};
 use iced::{
     widget::{button, column, container, row, text, progress_bar, slider, Space},
     Application, Command, Element, Length, Settings, Theme,
-    executor,
+    executor, Font,
 };
 
 use symphonia::core::audio::{AudioBufferRef, Signal};
@@ -27,6 +27,11 @@ use symphonia::default;
 const DEFAULT_BUFFER_MULTIPLIER: usize = 2;
 const BUFFER_CAPACITY_THRESHOLD: usize = 1000;
 const BUFFER_WRITE_DELAY: u64 = 1;
+
+// 字体配置常量
+const CHINESE_FONT: &str = "Noto Sans CJK SC";
+const EMOJI_FONT: &str = "Noto Color Emoji";
+const DEFAULT_FONT: &str = "DejaVu Sans";
 
 // 自定义错误类型
 #[derive(Debug)]
@@ -206,7 +211,7 @@ impl Application for PlayerApp {
     }
 
     fn title(&self) -> String {
-        "Rust Audio Player".to_string()
+        "音频播放器".to_string()
     }
 
     fn update(&mut self, message: Message) -> Command<Message> {
@@ -303,13 +308,13 @@ impl Application for PlayerApp {
 
     fn view(&self) -> Element<Message> {
         let play_button_text = if self.is_playing {
-            "⏸ Pause"
+            "⏸ 暂停"
         } else {
-            "▶ Play"
+            "▶ 播放"
         };
 
         let file_name = if self.file_path.is_empty() {
-            "No file loaded".to_string()
+            "未加载文件".to_string()
         } else {
             Path::new(&self.file_path)
                 .file_name()
@@ -332,37 +337,37 @@ impl Application for PlayerApp {
 
         let audio_info_text = if let Some(info) = &self.audio_info {
             format!(
-                "{} channels, {} Hz{}",
+                "{} 声道, {} Hz{}",
                 info.channels,
                 info.sample_rate,
                 if let Some(bits) = info.bits_per_sample {
-                    format!(", {} bits", bits)
+                    format!(", {} 位", bits)
                 } else {
                     String::new()
                 }
             )
         } else {
-            "No audio info available".to_string()
+            "无音频信息".to_string()
         };
 
         let content = column![
             // 文件信息
-            text(&file_name).size(20),
-            text(&audio_info_text).size(14),
+            text(&file_name).size(20).font(Font::with_name(CHINESE_FONT)),
+            text(&audio_info_text).size(14).font(Font::with_name(CHINESE_FONT)),
             Space::with_height(20),
             
             // 时间和进度条
-            text(&time_text).size(16),
+            text(&time_text).size(16).font(Font::with_name(CHINESE_FONT)),
             progress_bar(0.0..=1.0, progress as f32).width(Length::Fill),
             Space::with_height(20),
             
             // 控制按钮
             row![
-                button("📁 Open File").on_press(Message::OpenFile),
+                button(text("📁 打开文件")).on_press(Message::OpenFile),
                 Space::with_width(20),
-                button(play_button_text).on_press(Message::PlayPause),
+                button(text(play_button_text)).on_press(Message::PlayPause),
                 Space::with_width(20),
-                button("⏹ Stop").on_press(Message::Stop),
+                button(text("⏹ 停止")).on_press(Message::Stop),
             ]
             .spacing(10),
             
@@ -370,10 +375,10 @@ impl Application for PlayerApp {
             
             // 音量控制
             row![
-                text("Volume:").size(14),
+                text("音量:").size(14).font(Font::with_name(CHINESE_FONT)),
                 slider(0.0..=1.0, self.playback_state.volume, Message::VolumeChanged)
                     .width(Length::Fill),
-                text(format!("{:.0}%", self.playback_state.volume * 100.0)).size(14),
+                text(format!("{:.0}%", self.playback_state.volume * 100.0)).size(14).font(Font::with_name(CHINESE_FONT)),
             ]
             .spacing(10)
             .align_items(iced::Alignment::Center),
@@ -440,6 +445,7 @@ fn main() {
             ..Default::default()
         },
         flags: file_path,
+        default_font: Font::with_name(CHINESE_FONT),
         ..Default::default()
     };
     
@@ -448,7 +454,7 @@ fn main() {
 
 async fn open_file_dialog() -> Option<String> {
     let file = rfd::AsyncFileDialog::new()
-        .add_filter("Audio Files", &["mp3", "flac", "wav", "ogg", "aac", "m4a"])
+        .add_filter("Audio Files", &["mp3", "flac", "wav", "ogg", "aac", "m4a", "m4s"])
         .add_filter("All Files", &["*"])
         .pick_file()
         .await;
