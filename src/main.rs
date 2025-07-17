@@ -11,8 +11,17 @@ use cpal::{FromSample, Sample, SampleFormat, SizedSample};
 
 use iced::{
     widget::{button, column, container, row, text, progress_bar, slider, Space},
-    Application, Command, Element, Length, Settings, Theme,
     executor, Font,
+    window::Event as WindowEvent,
+    time,
+    Settings,
+    Theme,
+    Element,
+    Length,
+    Subscription,
+    Task,
+    event::{self, Event},
+    window,
 };
 
 use symphonia::core::audio::{AudioBufferRef, Signal};
@@ -191,9 +200,11 @@ enum Message {
     Tick,
     PlaybackStateUpdate(PlaybackState),
     AudioSessionStarted(tokio::sync::mpsc::UnboundedSender<PlaybackCommand>),
+    EventOccurred(Event),
 }
 
 // iced应用程序状态
+#[derive(Default)]
 struct PlayerApp {
     playback_state: PlaybackState,
     audio_info: Option<AudioInfo>,
@@ -203,13 +214,8 @@ struct PlayerApp {
     audio_handle: Option<tokio::task::JoinHandle<()>>,
 }
 
-impl Application for PlayerApp {
-    type Executor = executor::Default;
-    type Message = Message;
-    type Theme = Theme;
-    type Flags = String;
-
-    fn new(file_path: String) -> (Self, Command<Message>) {
+impl PlayerApp {
+    /*fn new(file_path: String) -> (Self, Command<Message>) {
         let mut app = Self {
             playback_state: PlaybackState::default(),
             audio_info: None,
@@ -218,7 +224,6 @@ impl Application for PlayerApp {
             command_sender: None,
             audio_handle: None,
         };
-        
         // 尝试加载音频文件信息
         if !file_path.is_empty() {
             if let Ok(audio_file) = AudioFile::open(&file_path) {
@@ -226,40 +231,38 @@ impl Application for PlayerApp {
                 app.playback_state.total_duration = audio_file.info.duration.unwrap_or(0.0);
             }
         }
-        
         (app, Command::none())
-    }
+    }*/
 
     fn title(&self) -> String {
         "音频播放器".to_string()
     }
 
-    fn update(&mut self, message: Message) -> Command<Message> {
+    fn update(&mut self, message: Message) -> Task<Message> {
         match message {
             Message::PlayPause => {
                 if self.file_path.is_empty() {
-                    return Command::none();
+                    return Task::none();
                 }
                 
                 if self.command_sender.is_none() && !self.is_playing {
                     // 启动新的音频播放会话
-                    return Command::perform(
+                    return Task::perform(
                         start_audio_playback(self.file_path.clone()),
-                        |(sender, _handle)| {
+                        |(sender, handle)| {
                             Message::AudioSessionStarted(sender)
                         }
                     );
-                } else if let Some(sender) = &self.command_sender {
-                    // 发送播放/暂停命令
-                    let command = if self.is_playing {
-                        PlaybackCommand::Pause
-                    } else {
-                        PlaybackCommand::Resume
-                    };
-                    let _ = sender.send(command);
                 }
                 
-                Command::none()
+                if let Some(sender) = &self.command_sender {
+                    if self.is_playing {
+                        let _ = sender.send(PlaybackCommand::Pause);
+                    } else {
+                        let _ = sender.send(PlaybackCommand::Resume);
+                    }
+                }
+                Task::none()
             }
             Message::Stop => {
                 if let Some(sender) = &self.command_sender {
@@ -270,157 +273,153 @@ impl Application for PlayerApp {
                 self.playback_state.is_paused = false;
                 self.playback_state.current_time = 0.0;
                 self.command_sender = None;
-                Command::none()
+                Task::none()
             }
             Message::VolumeChanged(volume) => {
                 self.playback_state.volume = volume;
                 if let Some(sender) = &self.command_sender {
                     let _ = sender.send(PlaybackCommand::SetVolume(volume));
                 }
-                Command::none()
+                Task::none()
             }
             Message::OpenFile => {
-                Command::perform(open_file_dialog(), Message::FileSelected)
+                println!("OpenFile");
+                Task::perform(open_file_dialog(), Message::FileSelected)
             }
             Message::FileSelected(file_path) => {
                 if let Some(path) = file_path {
                     self.file_path = path.clone();
-                    self.is_playing = false;
-                    self.playback_state = PlaybackState::default();
-                    
-                    // 尝试加载新的音频文件信息
                     if let Ok(audio_file) = AudioFile::open(&path) {
                         self.audio_info = Some(audio_file.info.clone());
                         self.playback_state.total_duration = audio_file.info.duration.unwrap_or(0.0);
-                    } else {
-                        self.audio_info = None;
                     }
                 }
-                Command::none()
+                Task::none()
             }
             Message::Tick => {
-                // 更新播放时间
-                if self.is_playing && self.playback_state.total_duration > 0.0 {
+                // 更新播放进度
+                if self.is_playing {
                     self.playback_state.current_time += 0.1;
                     if self.playback_state.current_time >= self.playback_state.total_duration {
-                        self.playback_state.current_time = self.playback_state.total_duration;
+                        self.playback_state.current_time = 0.0;
                         self.is_playing = false;
                         self.playback_state.is_playing = false;
-                        self.command_sender = None;
                     }
                 }
-                Command::none()
+                Task::none()
             }
             Message::PlaybackStateUpdate(state) => {
                 self.playback_state = state.clone();
                 self.is_playing = state.is_playing && !state.is_paused;
-                Command::none()
+                Task::none()
             }
             Message::AudioSessionStarted(sender) => {
                 self.command_sender = Some(sender);
                 self.is_playing = true;
                 self.playback_state.is_playing = true;
                 self.playback_state.is_paused = false;
-                Command::none()
+                Task::none()
+            }
+            Message::EventOccurred(event) => {
+                if let Event::Window(window::Event::Closed) = event {
+                    if let Some(sender) = &self.command_sender {
+                        let _ = sender.send(PlaybackCommand::Stop);
+                        // 给一点时间让停止命令生效
+                        std::thread::sleep(std::time::Duration::from_millis(100));
+                    }
+                    
+                    // 清理状态
+                    self.is_playing = false;
+                    self.playback_state.is_playing = false;
+                    self.playback_state.is_paused = false;
+                    self.command_sender = None;
+                    self.audio_handle = None;
+
+                    Task::none()
+                } else {
+                    Task::none()
+                }
             }
         }
     }
 
     fn view(&self) -> Element<Message> {
-        let play_button_text = if self.is_playing {
-            "⏸ 暂停"
+        let title = text("音频播放器").size(24);
+        
+        let file_info = if let Some(info) = &self.audio_info {
+            column![
+                text(format!("文件: {}", self.file_path)),
+                text(format!("声道: {}", info.channels)),
+                text(format!("采样率: {} Hz", info.sample_rate)),
+                text(format!("时长: {}", 
+                    if let Some(duration) = info.duration {
+                        format_duration(duration)
+                    } else {
+                        "未知".to_string()
+                    }
+                )),
+            ].spacing(10)
         } else {
-            "▶ 播放"
+            column![
+                text("未选择文件"),
+            ].spacing(10)
         };
-
-        let file_name = if self.file_path.is_empty() {
-            "未加载文件".to_string()
-        } else {
-            Path::new(&self.file_path)
-                .file_name()
-                .unwrap_or_default()
-                .to_string_lossy()
-                .to_string()
-        };
-
+        
+        let controls = row![
+            button("播放/暂停").on_press(Message::PlayPause),
+            button("停止").on_press(Message::Stop),
+            button("打开文件").on_press(Message::OpenFile),
+        ].spacing(10);
+        
         let progress = if self.playback_state.total_duration > 0.0 {
-            (self.playback_state.current_time / self.playback_state.total_duration).clamp(0.0, 1.0)
+            let progress_value = (self.playback_state.current_time / self.playback_state.total_duration) as f32;
+            column![
+                progress_bar(0.0..=1.0, progress_value),
+                text(format!("{} / {}", 
+                    format_duration(self.playback_state.current_time),
+                    format_duration(self.playback_state.total_duration)
+                )),
+            ].spacing(5)
         } else {
-            0.0
+            column![
+                progress_bar(0.0..=1.0, 0.0),
+                text("0:00 / 0:00"),
+            ].spacing(5)
         };
-
-        let time_text = format!(
-            "{} / {}",
-            format_duration(self.playback_state.current_time),
-            format_duration(self.playback_state.total_duration)
-        );
-
-        let audio_info_text = if let Some(info) = &self.audio_info {
-            format!(
-                "{} 声道, {} Hz{}",
-                info.channels,
-                info.sample_rate,
-                if let Some(bits) = info.bits_per_sample {
-                    format!(", {} 位", bits)
-                } else {
-                    String::new()
-                }
-            )
-        } else {
-            "无音频信息".to_string()
-        };
-
-        let content = column![
-            // 文件信息
-            text(&file_name).size(20).font(Font::with_name(CHINESE_FONT)),
-            text(&audio_info_text).size(14).font(Font::with_name(CHINESE_FONT)),
+        
+        let volume_control = column![
+            text(format!("音量: {:.0}%", self.playback_state.volume * 100.0)),
+            slider(0.0..=1.0, self.playback_state.volume, Message::VolumeChanged)
+                .width(Length::Fill),
+        ].spacing(5);
+        
+        let status = text(format!("状态: {}", 
+            if self.is_playing { "播放中" } else { "已停止" }
+        ));
+        
+        column![
+            title,
             Space::with_height(20),
-            
-            // 时间和进度条
-            text(&time_text).size(16).font(Font::with_name(CHINESE_FONT)),
-            progress_bar(0.0..=1.0, progress as f32).width(Length::Fill),
+            file_info,
             Space::with_height(20),
-            
-            // 控制按钮
-            row![
-                button(text("📁 打开文件")).on_press(Message::OpenFile),
-                Space::with_width(20),
-                button(text(play_button_text)).on_press(Message::PlayPause),
-                Space::with_width(20),
-                button(text("⏹ 停止")).on_press(Message::Stop),
-            ]
-            .spacing(10),
-            
+            controls,
             Space::with_height(20),
-            
-            // 音量控制
-            row![
-                text("音量:").size(14).font(Font::with_name(CHINESE_FONT)),
-                slider(0.0..=1.0, self.playback_state.volume, Message::VolumeChanged)
-                    .width(Length::Fill),
-                text(format!("{:.0}%", self.playback_state.volume * 100.0)).size(14).font(Font::with_name(CHINESE_FONT)),
-            ]
-            .spacing(10)
-            .align_items(iced::Alignment::Center),
+            progress,
+            Space::with_height(20),
+            volume_control,
+            Space::with_height(20),
+            status,
         ]
+        .spacing(20)
         .padding(20)
-        .spacing(10)
-        .align_items(iced::Alignment::Center);
-
-        container(content)
-            .width(Length::Fill)
-            .height(Length::Fill)
-            .center_x()
-            .center_y()
-            .into()
+        .into()
     }
 
-    fn subscription(&self) -> iced::Subscription<Message> {
-        if self.is_playing {
-            iced::time::every(Duration::from_millis(100)).map(|_| Message::Tick)
-        } else {
-            iced::Subscription::none()
-        }
+    fn subscription(&self) -> Subscription<Message> {
+        Subscription::batch([
+            time::every(Duration::from_millis(100)).map(|_| Message::Tick),
+            event::listen().map(Message::EventOccurred)
+        ])
     }
 }
 
@@ -458,21 +457,14 @@ fn main() {
         return;
     }
     
-    let settings = Settings {
-        window: iced::window::Settings {
-            size: iced::Size::new(600.0, 400.0),
-            resizable: true,
-            ..Default::default()
-        },
-        flags: file_path,
-        default_font: Font::with_name(CHINESE_FONT),
-        ..Default::default()
-    };
-    
-    PlayerApp::run(settings).unwrap();
+    iced::application("player", PlayerApp::update, PlayerApp::view)
+        .subscription(PlayerApp::subscription)
+        .default_font(Font::with_name("Noto Sans CJK SC"))
+        .run().unwrap();
 }
 
 async fn open_file_dialog() -> Option<String> {
+    println!("open_file_dialog");
     let file = rfd::AsyncFileDialog::new()
         .add_filter("Audio Files", &["mp3", "flac", "wav", "ogg", "aac", "m4a", "m4s"])
         .add_filter("All Files", &["*"])
