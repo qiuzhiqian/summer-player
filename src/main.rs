@@ -399,19 +399,14 @@ impl PlayerApp {
         
         column![
             title,
-            Space::with_height(20),
             file_info,
-            Space::with_height(20),
             controls,
-            Space::with_height(20),
             progress,
-            Space::with_height(20),
             volume_control,
-            Space::with_height(20),
             status,
         ]
-        .spacing(20)
-        .padding(20)
+        .spacing(0)
+        .padding(10)
         .into()
     }
 
