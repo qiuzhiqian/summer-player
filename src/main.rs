@@ -344,7 +344,24 @@ impl PlayerApp {
                     return Task::none();
                 }
                 
-                if self.command_sender.is_none() && !self.is_playing {
+                // 检查是否需要启动新的播放会话
+                // 情况1：没有command_sender且没有在播放
+                // 情况2：歌曲已播放完毕（到达或超过总时长）
+                let should_start_new_session = self.command_sender.is_none() && !self.is_playing ||
+                    (self.playback_state.total_duration > 0.0 && 
+                     self.playback_state.current_time >= self.playback_state.total_duration);
+                
+                if should_start_new_session {
+                    // 清理旧的状态
+                    if let Some(sender) = &self.command_sender {
+                        let _ = sender.send(PlaybackCommand::Stop);
+                    }
+                    self.command_sender = None;
+                    self.is_playing = false;
+                    self.playback_state.is_playing = false;
+                    self.playback_state.is_paused = false;
+                    self.playback_state.current_time = 0.0;
+                    
                     // 启动新的音频播放会话
                     return Task::perform(
                         start_audio_playback(self.file_path.clone()),
@@ -405,15 +422,27 @@ impl PlayerApp {
                                 eprintln!("Failed to parse playlist: {}", e);
                             }
                         }
-                    } else {
-                        // 普通音频文件
-                        self.file_path = path.clone();
-                        self.playlist_loaded = false;
-                        if let Ok(audio_file) = AudioFile::open(&path) {
-                            self.audio_info = Some(audio_file.info.clone());
-                            self.playback_state.total_duration = audio_file.info.duration.unwrap_or(0.0);
-                        }
-                    }
+                                } else {
+                // 普通音频文件 - 创建单文件播放列表
+                self.file_path = path.clone();
+                
+                // 创建包含单个文件的播放列表
+                let mut single_file_playlist = Playlist::new();
+                let mut playlist_item = PlaylistItem::new(path.clone());
+                
+                // 获取音频信息并设置时长
+                if let Ok(audio_file) = AudioFile::open(&path) {
+                    self.audio_info = Some(audio_file.info.clone());
+                    self.playback_state.total_duration = audio_file.info.duration.unwrap_or(0.0);
+                    playlist_item = playlist_item.with_duration(audio_file.info.duration);
+                }
+                
+                single_file_playlist.add_item(playlist_item);
+                single_file_playlist.set_current_index(0);
+                
+                self.playlist = single_file_playlist;
+                self.playlist_loaded = true;
+            }
                 }
                 Task::none()
             }
@@ -484,10 +513,39 @@ impl PlayerApp {
                 // 更新播放进度
                 if self.is_playing {
                     self.playback_state.current_time += 0.1;
-                    if self.playback_state.current_time >= self.playback_state.total_duration {
-                        self.playback_state.current_time = 0.0;
+                    if self.playback_state.total_duration > 0.0 && 
+                       self.playback_state.current_time >= self.playback_state.total_duration {
+                        // 歌曲播放完毕，清理状态
+                        self.playback_state.current_time = self.playback_state.total_duration;
                         self.is_playing = false;
                         self.playback_state.is_playing = false;
+                        self.playback_state.is_paused = false;
+                        
+                        // 清理command_sender，为下次播放做准备
+                        if let Some(sender) = &self.command_sender {
+                            let _ = sender.send(PlaybackCommand::Stop);
+                        }
+                        self.command_sender = None;
+                        
+                        // 如果是播放列表模式，自动播放下一首
+                        if self.playlist_loaded {
+                            if let Some(next_item) = self.playlist.next_item() {
+                                self.file_path = next_item.path.clone();
+                                if let Ok(audio_file) = AudioFile::open(&next_item.path) {
+                                    self.audio_info = Some(audio_file.info.clone());
+                                    self.playback_state.total_duration = audio_file.info.duration.unwrap_or(0.0);
+                                    self.playback_state.current_time = 0.0;
+                                    
+                                    // 自动开始播放下一首
+                                    return Task::perform(
+                                        start_audio_playback(next_item.path.clone()),
+                                        |(sender, handle)| {
+                                            Message::AudioSessionStarted(sender)
+                                        }
+                                    );
+                                }
+                            }
+                        }
                     }
                 }
                 Task::none()
