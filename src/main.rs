@@ -10,7 +10,7 @@ use cpal::traits::{DeviceTrait, HostTrait, StreamTrait};
 use cpal::{FromSample, Sample, SampleFormat, SizedSample};
 
 use iced::{
-    widget::{button, column, container, row, text, progress_bar, slider, Space},
+    widget::{button, column, container, row, text, progress_bar, slider, Space, scrollable},
     executor, Font,
     window::Event as WindowEvent,
     time,
@@ -50,6 +50,7 @@ enum PlayerError {
     AudioDeviceError(String),
     DecodingError(String),
     PlaybackError(String),
+    PlaylistError(String),
 }
 
 impl fmt::Display for PlayerError {
@@ -60,6 +61,7 @@ impl fmt::Display for PlayerError {
             PlayerError::AudioDeviceError(msg) => write!(f, "Audio device error: {}", msg),
             PlayerError::DecodingError(msg) => write!(f, "Decoding error: {}", msg),
             PlayerError::PlaybackError(msg) => write!(f, "Playback error: {}", msg),
+            PlayerError::PlaylistError(msg) => write!(f, "Playlist error: {}", msg),
         }
     }
 }
@@ -142,6 +144,116 @@ impl AudioInfo {
     }
 }
 
+// 播放列表项结构体
+#[derive(Debug, Clone)]
+struct PlaylistItem {
+    path: String,
+    name: String,
+    duration: Option<f64>,
+}
+
+impl PlaylistItem {
+    fn new(path: String) -> Self {
+        let name = Path::new(&path)
+            .file_name()
+            .and_then(|n| n.to_str())
+            .unwrap_or("Unknown")
+            .to_string();
+        
+        Self {
+            path,
+            name,
+            duration: None,
+        }
+    }
+    
+    fn with_duration(mut self, duration: Option<f64>) -> Self {
+        self.duration = duration;
+        self
+    }
+}
+
+// 播放列表结构体
+#[derive(Debug, Clone, Default)]
+struct Playlist {
+    items: Vec<PlaylistItem>,
+    current_index: Option<usize>,
+}
+
+impl Playlist {
+    fn new() -> Self {
+        Self {
+            items: Vec::new(),
+            current_index: None,
+        }
+    }
+    
+    fn add_item(&mut self, item: PlaylistItem) {
+        self.items.push(item);
+    }
+    
+    fn current_item(&self) -> Option<&PlaylistItem> {
+        self.current_index.and_then(|i| self.items.get(i))
+    }
+    
+    fn next_item(&mut self) -> Option<&PlaylistItem> {
+        if self.items.is_empty() {
+            return None;
+        }
+        
+        let next_index = match self.current_index {
+            Some(current) => {
+                if current + 1 < self.items.len() {
+                    Some(current + 1)
+                } else {
+                    None // 播放列表结束
+                }
+            }
+            None => Some(0), // 开始播放
+        };
+        
+        self.current_index = next_index;
+        self.current_item()
+    }
+    
+    fn previous_item(&mut self) -> Option<&PlaylistItem> {
+        if self.items.is_empty() {
+            return None;
+        }
+        
+        let prev_index = match self.current_index {
+            Some(current) => {
+                if current > 0 {
+                    Some(current - 1)
+                } else {
+                    None // 已经是第一首
+                }
+            }
+            None => Some(0), // 开始播放
+        };
+        
+        self.current_index = prev_index;
+        self.current_item()
+    }
+    
+    fn set_current_index(&mut self, index: usize) -> Option<&PlaylistItem> {
+        if index < self.items.len() {
+            self.current_index = Some(index);
+            self.current_item()
+        } else {
+            None
+        }
+    }
+    
+    fn is_empty(&self) -> bool {
+        self.items.is_empty()
+    }
+    
+    fn len(&self) -> usize {
+        self.items.len()
+    }
+}
+
 // 音频文件结构体
 struct AudioFile {
     probed: symphonia::core::probe::ProbeResult,
@@ -197,6 +309,11 @@ enum Message {
     VolumeChanged(f32),
     OpenFile,
     FileSelected(Option<String>),
+    OpenPlaylist,
+    PlaylistSelected(Option<String>),
+    PlaylistItemSelected(usize),
+    NextTrack,
+    PreviousTrack,
     Tick,
     PlaybackStateUpdate(PlaybackState),
     AudioSessionStarted(tokio::sync::mpsc::UnboundedSender<PlaybackCommand>),
@@ -212,27 +329,11 @@ struct PlayerApp {
     is_playing: bool,
     command_sender: Option<tokio::sync::mpsc::UnboundedSender<PlaybackCommand>>,
     audio_handle: Option<tokio::task::JoinHandle<()>>,
+    playlist: Playlist,
+    playlist_loaded: bool,
 }
 
 impl PlayerApp {
-    /*fn new(file_path: String) -> (Self, Command<Message>) {
-        let mut app = Self {
-            playback_state: PlaybackState::default(),
-            audio_info: None,
-            file_path: file_path.clone(),
-            is_playing: false,
-            command_sender: None,
-            audio_handle: None,
-        };
-        // 尝试加载音频文件信息
-        if !file_path.is_empty() {
-            if let Ok(audio_file) = AudioFile::open(&file_path) {
-                app.audio_info = Some(audio_file.info.clone());
-                app.playback_state.total_duration = audio_file.info.duration.unwrap_or(0.0);
-            }
-        }
-        (app, Command::none())
-    }*/
 
     fn title(&self) -> String {
         "音频播放器".to_string()
@@ -288,10 +389,121 @@ impl PlayerApp {
             }
             Message::FileSelected(file_path) => {
                 if let Some(path) = file_path {
-                    self.file_path = path.clone();
-                    if let Ok(audio_file) = AudioFile::open(&path) {
-                        self.audio_info = Some(audio_file.info.clone());
-                        self.playback_state.total_duration = audio_file.info.duration.unwrap_or(0.0);
+                    // 检查是否为M3U播放列表
+                    if is_m3u_playlist(&path) {
+                        match parse_m3u_playlist(&path) {
+                            Ok(playlist) => {
+                                self.playlist = playlist;
+                                self.playlist_loaded = true;
+                                // 自动播放第一首歌曲
+                                if let Some(first_item) = self.playlist.set_current_index(0) {
+                                    self.file_path = first_item.path.clone();
+                                    if let Ok(audio_file) = AudioFile::open(&first_item.path) {
+                                        self.audio_info = Some(audio_file.info.clone());
+                                        self.playback_state.total_duration = audio_file.info.duration.unwrap_or(0.0);
+                                    }
+                                }
+                            }
+                            Err(e) => {
+                                eprintln!("Failed to parse playlist: {}", e);
+                            }
+                        }
+                    } else {
+                        // 普通音频文件
+                        self.file_path = path.clone();
+                        self.playlist_loaded = false;
+                        if let Ok(audio_file) = AudioFile::open(&path) {
+                            self.audio_info = Some(audio_file.info.clone());
+                            self.playback_state.total_duration = audio_file.info.duration.unwrap_or(0.0);
+                        }
+                    }
+                }
+                Task::none()
+            }
+            Message::OpenPlaylist => {
+                Task::perform(open_playlist_dialog(), Message::PlaylistSelected)
+            }
+            Message::PlaylistSelected(playlist_path) => {
+                if let Some(path) = playlist_path {
+                    match parse_m3u_playlist(&path) {
+                        Ok(playlist) => {
+                            self.playlist = playlist;
+                            self.playlist_loaded = true;
+                            // 自动播放第一首歌曲
+                            if let Some(first_item) = self.playlist.set_current_index(0) {
+                                self.file_path = first_item.path.clone();
+                                if let Ok(audio_file) = AudioFile::open(&first_item.path) {
+                                    self.audio_info = Some(audio_file.info.clone());
+                                    self.playback_state.total_duration = audio_file.info.duration.unwrap_or(0.0);
+                                }
+                            }
+                        }
+                        Err(e) => {
+                            eprintln!("Failed to parse playlist: {}", e);
+                        }
+                    }
+                }
+                Task::none()
+            }
+            Message::PlaylistItemSelected(index) => {
+                if self.playlist_loaded {
+                    if let Some(item) = self.playlist.set_current_index(index) {
+                        self.file_path = item.path.clone();
+                        if let Ok(audio_file) = AudioFile::open(&item.path) {
+                            self.audio_info = Some(audio_file.info.clone());
+                            self.playback_state.total_duration = audio_file.info.duration.unwrap_or(0.0);
+                        }
+                        // 停止当前播放并开始播放新选择的歌曲
+                        if let Some(sender) = &self.command_sender {
+                            let _ = sender.send(PlaybackCommand::Stop);
+                        }
+                        self.is_playing = false;
+                        self.playback_state.is_playing = false;
+                        self.playback_state.is_paused = false;
+                        self.playback_state.current_time = 0.0;
+                        self.command_sender = None;
+                    }
+                }
+                Task::none()
+            }
+            Message::NextTrack => {
+                if self.playlist_loaded {
+                    if let Some(next_item) = self.playlist.next_item() {
+                        self.file_path = next_item.path.clone();
+                        if let Ok(audio_file) = AudioFile::open(&next_item.path) {
+                            self.audio_info = Some(audio_file.info.clone());
+                            self.playback_state.total_duration = audio_file.info.duration.unwrap_or(0.0);
+                        }
+                        // 停止当前播放并开始播放下一首
+                        if let Some(sender) = &self.command_sender {
+                            let _ = sender.send(PlaybackCommand::Stop);
+                        }
+                        self.is_playing = false;
+                        self.playback_state.is_playing = false;
+                        self.playback_state.is_paused = false;
+                        self.playback_state.current_time = 0.0;
+                        self.command_sender = None;
+                    }
+                }
+                Task::none()
+            }
+            Message::PreviousTrack => {
+                if self.playlist_loaded {
+                    if let Some(prev_item) = self.playlist.previous_item() {
+                        self.file_path = prev_item.path.clone();
+                        if let Ok(audio_file) = AudioFile::open(&prev_item.path) {
+                            self.audio_info = Some(audio_file.info.clone());
+                            self.playback_state.total_duration = audio_file.info.duration.unwrap_or(0.0);
+                        }
+                        // 停止当前播放并开始播放上一首
+                        if let Some(sender) = &self.command_sender {
+                            let _ = sender.send(PlaybackCommand::Stop);
+                        }
+                        self.is_playing = false;
+                        self.playback_state.is_playing = false;
+                        self.playback_state.is_paused = false;
+                        self.playback_state.current_time = 0.0;
+                        self.command_sender = None;
                     }
                 }
                 Task::none()
@@ -368,7 +580,13 @@ impl PlayerApp {
         let controls = row![
             button("播放/暂停").on_press(Message::PlayPause),
             button("停止").on_press(Message::Stop),
+            button("上一首").on_press(Message::PreviousTrack),
+            button("下一首").on_press(Message::NextTrack),
+        ].spacing(10);
+        
+        let file_controls = row![
             button("打开文件").on_press(Message::OpenFile),
+            button("打开播放列表").on_press(Message::OpenPlaylist),
         ].spacing(10);
         
         let progress = if self.playback_state.total_duration > 0.0 {
@@ -397,15 +615,56 @@ impl PlayerApp {
             if self.is_playing { "播放中" } else { "已停止" }
         ));
         
-        column![
-            title,
-            file_info,
-            controls,
-            progress,
-            volume_control,
-            status,
+        // 播放列表显示
+        let playlist_view = if self.playlist_loaded {
+            let playlist_items: Vec<Element<Message>> = self.playlist.items.iter().enumerate().map(|(index, item)| {
+                let is_current = self.playlist.current_index == Some(index);
+                let item_text = if is_current {
+                    format!("▶ {} ({})", 
+                        item.name,
+                        item.duration.map_or("未知时长".to_string(), |d| format_duration(d))
+                    )
+                } else {
+                    format!("  {} ({})", 
+                        item.name,
+                        item.duration.map_or("未知时长".to_string(), |d| format_duration(d))
+                    )
+                };
+                
+                button(text(item_text))
+                    .on_press(Message::PlaylistItemSelected(index))
+                    .width(Length::Fill)
+                    .into()
+            }).collect();
+            
+            column![
+                text(format!("播放列表 ({} 首歌曲)", self.playlist.len())).size(16),
+                scrollable(
+                    column(playlist_items).spacing(5).width(Length::Fill)
+                ).height(Length::Fill).width(Length::Fill),
+            ].spacing(10)
+        } else {
+            column![
+                text("未加载播放列表"),
+            ].spacing(10)
+        };
+        
+        row![
+            // 左侧控制面板
+            column![
+                title,
+                file_info,
+                file_controls,
+                controls,
+                progress,
+                volume_control,
+                status,
+            ].spacing(10).width(Length::Fixed(300.0)),
+            
+            // 右侧播放列表
+            playlist_view.width(Length::Fill),
         ]
-        .spacing(0)
+        .spacing(10)
         .padding(10)
         .into()
     }
@@ -462,6 +721,18 @@ async fn open_file_dialog() -> Option<String> {
     println!("open_file_dialog");
     let file = rfd::AsyncFileDialog::new()
         .add_filter("Audio Files", &["mp3", "flac", "wav", "ogg", "aac", "m4a", "m4s"])
+        .add_filter("Playlist Files", &["m3u", "m3u8"])
+        .add_filter("All Files", &["*"])
+        .pick_file()
+        .await;
+    
+    file.map(|f| f.path().to_string_lossy().to_string())
+}
+
+async fn open_playlist_dialog() -> Option<String> {
+    println!("open_playlist_dialog");
+    let file = rfd::AsyncFileDialog::new()
+        .add_filter("Playlist Files", &["m3u", "m3u8"])
         .add_filter("All Files", &["*"])
         .pick_file()
         .await;
@@ -477,6 +748,70 @@ fn create_hint(file_path: &str) -> Hint {
         }
     }
     hint
+}
+
+// M3U播放列表解析函数
+fn parse_m3u_playlist(file_path: &str) -> Result<Playlist, PlayerError> {
+    use std::fs;
+    use std::io::{BufRead, BufReader};
+    
+    let file = fs::File::open(file_path)
+        .map_err(|e| PlayerError::PlaylistError(format!("Failed to open playlist file: {}", e)))?;
+    
+    let reader = BufReader::new(file);
+    let mut playlist = Playlist::new();
+    let playlist_dir = Path::new(file_path).parent()
+        .ok_or_else(|| PlayerError::PlaylistError("Invalid playlist path".to_string()))?;
+    
+    for (line_num, line) in reader.lines().enumerate() {
+        let line = line.map_err(|e| PlayerError::PlaylistError(format!("Failed to read line {}: {}", line_num + 1, e)))?;
+        let line = line.trim();
+        
+        // 跳过空行和注释行
+        if line.is_empty() || line.starts_with('#') {
+            continue;
+        }
+        
+        // 处理文件路径
+        let file_path = if Path::new(line).is_absolute() {
+            line.to_string()
+        } else {
+            // 相对路径，相对于播放列表文件的位置
+            playlist_dir.join(line).to_string_lossy().to_string()
+        };
+        
+        // 检查文件是否存在
+        if !Path::new(&file_path).exists() {
+            eprintln!("Warning: File not found: {}", file_path);
+            continue;
+        }
+        
+        // 创建播放列表项
+        let mut item = PlaylistItem::new(file_path.clone());
+        
+        // 尝试获取音频时长信息
+        if let Ok(audio_file) = AudioFile::open(&file_path) {
+            item = item.with_duration(audio_file.info.duration);
+        }
+        
+        playlist.add_item(item);
+    }
+    
+    if playlist.is_empty() {
+        return Err(PlayerError::PlaylistError("No valid files found in playlist".to_string()));
+    }
+    
+    Ok(playlist)
+}
+
+// 检查文件是否为M3U播放列表
+fn is_m3u_playlist(file_path: &str) -> bool {
+    if let Some(extension) = Path::new(file_path).extension() {
+        if let Some(ext_str) = extension.to_str() {
+            return ext_str.to_lowercase() == "m3u" || ext_str.to_lowercase() == "m3u8";
+        }
+    }
+    false
 }
 
 fn get_audio_info(file_path: &str) -> Result<(), PlayerError> {
