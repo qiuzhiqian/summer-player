@@ -309,8 +309,6 @@ enum Message {
     VolumeChanged(f32),
     OpenFile,
     FileSelected(Option<String>),
-    OpenPlaylist,
-    PlaylistSelected(Option<String>),
     PlaylistItemSelected(usize),
     NextTrack,
     PreviousTrack,
@@ -384,7 +382,6 @@ impl PlayerApp {
                 Task::none()
             }
             Message::OpenFile => {
-                println!("OpenFile");
                 Task::perform(open_file_dialog(), Message::FileSelected)
             }
             Message::FileSelected(file_path) => {
@@ -415,31 +412,6 @@ impl PlayerApp {
                         if let Ok(audio_file) = AudioFile::open(&path) {
                             self.audio_info = Some(audio_file.info.clone());
                             self.playback_state.total_duration = audio_file.info.duration.unwrap_or(0.0);
-                        }
-                    }
-                }
-                Task::none()
-            }
-            Message::OpenPlaylist => {
-                Task::perform(open_playlist_dialog(), Message::PlaylistSelected)
-            }
-            Message::PlaylistSelected(playlist_path) => {
-                if let Some(path) = playlist_path {
-                    match parse_m3u_playlist(&path) {
-                        Ok(playlist) => {
-                            self.playlist = playlist;
-                            self.playlist_loaded = true;
-                            // 自动播放第一首歌曲
-                            if let Some(first_item) = self.playlist.set_current_index(0) {
-                                self.file_path = first_item.path.clone();
-                                if let Ok(audio_file) = AudioFile::open(&first_item.path) {
-                                    self.audio_info = Some(audio_file.info.clone());
-                                    self.playback_state.total_duration = audio_file.info.duration.unwrap_or(0.0);
-                                }
-                            }
-                        }
-                        Err(e) => {
-                            eprintln!("Failed to parse playlist: {}", e);
                         }
                     }
                 }
@@ -586,7 +558,6 @@ impl PlayerApp {
         
         let file_controls = row![
             button("打开文件").on_press(Message::OpenFile),
-            button("打开播放列表").on_press(Message::OpenPlaylist),
         ].spacing(10);
         
         let progress = if self.playback_state.total_duration > 0.0 {
@@ -723,20 +694,8 @@ fn main() {
 }
 
 async fn open_file_dialog() -> Option<String> {
-    println!("open_file_dialog");
     let file = rfd::AsyncFileDialog::new()
         .add_filter("Audio Files", &["mp3", "flac", "wav", "ogg", "aac", "m4a", "m4s"])
-        .add_filter("Playlist Files", &["m3u", "m3u8"])
-        .add_filter("All Files", &["*"])
-        .pick_file()
-        .await;
-    
-    file.map(|f| f.path().to_string_lossy().to_string())
-}
-
-async fn open_playlist_dialog() -> Option<String> {
-    println!("open_playlist_dialog");
-    let file = rfd::AsyncFileDialog::new()
         .add_filter("Playlist Files", &["m3u", "m3u8"])
         .add_filter("All Files", &["*"])
         .pick_file()
