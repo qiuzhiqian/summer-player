@@ -649,20 +649,25 @@ impl PlayerApp {
             ].spacing(10)
         };
         
-        row![
-            // 左侧控制面板
-            column![
-                title,
-                file_info,
-                file_controls,
-                controls,
-                progress,
-                volume_control,
-                status,
-            ].spacing(10).width(Length::Fixed(300.0)),
+        column![
+            row![
+                // 左侧控制面板
+                column![
+                    title,
+                    file_info,
+                    file_controls,
+                    controls,
+                    volume_control,
+                    status,
+                    Space::new(Length::Fill, Length::Fill),
+                ].spacing(10).width(Length::Fixed(300.0)),
+                
+                // 右侧播放列表
+                playlist_view.width(Length::Fill),
+            ].spacing(10),
             
-            // 右侧播放列表
-            playlist_view.width(Length::Fill),
+            // 底部进度条，横跨整个宽度
+            progress.width(Length::Fill),
         ]
         .spacing(10)
         .padding(10)
