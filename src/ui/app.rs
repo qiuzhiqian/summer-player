@@ -60,6 +60,8 @@ pub struct AnimationState {
     pub duration_ms: u64,
     /// 动画开始时间戳
     pub start_time: Option<std::time::Instant>,
+    /// 动画ID，用于防止动画冲突
+    pub animation_id: u32,
 }
 
 impl Default for AnimationState {
@@ -68,9 +70,54 @@ impl Default for AnimationState {
             is_animating: false,
             progress: 0.0,
             target_view: None,
-            duration_ms: 500, // 500ms 动画，让滑动效果更明显
+            duration_ms: 280, // 280ms 动画，符合Material Design的推荐时长
             start_time: None,
+            animation_id: 0,
         }
+    }
+}
+
+impl AnimationState {
+    /// 检查是否应该更新动画
+    pub fn should_animate(&self) -> bool {
+        self.is_animating && self.start_time.is_some()
+    }
+    
+    /// 启动新动画
+    pub fn start_transition(&mut self, target_view: ViewType) {
+        self.is_animating = true;
+        self.progress = 0.0;
+        self.target_view = Some(target_view);
+        self.start_time = Some(std::time::Instant::now());
+        self.animation_id = self.animation_id.wrapping_add(1);
+    }
+    
+    /// 更新动画进度
+    pub fn update_progress(&mut self) -> bool {
+        if !self.should_animate() {
+            return false;
+        }
+        
+        let elapsed = self.start_time.unwrap().elapsed().as_millis();
+        let progress = (elapsed as f32 / self.duration_ms as f32).clamp(0.0, 1.0);
+        
+        self.progress = progress;
+        
+        // 返回是否完成，但不在这里调用finish_animation
+        progress >= 1.0
+    }
+    
+    /// 完成动画
+    pub fn finish_animation(&mut self) {
+        self.is_animating = false;
+        self.progress = 1.0;
+        self.target_view = None;
+        self.start_time = None;
+    }
+    
+    /// 获取缓动后的进度值
+    pub fn eased_progress(&self) -> f32 {
+        ease_in_out_cubic(self.progress)
     }
 }
 
@@ -117,70 +164,9 @@ impl PlayerApp {
          .width(Length::Fixed(MAIN_PANEL_WIDTH));
 
         // 右侧面板根据当前视图类型显示不同内容
-        let right_panel_content = if self.animation_state.is_animating {
+        let right_panel_content = if self.animation_state.should_animate() {
             // 动画期间同时显示两个视图，通过宽度比例实现滑动
-            let progress = self.animation_state.progress;
-            
-            // 获取当前视图和目标视图
-            let current_view_content = match self.current_view {
-                ViewType::Playlist => playlist_view(&self.playlist, self.playlist_loaded, self.is_playing),
-                ViewType::Lyrics => lyrics_view(&self.file_path, self.is_playing, self.playback_state.current_time),
-            };
-            
-            let target_view_content = if let Some(target) = &self.animation_state.target_view {
-                match target {
-                    ViewType::Playlist => playlist_view(&self.playlist, self.playlist_loaded, self.is_playing),
-                    ViewType::Lyrics => lyrics_view(&self.file_path, self.is_playing, self.playback_state.current_time),
-                }
-            } else {
-                // 如果没有目标视图，生成与当前视图相同的内容
-                match self.current_view {
-                    ViewType::Playlist => playlist_view(&self.playlist, self.playlist_loaded, self.is_playing),
-                    ViewType::Lyrics => lyrics_view(&self.file_path, self.is_playing, self.playback_state.current_time),
-                }
-            };
-            
-            // 判断滑动方向：Playlist -> Lyrics (向左滑动), Lyrics -> Playlist (向右滑动)
-            let is_slide_left = matches!(
-                (&self.current_view, &self.animation_state.target_view),
-                (ViewType::Playlist, Some(ViewType::Lyrics))
-            );
-            
-            // 计算滑动比例，使用缓动函数让动画更平滑
-            let eased_progress = ease_in_out_cubic(progress);
-            let current_width = (1.0 - eased_progress).max(0.01); // 确保不为0
-            let target_width = eased_progress.max(0.01); // 确保不为0
-            
-            // 转换为整数比例 (1-99)
-            let current_portion = ((current_width * 98.0) + 1.0) as u16;
-            let target_portion = ((target_width * 98.0) + 1.0) as u16;
-            
-            // 创建滑动效果
-            if is_slide_left {
-                // 向左滑动：当前视图在左，目标视图在右
-                row![
-                    container(current_view_content)
-                        .width(Length::FillPortion(current_portion))
-                        .height(Length::Fill),
-                    container(target_view_content)
-                        .width(Length::FillPortion(target_portion))
-                        .height(Length::Fill),
-                ]
-                .spacing(0)
-                .into()
-            } else {
-                // 向右滑动：目标视图在左，当前视图在右
-                row![
-                    container(target_view_content)
-                        .width(Length::FillPortion(target_portion))
-                        .height(Length::Fill),
-                    container(current_view_content)
-                        .width(Length::FillPortion(current_portion))
-                        .height(Length::Fill),
-                ]
-                .spacing(0)
-                .into()
-            }
+            self.create_sliding_animation_view()
         } else {
             // 正常状态显示对应内容
             match self.current_view {
@@ -215,7 +201,7 @@ impl PlayerApp {
         ];
         
         // 如果正在动画中，添加动画定时器
-        if self.animation_state.is_animating {
+        if self.animation_state.should_animate() {
             subscriptions.push(
                 time::every(Duration::from_millis(16)).map(|_| Message::AnimationTick) // ~60 FPS
             );
@@ -384,37 +370,20 @@ impl PlayerApp {
         };
         
         // 启动动画
-        self.animation_state.is_animating = true;
-        self.animation_state.progress = 0.0;
-        self.animation_state.target_view = Some(target_view);
-        self.animation_state.start_time = Some(std::time::Instant::now());
+        self.animation_state.start_transition(target_view);
         
         Task::none()
     }
 
     fn handle_animation_tick(&mut self) -> Task<Message> {
-        if self.animation_state.is_animating {
-            let elapsed = self.animation_state.start_time.unwrap().elapsed().as_millis();
-            let progress = (elapsed as f32 / self.animation_state.duration_ms as f32).clamp(0.0, 1.0);
-            
-            // 在动画中点切换视图
-            if progress >= 0.5 && self.animation_state.target_view.is_some() {
-                self.current_view = self.animation_state.target_view.take().unwrap();
+        if self.animation_state.update_progress() {
+            // 动画完成时切换视图
+            if let Some(target_view) = &self.animation_state.target_view {
+                self.current_view = target_view.clone();
             }
-            
-            if progress >= 1.0 {
-                self.animation_state.is_animating = false;
-                self.animation_state.progress = 1.0;
-                self.animation_state.target_view = None;
-                self.animation_state.start_time = None;
-                return Task::none();
-            }
-            
-            self.animation_state.progress = progress;
-            Task::none()
-        } else {
-            Task::none()
+            self.animation_state.finish_animation();
         }
+        Task::none()
     }
 
     // 辅助方法
@@ -472,6 +441,80 @@ impl PlayerApp {
         
         Task::none()
     }
+
+    fn create_sliding_animation_view(&self) -> Element<Message> {
+        let eased_progress = self.animation_state.eased_progress();
+        
+        // 获取当前视图和目标视图
+        let current_view_content = match self.current_view {
+            ViewType::Playlist => playlist_view(&self.playlist, self.playlist_loaded, self.is_playing),
+            ViewType::Lyrics => lyrics_view(&self.file_path, self.is_playing, self.playback_state.current_time),
+        };
+        
+        let target_view_content = if let Some(target) = &self.animation_state.target_view {
+            match target {
+                ViewType::Playlist => playlist_view(&self.playlist, self.playlist_loaded, self.is_playing),
+                ViewType::Lyrics => lyrics_view(&self.file_path, self.is_playing, self.playback_state.current_time),
+            }
+        } else {
+            // 如果没有目标视图，生成与当前视图相同的内容
+            match self.current_view {
+                ViewType::Playlist => playlist_view(&self.playlist, self.playlist_loaded, self.is_playing),
+                ViewType::Lyrics => lyrics_view(&self.file_path, self.is_playing, self.playback_state.current_time),
+            }
+        };
+        
+        // 判断滑动方向：Playlist -> Lyrics (向左滑动), Lyrics -> Playlist (向右滑动)
+        let is_slide_left = matches!(
+            (&self.current_view, &self.animation_state.target_view),
+            (ViewType::Playlist, Some(ViewType::Lyrics))
+        );
+        
+        // 为了防止闪烁，在动画接近结束时提前给目标视图更多空间
+        let adjusted_progress = if eased_progress > 0.9 {
+            // 最后10%时加速完成，使切换更干脆
+            0.9 + (eased_progress - 0.9) * 10.0
+        } else {
+            eased_progress
+        }.clamp(0.0, 1.0);
+        
+        // 计算宽度比例，确保平滑过渡
+        let min_width = 0.02; // 最小2%宽度
+        let current_width = (1.0 - adjusted_progress).max(min_width);
+        let target_width = adjusted_progress.max(min_width);
+        
+        // 转换为整数比例，确保总和不超过100
+        let total_width = current_width + target_width;
+        let current_portion = ((current_width / total_width * 98.0) + 1.0) as u16;
+        let target_portion = ((target_width / total_width * 98.0) + 1.0) as u16;
+        
+        // 创建滑动效果
+        if is_slide_left {
+            // 向左滑动：当前视图在左，目标视图在右
+            row![
+                container(current_view_content)
+                    .width(Length::FillPortion(current_portion))
+                    .height(Length::Fill),
+                container(target_view_content)
+                    .width(Length::FillPortion(target_portion))
+                    .height(Length::Fill),
+            ]
+            .spacing(0)
+            .into()
+        } else {
+            // 向右滑动：目标视图在左，当前视图在右
+            row![
+                container(target_view_content)
+                    .width(Length::FillPortion(target_portion))
+                    .height(Length::Fill),
+                container(current_view_content)
+                    .width(Length::FillPortion(current_portion))
+                    .height(Length::Fill),
+            ]
+            .spacing(0)
+            .into()
+        }
+    }
 }
 
 /// 打开文件对话框
@@ -492,6 +535,7 @@ fn ease_in_out_cubic(t: f32) -> f32 {
     if t < 0.5 {
         4.0 * t * t * t
     } else {
-        1.0 - (-2.0 * t + 2.0).powi(3) / 2.0
+        let f = 2.0 * t - 2.0;
+        1.0 + f * f * f * 0.5
     }
 } 
