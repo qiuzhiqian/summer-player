@@ -8,4 +8,5 @@ pub mod components;
 
 // 重新导出主要类型
 pub use app::PlayerApp;
-pub use messages::Message; 
+pub use messages::Message;
+pub use components::ViewType; 

@@ -12,6 +12,16 @@ use crate::playlist::{Playlist, PlaylistItem};
 use crate::utils::format_duration;
 use super::Message;
 
+/// 视图类型枚举
+#[derive(Debug, Clone, PartialEq, Default)]
+pub enum ViewType {
+    /// 播放列表视图
+    #[default]
+    Playlist,
+    /// 歌词显示视图
+    Lyrics,
+}
+
 /// 创建文件信息显示组件
 /// 
 /// # 参数
@@ -62,6 +72,24 @@ pub fn file_controls_view() -> Element<'static, Message> {
     row![
         button("打开文件").on_press(Message::OpenFile),
     ].spacing(10).into()
+}
+
+/// 创建视图切换按钮
+/// 
+/// # 参数
+/// * `current_view` - 当前视图类型
+/// 
+/// # 返回
+/// 视图切换按钮UI元素
+pub fn view_toggle_button(current_view: &ViewType) -> Element<'static, Message> {
+    let button_text = match current_view {
+        ViewType::Playlist => "切换到歌词",
+        ViewType::Lyrics => "切换到播放列表",
+    };
+    
+    button(button_text)
+        .on_press(Message::ToggleView)
+        .into()
 }
 
 /// 创建播放进度显示组件
@@ -193,6 +221,58 @@ pub fn playlist_view(
             text("未加载播放列表"),
         ].spacing(10).into()
     }
+}
+
+/// 创建歌词显示组件
+/// 
+/// # 参数
+/// * `file_path` - 当前文件路径
+/// * `is_playing` - 是否正在播放
+/// * `current_time` - 当前播放时间
+/// 
+/// # 返回
+/// 歌词显示UI元素
+pub fn lyrics_view(file_path: &str, is_playing: bool, current_time: f64) -> Element<'static, Message> {
+    // TODO: 这里可以实现真正的歌词解析和同步显示
+    // 目前只是一个简单的占位实现
+    
+    if file_path.is_empty() {
+        return column![
+            text("歌词显示").size(16),
+            text("请选择音频文件"),
+        ].spacing(10).into();
+    }
+    
+    // 创建歌词内容
+    let mut lyrics_elements = Vec::<Element<Message>>::new();
+    
+    lyrics_elements.push(text("歌词显示").size(16).into());
+    
+    if is_playing {
+        lyrics_elements.push(text("♪ 正在播放中... ♪").into());
+        lyrics_elements.push(text("").into());
+        lyrics_elements.push(text("暂无歌词文件").into());
+        lyrics_elements.push(text("").into());
+        lyrics_elements.push(text(format!("当前时间: {}", format_duration(current_time))).into());
+        lyrics_elements.push(text("").into());
+        lyrics_elements.push(text("提示：").into());
+        lyrics_elements.push(text("• 将 .lrc 歌词文件放在音频文件同目录下").into());
+        lyrics_elements.push(text("• 歌词文件名需与音频文件名相同").into());
+        lyrics_elements.push(text("• 支持时间同步的LRC格式歌词").into());
+    } else {
+        lyrics_elements.push(text("♪ 歌词显示 ♪").into());
+        lyrics_elements.push(text("").into());
+        lyrics_elements.push(text("暂停播放中").into());
+        lyrics_elements.push(text("").into());
+        lyrics_elements.push(text("提示：").into());
+        lyrics_elements.push(text("• 将 .lrc 歌词文件放在音频文件同目录下").into());
+        lyrics_elements.push(text("• 歌词文件名需与音频文件名相同").into());
+        lyrics_elements.push(text("• 支持时间同步的LRC格式歌词").into());
+    }
+    
+    scrollable(
+        column(lyrics_elements).spacing(8).width(Length::Fill)
+    ).height(Length::Fill).width(Length::Fill).into()
 }
 
 /// 创建应用程序标题

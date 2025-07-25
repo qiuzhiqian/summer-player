@@ -32,4 +32,8 @@ pub enum Message {
     AudioSessionStarted(mpsc::UnboundedSender<PlaybackCommand>),
     /// 系统事件
     EventOccurred(Event),
+    /// 切换播放列表/歌词显示视图
+    ToggleView,
+    /// 动画更新
+    AnimationTick,
 } 

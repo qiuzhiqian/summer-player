@@ -5,25 +5,20 @@
 use std::time::Duration;
 use iced::{
     widget::{column, row, container},
-    executor, Font,
     window::Event as WindowEvent,
     time,
-    Settings,
-    Theme,
     Element,
     Length,
     Subscription,
     Task,
     event::{self, Event},
-    window,
 };
 use tokio::sync::mpsc;
 
-use crate::error::Result;
 use crate::audio::{AudioInfo, PlaybackState, PlaybackCommand, start_audio_playback, AudioFile};
-use crate::playlist::{Playlist, PlaylistItem, parse_m3u_playlist, create_single_file_playlist};
-use crate::utils::{is_m3u_playlist, format_duration};
-use crate::config::{fonts::CHINESE_FONT, ui::MAIN_PANEL_WIDTH};
+use crate::playlist::{Playlist, parse_m3u_playlist, create_single_file_playlist};
+use crate::utils::is_m3u_playlist;
+use crate::config::ui::MAIN_PANEL_WIDTH;
 use super::Message;
 use super::components::*;
 
@@ -46,6 +41,37 @@ pub struct PlayerApp {
     playlist: Playlist,
     /// 播放列表是否已加载
     playlist_loaded: bool,
+    /// 当前视图类型
+    current_view: ViewType,
+    /// 动画状态
+    animation_state: AnimationState,
+}
+
+/// 动画状态
+#[derive(Debug, Clone)]
+pub struct AnimationState {
+    /// 是否正在动画中
+    pub is_animating: bool,
+    /// 动画进度 (0.0 到 1.0)
+    pub progress: f32,
+    /// 目标视图
+    pub target_view: Option<ViewType>,
+    /// 动画持续时间 (毫秒)
+    pub duration_ms: u64,
+    /// 动画开始时间戳
+    pub start_time: Option<std::time::Instant>,
+}
+
+impl Default for AnimationState {
+    fn default() -> Self {
+        Self {
+            is_animating: false,
+            progress: 0.0,
+            target_view: None,
+            duration_ms: 500, // 500ms 动画，让滑动效果更明显
+            start_time: None,
+        }
+    }
 }
 
 impl PlayerApp {
@@ -73,6 +99,8 @@ impl PlayerApp {
             Message::PlaybackStateUpdate(state) => self.handle_playback_state_update(state),
             Message::AudioSessionStarted(sender) => self.handle_audio_session_started(sender),
             Message::EventOccurred(event) => self.handle_event_occurred(event),
+            Message::ToggleView => self.handle_toggle_view(),
+            Message::AnimationTick => self.handle_animation_tick(),
         }
     }
 
@@ -88,8 +116,83 @@ impl PlayerApp {
         ].spacing(10)
          .width(Length::Fixed(MAIN_PANEL_WIDTH));
 
-        let right_panel = column![playlist_view(&self.playlist, self.playlist_loaded, self.is_playing)]
-            .width(Length::Fill);
+        // 右侧面板根据当前视图类型显示不同内容
+        let right_panel_content = if self.animation_state.is_animating {
+            // 动画期间同时显示两个视图，通过宽度比例实现滑动
+            let progress = self.animation_state.progress;
+            
+            // 获取当前视图和目标视图
+            let current_view_content = match self.current_view {
+                ViewType::Playlist => playlist_view(&self.playlist, self.playlist_loaded, self.is_playing),
+                ViewType::Lyrics => lyrics_view(&self.file_path, self.is_playing, self.playback_state.current_time),
+            };
+            
+            let target_view_content = if let Some(target) = &self.animation_state.target_view {
+                match target {
+                    ViewType::Playlist => playlist_view(&self.playlist, self.playlist_loaded, self.is_playing),
+                    ViewType::Lyrics => lyrics_view(&self.file_path, self.is_playing, self.playback_state.current_time),
+                }
+            } else {
+                // 如果没有目标视图，生成与当前视图相同的内容
+                match self.current_view {
+                    ViewType::Playlist => playlist_view(&self.playlist, self.playlist_loaded, self.is_playing),
+                    ViewType::Lyrics => lyrics_view(&self.file_path, self.is_playing, self.playback_state.current_time),
+                }
+            };
+            
+            // 判断滑动方向：Playlist -> Lyrics (向左滑动), Lyrics -> Playlist (向右滑动)
+            let is_slide_left = matches!(
+                (&self.current_view, &self.animation_state.target_view),
+                (ViewType::Playlist, Some(ViewType::Lyrics))
+            );
+            
+            // 计算滑动比例，使用缓动函数让动画更平滑
+            let eased_progress = ease_in_out_cubic(progress);
+            let current_width = (1.0 - eased_progress).max(0.01); // 确保不为0
+            let target_width = eased_progress.max(0.01); // 确保不为0
+            
+            // 转换为整数比例 (1-99)
+            let current_portion = ((current_width * 98.0) + 1.0) as u16;
+            let target_portion = ((target_width * 98.0) + 1.0) as u16;
+            
+            // 创建滑动效果
+            if is_slide_left {
+                // 向左滑动：当前视图在左，目标视图在右
+                row![
+                    container(current_view_content)
+                        .width(Length::FillPortion(current_portion))
+                        .height(Length::Fill),
+                    container(target_view_content)
+                        .width(Length::FillPortion(target_portion))
+                        .height(Length::Fill),
+                ]
+                .spacing(0)
+                .into()
+            } else {
+                // 向右滑动：目标视图在左，当前视图在右
+                row![
+                    container(target_view_content)
+                        .width(Length::FillPortion(target_portion))
+                        .height(Length::Fill),
+                    container(current_view_content)
+                        .width(Length::FillPortion(current_portion))
+                        .height(Length::Fill),
+                ]
+                .spacing(0)
+                .into()
+            }
+        } else {
+            // 正常状态显示对应内容
+            match self.current_view {
+                ViewType::Playlist => playlist_view(&self.playlist, self.playlist_loaded, self.is_playing),
+                ViewType::Lyrics => lyrics_view(&self.file_path, self.is_playing, self.playback_state.current_time),
+            }
+        };
+
+        let right_panel = column![
+            view_toggle_button(&self.current_view),
+            right_panel_content,
+        ].spacing(10).width(Length::Fill);
 
         let main_content = row![left_panel, right_panel].spacing(10);
         
@@ -106,10 +209,19 @@ impl PlayerApp {
     pub fn subscription(&self) -> Subscription<Message> {
         use crate::config::ui::PROGRESS_UPDATE_INTERVAL;
         
-        Subscription::batch([
+        let mut subscriptions = vec![
             time::every(Duration::from_millis(PROGRESS_UPDATE_INTERVAL)).map(|_| Message::Tick),
-            event::listen().map(Message::EventOccurred)
-        ])
+            event::listen().map(Message::EventOccurred),
+        ];
+        
+        // 如果正在动画中，添加动画定时器
+        if self.animation_state.is_animating {
+            subscriptions.push(
+                time::every(Duration::from_millis(16)).map(|_| Message::AnimationTick) // ~60 FPS
+            );
+        }
+        
+        Subscription::batch(subscriptions)
     }
 
     // 私有方法：处理各种消息
@@ -259,6 +371,52 @@ impl PlayerApp {
         Task::none()
     }
 
+    fn handle_toggle_view(&mut self) -> Task<Message> {
+        // 如果已经在动画中，忽略新的切换请求
+        if self.animation_state.is_animating {
+            return Task::none();
+        }
+        
+        // 确定目标视图
+        let target_view = match self.current_view {
+            ViewType::Playlist => ViewType::Lyrics,
+            ViewType::Lyrics => ViewType::Playlist,
+        };
+        
+        // 启动动画
+        self.animation_state.is_animating = true;
+        self.animation_state.progress = 0.0;
+        self.animation_state.target_view = Some(target_view);
+        self.animation_state.start_time = Some(std::time::Instant::now());
+        
+        Task::none()
+    }
+
+    fn handle_animation_tick(&mut self) -> Task<Message> {
+        if self.animation_state.is_animating {
+            let elapsed = self.animation_state.start_time.unwrap().elapsed().as_millis();
+            let progress = (elapsed as f32 / self.animation_state.duration_ms as f32).clamp(0.0, 1.0);
+            
+            // 在动画中点切换视图
+            if progress >= 0.5 && self.animation_state.target_view.is_some() {
+                self.current_view = self.animation_state.target_view.take().unwrap();
+            }
+            
+            if progress >= 1.0 {
+                self.animation_state.is_animating = false;
+                self.animation_state.progress = 1.0;
+                self.animation_state.target_view = None;
+                self.animation_state.start_time = None;
+                return Task::none();
+            }
+            
+            self.animation_state.progress = progress;
+            Task::none()
+        } else {
+            Task::none()
+        }
+    }
+
     // 辅助方法
 
     fn load_audio_file(&mut self, file_path: &str) {
@@ -326,4 +484,14 @@ async fn open_file_dialog() -> Option<String> {
         .await;
     
     file.map(|f| f.path().to_string_lossy().to_string())
+}
+
+/// 缓动函数：ease-in-out cubic
+/// 让动画开始和结束时更平滑
+fn ease_in_out_cubic(t: f32) -> f32 {
+    if t < 0.5 {
+        4.0 * t * t * t
+    } else {
+        1.0 - (-2.0 * t + 2.0).powi(3) / 2.0
+    }
 } 
