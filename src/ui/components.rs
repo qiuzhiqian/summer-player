@@ -121,19 +121,20 @@ pub fn playlist_view(
             let is_current = playlist.current_index() == Some(index);
             let is_playing_current = is_current && is_playing;
             
-            let item_text = if is_current {
-                format!("▶ {} ({})", 
-                    item.name,
-                    item.duration.map_or("未知时长".to_string(), |d| format_duration(d))
-                )
+            let song_name = if is_current {
+                format!("▶ {}", item.name)
             } else {
-                format!("  {} ({})", 
-                    item.name,
-                    item.duration.map_or("未知时长".to_string(), |d| format_duration(d))
-                )
+                format!("  {}", item.name)
             };
             
-            let btn = button(text(item_text))
+            let duration_text = item.duration.map_or("未知时长".to_string(), |d| format_duration(d));
+            
+            let row_content = row![
+                text(song_name).width(Length::FillPortion(3)),
+                text(duration_text).width(Length::FillPortion(1)).align_x(iced::alignment::Horizontal::Right),
+            ].spacing(10);
+            
+            let btn = button(row_content)
                 .on_press(Message::PlaylistItemSelected(index))
                 .width(Length::Fill);
             
