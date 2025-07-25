@@ -648,6 +648,8 @@ impl PlayerApp {
         let playlist_view = if self.playlist_loaded {
             let playlist_items: Vec<Element<Message>> = self.playlist.items.iter().enumerate().map(|(index, item)| {
                 let is_current = self.playlist.current_index == Some(index);
+                let is_playing = is_current && self.is_playing;
+                
                 let item_text = if is_current {
                     format!("▶ {} ({})", 
                         item.name,
@@ -660,10 +662,52 @@ impl PlayerApp {
                     )
                 };
                 
-                button(text(item_text))
+                let btn = button(text(item_text))
                     .on_press(Message::PlaylistItemSelected(index))
-                    .width(Length::Fill)
-                    .into()
+                    .width(Length::Fill);
+                
+                // 为当前播放的项目添加样式
+                if is_playing {
+                    btn.style(|theme: &iced::Theme, status| {
+                        let palette = theme.extended_palette();
+                        match status {
+                            iced::widget::button::Status::Active => iced::widget::button::Style {
+                                background: Some(iced::Background::Color(palette.primary.weak.color)),
+                                text_color: palette.primary.strong.text,
+                                border: iced::Border::default(),
+                                shadow: iced::Shadow::default(),
+                            },
+                            iced::widget::button::Status::Hovered => iced::widget::button::Style {
+                                background: Some(iced::Background::Color(palette.primary.base.color)),
+                                text_color: palette.primary.strong.text,
+                                border: iced::Border::default(),
+                                shadow: iced::Shadow::default(),
+                            },
+                            _ => iced::widget::button::Style::default(),
+                        }
+                    }).into()
+                } else if is_current {
+                    btn.style(|theme: &iced::Theme, status| {
+                        let palette = theme.extended_palette();
+                        match status {
+                            iced::widget::button::Status::Active => iced::widget::button::Style {
+                                background: Some(iced::Background::Color(palette.secondary.weak.color)),
+                                text_color: palette.secondary.strong.text,
+                                border: iced::Border::default(),
+                                shadow: iced::Shadow::default(),
+                            },
+                            iced::widget::button::Status::Hovered => iced::widget::button::Style {
+                                background: Some(iced::Background::Color(palette.secondary.base.color)),
+                                text_color: palette.secondary.strong.text,
+                                border: iced::Border::default(),
+                                shadow: iced::Shadow::default(),
+                            },
+                            _ => iced::widget::button::Style::default(),
+                        }
+                    }).into()
+                } else {
+                    btn.into()
+                }
             }).collect();
             
             column![
