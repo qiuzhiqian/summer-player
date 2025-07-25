@@ -3,7 +3,7 @@
 //! 包含可重用的UI组件。
 
 use iced::{
-    widget::{button, column, row, text, progress_bar, slider, scrollable, Space},
+    widget::{button, column, row, text, progress_bar, scrollable, Space},
     Element, Length,
 };
 
@@ -87,21 +87,6 @@ pub fn progress_view(playback_state: &PlaybackState) -> Element<'static, Message
             text("0:00 / 0:00"),
         ].spacing(5).into()
     }
-}
-
-/// 创建音量控制组件
-/// 
-/// # 参数
-/// * `volume` - 当前音量 (0.0 - 1.0)
-/// 
-/// # 返回
-/// 音量控制UI元素
-pub fn volume_control_view(volume: f32) -> Element<'static, Message> {
-    column![
-        text(format!("音量: {:.0}%", volume * 100.0)),
-        slider(0.0..=1.0, volume, Message::VolumeChanged)
-            .width(Length::Fill),
-    ].spacing(5).into()
 }
 
 /// 创建播放状态显示组件

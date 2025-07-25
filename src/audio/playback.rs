@@ -25,8 +25,6 @@ pub enum PlaybackCommand {
     Resume,
     /// 停止播放
     Stop,
-    /// 设置音量 (0.0 - 1.0)
-    SetVolume(f32),
 }
 
 /// 播放状态
@@ -40,8 +38,6 @@ pub struct PlaybackState {
     pub current_time: f64,
     /// 总时长（秒）
     pub total_duration: f64,
-    /// 当前音量 (0.0 - 1.0)
-    pub volume: f32,
 }
 
 impl Default for PlaybackState {
@@ -51,7 +47,6 @@ impl Default for PlaybackState {
             is_paused: false,
             current_time: 0.0,
             total_duration: 0.0,
-            volume: 1.0,
         }
     }
 }
@@ -109,7 +104,6 @@ pub async fn run_audio_playback_with_control(
     let is_playing = Arc::new(AtomicBool::new(true));
     let is_paused = Arc::new(AtomicBool::new(false));
     let should_stop = Arc::new(AtomicBool::new(false));
-    let current_volume = Arc::new(Mutex::new(1.0f32));
     
     stream.play().map_err(|e| PlayerError::PlaybackError(e.to_string()))?;
     
@@ -134,10 +128,6 @@ pub async fn run_audio_playback_with_control(
             PlaybackCommand::Stop => {
                 should_stop.store(true, Ordering::Relaxed);
                 break;
-            }
-            PlaybackCommand::SetVolume(volume) => {
-                let mut current_vol = current_volume.lock().unwrap();
-                *current_vol = volume.clamp(0.0, 1.0);
             }
         }
     }

@@ -64,7 +64,6 @@ impl PlayerApp {
         match message {
             Message::PlayPause => self.handle_play_pause(),
             Message::Stop => self.handle_stop(),
-            Message::VolumeChanged(volume) => self.handle_volume_change(volume),
             Message::OpenFile => self.handle_open_file(),
             Message::FileSelected(file_path) => self.handle_file_selected(file_path),
             Message::PlaylistItemSelected(index) => self.handle_playlist_item_selected(index),
@@ -84,7 +83,6 @@ impl PlayerApp {
             file_info_view(self.audio_info.as_ref(), &self.file_path),
             file_controls_view(),
             control_buttons_view(),
-            volume_control_view(self.playback_state.volume),
             status_view(self.is_playing),
             spacer(),
         ].spacing(10)
@@ -150,14 +148,6 @@ impl PlayerApp {
             let _ = sender.send(PlaybackCommand::Stop);
         }
         self.cleanup_playback_state();
-        Task::none()
-    }
-
-    fn handle_volume_change(&mut self, volume: f32) -> Task<Message> {
-        self.playback_state.volume = volume;
-        if let Some(sender) = &self.command_sender {
-            let _ = sender.send(PlaybackCommand::SetVolume(volume));
-        }
         Task::none()
     }
 

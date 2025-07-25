@@ -14,8 +14,6 @@ pub enum Message {
     PlayPause,
     /// 停止播放
     Stop,
-    /// 音量改变
-    VolumeChanged(f32),
     /// 打开文件对话框
     OpenFile,
     /// 文件选择完成
