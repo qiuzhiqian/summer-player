@@ -1,11 +1,19 @@
 [package]
 name = "player"
 version = "0.3.0"
-edition = "2024"
+edition = "2021"
 description = "A TUI audio player with progress display, playback controls, and file info"
 authors = ["Your Name <your.email@example.com>"]
 license = "MIT"
 readme = "README.md"
+
+[lib]
+name = "player"
+path = "src/lib.rs"
+
+[[bin]]
+name = "player"
+path = "src/main.rs"
 
 [dependencies]
 clap = { version = "4.1.6", features = ["derive"] }
