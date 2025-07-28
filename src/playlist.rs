@@ -380,7 +380,7 @@ mod tests {
 
     #[test]
     fn test_playlist_creation() {
-        let mut playlist = Playlist::new();
+        let playlist = Playlist::new();
         assert!(playlist.is_empty());
         assert_eq!(playlist.len(), 0);
         assert!(playlist.current_item().is_none());

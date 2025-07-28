@@ -5,6 +5,7 @@
 pub mod error;
 pub mod audio;
 pub mod playlist;
+pub mod lyrics;
 pub mod ui;
 pub mod config;
 pub mod utils;

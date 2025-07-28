@@ -101,7 +101,7 @@ pub async fn run_audio_playback_with_control(
     
     let stream = create_audio_stream(&device, &config, sample_format, audio_buffer.clone(), audio_file.info.channels)?;
     
-    let is_playing = Arc::new(AtomicBool::new(true));
+    let _is_playing = Arc::new(AtomicBool::new(true));
     let is_paused = Arc::new(AtomicBool::new(false));
     let should_stop = Arc::new(AtomicBool::new(false));
     
@@ -223,7 +223,7 @@ fn write_audio_buffer(
 
 /// 转换音频样本
 fn convert_samples_any(input: &symphonia::core::audio::AudioBufferRef<'_>, output: &mut [Vec<f32>]) {
-    use symphonia::core::audio::{AudioBuffer, AudioBufferRef};
+    use symphonia::core::audio::AudioBufferRef;
     
     match input {
         AudioBufferRef::U8(buf) => convert_samples(buf, output),

@@ -253,8 +253,8 @@ mod tests {
 
     #[test]
     fn test_create_hint() {
-        let hint = create_hint("test.mp3");
-        // 测试hint是否正确创建，但由于Hint没有公共访问器，我们只能确保不会panic
-        assert!(!hint.mime_types().is_empty() || hint.mime_types().is_empty());
+        let _hint = create_hint("test.mp3");
+        // 测试hint是否正确创建，只要不panic就说明成功
+        // 由于Hint的内部状态无法直接访问，我们只测试创建过程
     }
 } 

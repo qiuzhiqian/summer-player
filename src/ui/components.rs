@@ -8,7 +8,7 @@ use iced::{
 };
 
 use crate::audio::{AudioInfo, PlaybackState};
-use crate::playlist::{Playlist, PlaylistItem};
+use crate::playlist::Playlist;
 use crate::utils::format_duration;
 use super::Message;
 
@@ -229,13 +229,11 @@ pub fn playlist_view(
 /// * `file_path` - 当前文件路径
 /// * `is_playing` - 是否正在播放
 /// * `current_time` - 当前播放时间
+/// * `lyrics` - 当前歌词数据
 /// 
 /// # 返回
 /// 歌词显示UI元素
-pub fn lyrics_view(file_path: &str, is_playing: bool, current_time: f64) -> Element<'static, Message> {
-    // TODO: 这里可以实现真正的歌词解析和同步显示
-    // 目前只是一个简单的占位实现
-    
+pub fn lyrics_view(file_path: &str, is_playing: bool, current_time: f64, lyrics: &Option<crate::lyrics::Lyrics>) -> Element<'static, Message> {
     if file_path.is_empty() {
         return column![
             text("歌词显示").size(16),
@@ -246,23 +244,115 @@ pub fn lyrics_view(file_path: &str, is_playing: bool, current_time: f64) -> Elem
     // 创建歌词内容
     let mut lyrics_elements = Vec::<Element<Message>>::new();
     
-    lyrics_elements.push(text("歌词显示").size(16).into());
-    
-    if is_playing {
-        lyrics_elements.push(text("♪ 正在播放中... ♪").into());
-        lyrics_elements.push(text("").into());
-        lyrics_elements.push(text("暂无歌词文件").into());
-        lyrics_elements.push(text("").into());
-        lyrics_elements.push(text(format!("当前时间: {}", format_duration(current_time))).into());
-        lyrics_elements.push(text("").into());
-        lyrics_elements.push(text("提示：").into());
-        lyrics_elements.push(text("• 将 .lrc 歌词文件放在音频文件同目录下").into());
-        lyrics_elements.push(text("• 歌词文件名需与音频文件名相同").into());
-        lyrics_elements.push(text("• 支持时间同步的LRC格式歌词").into());
+    // 添加标题，包含歌曲信息
+    if let Some(ref lyrics_data) = lyrics {
+        let title = if let Some(ref title) = lyrics_data.metadata.title {
+            title.clone()
+        } else {
+            // 从文件路径提取文件名
+            std::path::Path::new(file_path)
+                .file_stem()
+                .and_then(|s| s.to_str())
+                .unwrap_or("未知歌曲")
+                .to_string()
+        };
+        
+        lyrics_elements.push(text(title).size(18).into());
+        
+        if let Some(ref artist) = lyrics_data.metadata.artist {
+            lyrics_elements.push(text(format!("演唱: {}", artist)).size(14).into());
+        }
+        
+        lyrics_elements.push(text("").into()); // 空行
     } else {
-        lyrics_elements.push(text("♪ 歌词显示 ♪").into());
-        lyrics_elements.push(text("").into());
-        lyrics_elements.push(text("暂停播放中").into());
+        lyrics_elements.push(text("歌词显示").size(16).into());
+    }
+    
+    // 显示歌词内容
+    if let Some(ref lyrics_data) = lyrics {
+        if lyrics_data.has_lyrics() {
+            // 获取当前歌词行索引
+            let current_line_index = lyrics_data.get_current_line_index(current_time);
+            
+            // 显示歌词行
+            for (index, line) in lyrics_data.lines.iter().enumerate() {
+                let is_current = current_line_index == Some(index);
+                let is_upcoming = current_line_index.map_or(false, |current| index == current + 1);
+                
+                // 创建歌词文本
+                let lyric_text = if line.text.trim().is_empty() {
+                    "♪".to_string() // 空行显示音符
+                } else {
+                    line.text.clone()
+                };
+                
+                // 根据状态设置样式
+                let text_element = if is_current && is_playing {
+                    // 当前播放行 - 高亮显示
+                    text(format!("▶ {}", lyric_text))
+                        .size(16)
+                        .style(|theme: &iced::Theme| {
+                            let palette = theme.extended_palette();
+                            iced::widget::text::Style {
+                                color: Some(palette.primary.strong.color),
+                            }
+                        })
+                } else if is_upcoming && is_playing {
+                    // 下一行 - 稍微突出显示
+                    text(format!("  {}", lyric_text))
+                        .size(15)
+                        .style(|theme: &iced::Theme| {
+                            let palette = theme.extended_palette();
+                            iced::widget::text::Style {
+                                color: Some(palette.secondary.base.color),
+                            }
+                        })
+                } else if current_line_index.map_or(false, |current| index <= current) {
+                    // 已播放的行 - 淡化显示
+                    text(format!("  {}", lyric_text))
+                        .size(14)
+                        .style(|theme: &iced::Theme| {
+                            let palette = theme.extended_palette();
+                            iced::widget::text::Style {
+                                color: Some(iced::Color {
+                                    a: 0.6,
+                                    ..palette.background.weak.text
+                                }),
+                            }
+                        })
+                } else {
+                    // 未播放的行 - 正常显示
+                    text(format!("  {}", lyric_text)).size(14)
+                };
+                
+                lyrics_elements.push(text_element.into());
+            }
+            
+            // 如果没有当前行，显示播放状态
+            if current_line_index.is_none() && is_playing {
+                lyrics_elements.push(text("").into());
+                lyrics_elements.push(text("♪ 音乐开始了... ♪").size(14).into());
+            }
+            
+        } else {
+            // 歌词文件存在但没有歌词内容
+            lyrics_elements.push(text("歌词文件已加载，但没有找到歌词内容").into());
+            lyrics_elements.push(text("").into());
+        }
+    } else {
+        // 没有歌词文件
+        if is_playing {
+            lyrics_elements.push(text("♪ 正在播放中... ♪").into());
+            lyrics_elements.push(text("").into());
+            lyrics_elements.push(text("暂无歌词文件").into());
+            lyrics_elements.push(text("").into());
+            lyrics_elements.push(text(format!("当前时间: {}", format_duration(current_time))).into());
+        } else {
+            lyrics_elements.push(text("♪ 歌词显示 ♪").into());
+            lyrics_elements.push(text("").into());
+            lyrics_elements.push(text("暂停播放中").into());
+        }
+        
         lyrics_elements.push(text("").into());
         lyrics_elements.push(text("提示：").into());
         lyrics_elements.push(text("• 将 .lrc 歌词文件放在音频文件同目录下").into());
@@ -270,9 +360,29 @@ pub fn lyrics_view(file_path: &str, is_playing: bool, current_time: f64) -> Elem
         lyrics_elements.push(text("• 支持时间同步的LRC格式歌词").into());
     }
     
-    scrollable(
-        column(lyrics_elements).spacing(8).width(Length::Fill)
-    ).height(Length::Fill).width(Length::Fill).into()
+    // 创建可滚动的歌词显示
+    let lyrics_column = column(lyrics_elements).spacing(8).width(Length::Fill);
+    
+    // 如果有歌词且正在播放，尝试自动滚动到当前行
+    let scrollable_lyrics = if lyrics.as_ref().map_or(false, |l| l.has_lyrics()) && is_playing {
+        if let Some(_current_index) = lyrics.as_ref().unwrap().get_current_line_index(current_time) {
+            // TODO: 实现自动滚动到当前行的功能
+            // let scroll_offset = (current_index as f32 * 32.0).max(0.0); // 假设每行约32px高度
+            scrollable(lyrics_column)
+                .height(Length::Fill)
+                .width(Length::Fill)
+        } else {
+            scrollable(lyrics_column)
+                .height(Length::Fill)
+                .width(Length::Fill)
+        }
+    } else {
+        scrollable(lyrics_column)
+            .height(Length::Fill)
+            .width(Length::Fill)
+    };
+    
+    scrollable_lyrics.into()
 }
 
 /// 创建应用程序标题

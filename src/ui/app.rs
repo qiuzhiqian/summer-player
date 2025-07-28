@@ -17,6 +17,7 @@ use tokio::sync::mpsc;
 
 use crate::audio::{AudioInfo, PlaybackState, PlaybackCommand, start_audio_playback, AudioFile};
 use crate::playlist::{Playlist, parse_m3u_playlist, create_single_file_playlist};
+use crate::lyrics::{Lyrics, load_lyrics_for_audio};
 use crate::utils::is_m3u_playlist;
 use crate::config::ui::MAIN_PANEL_WIDTH;
 use super::Message;
@@ -46,6 +47,8 @@ pub struct PlayerApp {
     current_view: ViewType,
     /// 动画状态（使用 anim-rs）
     view_animation: ViewTransitionAnimation,
+    /// 当前歌词
+    current_lyrics: Option<Lyrics>,
 }
 
 impl PlayerApp {
@@ -98,7 +101,7 @@ impl PlayerApp {
             // 正常状态显示对应内容
             match self.current_view {
                 ViewType::Playlist => playlist_view(&self.playlist, self.playlist_loaded, self.is_playing),
-                ViewType::Lyrics => lyrics_view(&self.file_path, self.is_playing, self.playback_state.current_time),
+                ViewType::Lyrics => lyrics_view(&self.file_path, self.is_playing, self.playback_state.current_time, &self.current_lyrics),
             }
         };
 
@@ -319,9 +322,25 @@ impl PlayerApp {
 
     fn load_audio_file(&mut self, file_path: &str) {
         self.file_path = file_path.to_string();
+        
+        // 加载音频信息
         if let Ok(audio_file) = AudioFile::open(file_path) {
             self.audio_info = Some(audio_file.info.clone());
             self.playback_state.total_duration = audio_file.info.duration.unwrap_or(0.0);
+        }
+        
+        // 加载歌词
+        match load_lyrics_for_audio(file_path) {
+            Ok(lyrics) => {
+                self.current_lyrics = lyrics;
+                if self.current_lyrics.is_some() {
+                    println!("歌词加载成功: {}", file_path);
+                }
+            }
+            Err(e) => {
+                eprintln!("加载歌词失败: {}", e);
+                self.current_lyrics = None;
+            }
         }
     }
 
@@ -378,19 +397,19 @@ impl PlayerApp {
         // 获取当前视图和目标视图
         let current_view_content = match self.current_view {
             ViewType::Playlist => playlist_view(&self.playlist, self.playlist_loaded, self.is_playing),
-            ViewType::Lyrics => lyrics_view(&self.file_path, self.is_playing, self.playback_state.current_time),
+            ViewType::Lyrics => lyrics_view(&self.file_path, self.is_playing, self.playback_state.current_time, &self.current_lyrics),
         };
         
         let target_view_content = if let Some(target) = self.view_animation.target_view() {
             match target {
                 ViewType::Playlist => playlist_view(&self.playlist, self.playlist_loaded, self.is_playing),
-                ViewType::Lyrics => lyrics_view(&self.file_path, self.is_playing, self.playback_state.current_time),
+                ViewType::Lyrics => lyrics_view(&self.file_path, self.is_playing, self.playback_state.current_time, &self.current_lyrics),
             }
         } else {
             // 如果没有目标视图，生成与当前视图相同的内容
             match self.current_view {
                 ViewType::Playlist => playlist_view(&self.playlist, self.playlist_loaded, self.is_playing),
-                ViewType::Lyrics => lyrics_view(&self.file_path, self.is_playing, self.playback_state.current_time),
+                ViewType::Lyrics => lyrics_view(&self.file_path, self.is_playing, self.playback_state.current_time, &self.current_lyrics),
             }
         };
         
