@@ -258,7 +258,15 @@ impl PlayerApp {
             if let Some(item) = self.playlist.set_current_index(index) {
                 let file_path = item.path.clone();
                 self.load_audio_file(&file_path);
+                
+                // 停止当前播放，然后立即启动新歌曲的播放
                 self.stop_current_playback();
+                
+                // 启动新的音频播放会话
+                return Task::perform(
+                    start_audio_playback(file_path),
+                    |(sender, _handle)| Message::AudioSessionStarted(sender)
+                );
             }
         }
         Task::none()
@@ -269,7 +277,15 @@ impl PlayerApp {
             if let Some(next_item) = self.playlist.next_item() {
                 let file_path = next_item.path.clone();
                 self.load_audio_file(&file_path);
+                
+                // 停止当前播放，然后立即启动下一首歌曲的播放
                 self.stop_current_playback();
+                
+                // 启动新的音频播放会话
+                return Task::perform(
+                    start_audio_playback(file_path),
+                    |(sender, _handle)| Message::AudioSessionStarted(sender)
+                );
             }
         }
         Task::none()
@@ -280,7 +296,15 @@ impl PlayerApp {
             if let Some(prev_item) = self.playlist.previous_item() {
                 let file_path = prev_item.path.clone();
                 self.load_audio_file(&file_path);
+                
+                // 停止当前播放，然后立即启动上一首歌曲的播放
                 self.stop_current_playback();
+                
+                // 启动新的音频播放会话
+                return Task::perform(
+                    start_audio_playback(file_path),
+                    |(sender, _handle)| Message::AudioSessionStarted(sender)
+                );
             }
         }
         Task::none()
