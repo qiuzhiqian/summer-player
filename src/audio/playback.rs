@@ -105,14 +105,18 @@ pub async fn run_audio_playback_with_control(
     let is_paused = Arc::new(AtomicBool::new(false));
     let should_stop = Arc::new(AtomicBool::new(false));
     
+    // 创建音频流的暂停/恢复控制
+    let stream_is_paused = is_paused.clone();
+    
     stream.play().map_err(|e| PlayerError::PlaybackError(e.to_string()))?;
     
     let playback_thread = {
         let audio_buffer = audio_buffer.clone();
         let should_stop = should_stop.clone();
+        let is_paused = is_paused.clone();
         
         thread::spawn(move || {
-            let _ = run_playback_loop(audio_file, decoder, audio_buffer, should_stop);
+            let _ = run_playback_loop(audio_file, decoder, audio_buffer, should_stop, is_paused);
         })
     };
     
@@ -121,9 +125,17 @@ pub async fn run_audio_playback_with_control(
         match command {
             PlaybackCommand::Pause => {
                 is_paused.store(true, Ordering::Relaxed);
+                // 暂停音频流
+                if let Err(e) = stream.pause() {
+                    eprintln!("Failed to pause stream: {}", e);
+                }
             }
             PlaybackCommand::Resume => {
                 is_paused.store(false, Ordering::Relaxed);
+                // 恢复音频流
+                if let Err(e) = stream.play() {
+                    eprintln!("Failed to resume stream: {}", e);
+                }
             }
             PlaybackCommand::Stop => {
                 should_stop.store(true, Ordering::Relaxed);
@@ -144,6 +156,7 @@ fn run_playback_loop(
     mut decoder: Box<dyn symphonia::core::codecs::Decoder>,
     audio_buffer: AudioBuffer,
     should_stop: Arc<AtomicBool>,
+    is_paused: Arc<AtomicBool>,
 ) -> Result<()> {
     let mut format = audio_file.probed.format;
     let track_id = audio_file.track_id;
@@ -152,6 +165,12 @@ fn run_playback_loop(
     loop {
         if should_stop.load(Ordering::Relaxed) {
             break;
+        }
+        
+        // 如果暂停，等待一小段时间后重新检查
+        if is_paused.load(Ordering::Relaxed) {
+            thread::sleep(Duration::from_millis(10));
+            continue;
         }
         
         let packet = match format.next_packet() {

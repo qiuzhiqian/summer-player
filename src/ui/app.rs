@@ -179,7 +179,27 @@ impl PlayerApp {
             } else {
                 PlaybackCommand::Resume
             };
-            let _ = sender.send(command);
+            
+            // 发送命令到播放器
+            if let Err(e) = sender.send(command.clone()) {
+                eprintln!("Failed to send playback command: {}", e);
+                return Task::none();
+            }
+            
+            // 立即更新UI状态以提供即时反馈
+            match command {
+                PlaybackCommand::Pause => {
+                    self.is_playing = false;
+                    self.playback_state.is_playing = false;
+                    self.playback_state.is_paused = true;
+                }
+                PlaybackCommand::Resume => {
+                    self.is_playing = true;
+                    self.playback_state.is_playing = true;
+                    self.playback_state.is_paused = false;
+                }
+                _ => {}
+            }
         }
         
         Task::none()
@@ -267,7 +287,8 @@ impl PlayerApp {
     }
 
     fn handle_tick(&mut self) -> Task<Message> {
-        if self.is_playing {
+        // 只有在真正播放状态下（is_playing = true 且 is_paused = false）才更新时间
+        if self.is_playing && !self.playback_state.is_paused {
             self.playback_state.current_time += 0.1;
             if self.playback_state.total_duration > 0.0 && 
                self.playback_state.current_time >= self.playback_state.total_duration {
@@ -376,6 +397,9 @@ impl PlayerApp {
         self.playback_state.is_paused = false;
         self.playback_state.current_time = 0.0;
         self.command_sender = None;
+        if let Some(handle) = self.audio_handle.take() {
+            handle.abort();
+        }
     }
 
     fn cleanup_on_exit(&mut self) {
