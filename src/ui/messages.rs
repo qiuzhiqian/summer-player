@@ -36,4 +36,6 @@ pub enum Message {
     ToggleView,
     /// 动画更新
     AnimationTick,
+    /// 窗口大小变化
+    WindowResized(f32, f32),
 } 

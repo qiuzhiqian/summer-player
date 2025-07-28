@@ -49,12 +49,17 @@ pub struct PlayerApp {
     view_animation: ViewTransitionAnimation,
     /// 当前歌词
     current_lyrics: Option<Lyrics>,
+    /// 当前窗口大小
+    window_size: (f32, f32), // (width, height)
 }
 
 impl PlayerApp {
     /// 创建新的应用程序实例
     pub fn new() -> Self {
-        Self::default()
+        Self {
+            window_size: (1000.0, 700.0), // 初始窗口大小
+            ..Self::default()
+        }
     }
 
     /// 获取应用程序标题
@@ -78,6 +83,7 @@ impl PlayerApp {
             Message::EventOccurred(event) => self.handle_event_occurred(event),
             Message::ToggleView => self.handle_toggle_view(),
             Message::AnimationTick => self.handle_animation_tick(),
+            Message::WindowResized(width, height) => self.handle_window_resized(width, height),
         }
     }
 
@@ -91,7 +97,8 @@ impl PlayerApp {
             status_view(self.is_playing),
             spacer(),
         ].spacing(10)
-         .width(Length::Fixed(MAIN_PANEL_WIDTH));
+         .width(Length::Fixed(MAIN_PANEL_WIDTH))
+         .height(Length::Fill);
 
         // 右侧面板根据当前视图类型显示不同内容
         let right_panel_content = if self.view_animation.is_active() {
@@ -101,7 +108,7 @@ impl PlayerApp {
             // 正常状态显示对应内容
             match self.current_view {
                 ViewType::Playlist => playlist_view(&self.playlist, self.playlist_loaded, self.is_playing),
-                ViewType::Lyrics => lyrics_view(&self.file_path, self.is_playing, self.playback_state.current_time, &self.current_lyrics),
+                ViewType::Lyrics => lyrics_view(&self.file_path, self.is_playing, self.playback_state.current_time, &self.current_lyrics, self.window_size.1),
             }
         };
 
@@ -127,7 +134,14 @@ impl PlayerApp {
         
         let mut subscriptions = vec![
             time::every(Duration::from_millis(PROGRESS_UPDATE_INTERVAL)).map(|_| Message::Tick),
-            event::listen().map(Message::EventOccurred),
+            event::listen().map(|event| {
+                match event {
+                    Event::Window(WindowEvent::Resized(size)) => {
+                        Message::WindowResized(size.width, size.height)
+                    },
+                    _ => Message::EventOccurred(event),
+                }
+            }),
         ];
         
         // 如果正在动画中，添加动画定时器
@@ -318,6 +332,11 @@ impl PlayerApp {
         Task::none()
     }
 
+    fn handle_window_resized(&mut self, width: f32, height: f32) -> Task<Message> {
+        self.window_size = (width, height);
+        Task::none()
+    }
+
     // 辅助方法
 
     fn load_audio_file(&mut self, file_path: &str) {
@@ -397,19 +416,19 @@ impl PlayerApp {
         // 获取当前视图和目标视图
         let current_view_content = match self.current_view {
             ViewType::Playlist => playlist_view(&self.playlist, self.playlist_loaded, self.is_playing),
-            ViewType::Lyrics => lyrics_view(&self.file_path, self.is_playing, self.playback_state.current_time, &self.current_lyrics),
+            ViewType::Lyrics => lyrics_view(&self.file_path, self.is_playing, self.playback_state.current_time, &self.current_lyrics, self.window_size.1),
         };
         
         let target_view_content = if let Some(target) = self.view_animation.target_view() {
             match target {
                 ViewType::Playlist => playlist_view(&self.playlist, self.playlist_loaded, self.is_playing),
-                ViewType::Lyrics => lyrics_view(&self.file_path, self.is_playing, self.playback_state.current_time, &self.current_lyrics),
+                ViewType::Lyrics => lyrics_view(&self.file_path, self.is_playing, self.playback_state.current_time, &self.current_lyrics, self.window_size.1),
             }
         } else {
             // 如果没有目标视图，生成与当前视图相同的内容
             match self.current_view {
                 ViewType::Playlist => playlist_view(&self.playlist, self.playlist_loaded, self.is_playing),
-                ViewType::Lyrics => lyrics_view(&self.file_path, self.is_playing, self.playback_state.current_time, &self.current_lyrics),
+                ViewType::Lyrics => lyrics_view(&self.file_path, self.is_playing, self.playback_state.current_time, &self.current_lyrics, self.window_size.1),
             }
         };
         
