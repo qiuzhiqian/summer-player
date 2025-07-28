@@ -21,6 +21,7 @@ use crate::utils::is_m3u_playlist;
 use crate::config::ui::MAIN_PANEL_WIDTH;
 use super::Message;
 use super::components::*;
+use super::animation::ViewTransitionAnimation;
 
 /// 主应用程序结构
 #[derive(Default)]
@@ -43,82 +44,8 @@ pub struct PlayerApp {
     playlist_loaded: bool,
     /// 当前视图类型
     current_view: ViewType,
-    /// 动画状态
-    animation_state: AnimationState,
-}
-
-/// 动画状态
-#[derive(Debug, Clone)]
-pub struct AnimationState {
-    /// 是否正在动画中
-    pub is_animating: bool,
-    /// 动画进度 (0.0 到 1.0)
-    pub progress: f32,
-    /// 目标视图
-    pub target_view: Option<ViewType>,
-    /// 动画持续时间 (毫秒)
-    pub duration_ms: u64,
-    /// 动画开始时间戳
-    pub start_time: Option<std::time::Instant>,
-    /// 动画ID，用于防止动画冲突
-    pub animation_id: u32,
-}
-
-impl Default for AnimationState {
-    fn default() -> Self {
-        Self {
-            is_animating: false,
-            progress: 0.0,
-            target_view: None,
-            duration_ms: 280, // 280ms 动画，符合Material Design的推荐时长
-            start_time: None,
-            animation_id: 0,
-        }
-    }
-}
-
-impl AnimationState {
-    /// 检查是否应该更新动画
-    pub fn should_animate(&self) -> bool {
-        self.is_animating && self.start_time.is_some()
-    }
-    
-    /// 启动新动画
-    pub fn start_transition(&mut self, target_view: ViewType) {
-        self.is_animating = true;
-        self.progress = 0.0;
-        self.target_view = Some(target_view);
-        self.start_time = Some(std::time::Instant::now());
-        self.animation_id = self.animation_id.wrapping_add(1);
-    }
-    
-    /// 更新动画进度
-    pub fn update_progress(&mut self) -> bool {
-        if !self.should_animate() {
-            return false;
-        }
-        
-        let elapsed = self.start_time.unwrap().elapsed().as_millis();
-        let progress = (elapsed as f32 / self.duration_ms as f32).clamp(0.0, 1.0);
-        
-        self.progress = progress;
-        
-        // 返回是否完成，但不在这里调用finish_animation
-        progress >= 1.0
-    }
-    
-    /// 完成动画
-    pub fn finish_animation(&mut self) {
-        self.is_animating = false;
-        self.progress = 1.0;
-        self.target_view = None;
-        self.start_time = None;
-    }
-    
-    /// 获取缓动后的进度值
-    pub fn eased_progress(&self) -> f32 {
-        ease_in_out_cubic(self.progress)
-    }
+    /// 动画状态（使用 anim-rs）
+    view_animation: ViewTransitionAnimation,
 }
 
 impl PlayerApp {
@@ -164,7 +91,7 @@ impl PlayerApp {
          .width(Length::Fixed(MAIN_PANEL_WIDTH));
 
         // 右侧面板根据当前视图类型显示不同内容
-        let right_panel_content = if self.animation_state.should_animate() {
+        let right_panel_content = if self.view_animation.is_active() {
             // 动画期间同时显示两个视图，通过宽度比例实现滑动
             self.create_sliding_animation_view()
         } else {
@@ -201,7 +128,7 @@ impl PlayerApp {
         ];
         
         // 如果正在动画中，添加动画定时器
-        if self.animation_state.should_animate() {
+        if self.view_animation.is_active() {
             subscriptions.push(
                 time::every(Duration::from_millis(16)).map(|_| Message::AnimationTick) // ~60 FPS
             );
@@ -359,7 +286,7 @@ impl PlayerApp {
 
     fn handle_toggle_view(&mut self) -> Task<Message> {
         // 如果已经在动画中，忽略新的切换请求
-        if self.animation_state.is_animating {
+        if self.view_animation.is_active() {
             return Task::none();
         }
         
@@ -370,18 +297,20 @@ impl PlayerApp {
         };
         
         // 启动动画
-        self.animation_state.start_transition(target_view);
+        self.view_animation.start_transition(target_view);
         
         Task::none()
     }
 
     fn handle_animation_tick(&mut self) -> Task<Message> {
-        if self.animation_state.update_progress() {
+        // 在更新动画之前先获取目标视图，因为动画完成时会清空target_view
+        let target_view = self.view_animation.target_view().cloned();
+        
+        if self.view_animation.update() {
             // 动画完成时切换视图
-            if let Some(target_view) = &self.animation_state.target_view {
-                self.current_view = target_view.clone();
+            if let Some(target_view) = target_view {
+                self.current_view = target_view;
             }
-            self.animation_state.finish_animation();
         }
         Task::none()
     }
@@ -443,7 +372,8 @@ impl PlayerApp {
     }
 
     fn create_sliding_animation_view(&self) -> Element<Message> {
-        let eased_progress = self.animation_state.eased_progress();
+        // 获取动画进度（已经通过 anim-rs 进行了缓动处理）
+        let progress = self.view_animation.progress();
         
         // 获取当前视图和目标视图
         let current_view_content = match self.current_view {
@@ -451,7 +381,7 @@ impl PlayerApp {
             ViewType::Lyrics => lyrics_view(&self.file_path, self.is_playing, self.playback_state.current_time),
         };
         
-        let target_view_content = if let Some(target) = &self.animation_state.target_view {
+        let target_view_content = if let Some(target) = self.view_animation.target_view() {
             match target {
                 ViewType::Playlist => playlist_view(&self.playlist, self.playlist_loaded, self.is_playing),
                 ViewType::Lyrics => lyrics_view(&self.file_path, self.is_playing, self.playback_state.current_time),
@@ -466,16 +396,16 @@ impl PlayerApp {
         
         // 判断滑动方向：Playlist -> Lyrics (向左滑动), Lyrics -> Playlist (向右滑动)
         let is_slide_left = matches!(
-            (&self.current_view, &self.animation_state.target_view),
+            (&self.current_view, self.view_animation.target_view()),
             (ViewType::Playlist, Some(ViewType::Lyrics))
         );
         
         // 为了防止闪烁，在动画接近结束时提前给目标视图更多空间
-        let adjusted_progress = if eased_progress > 0.9 {
+        let adjusted_progress = if progress > 0.9 {
             // 最后10%时加速完成，使切换更干脆
-            0.9 + (eased_progress - 0.9) * 10.0
+            0.9 + (progress - 0.9) * 10.0
         } else {
-            eased_progress
+            progress
         }.clamp(0.0, 1.0);
         
         // 计算宽度比例，确保平滑过渡
@@ -529,13 +459,4 @@ async fn open_file_dialog() -> Option<String> {
     file.map(|f| f.path().to_string_lossy().to_string())
 }
 
-/// 缓动函数：ease-in-out cubic
-/// 让动画开始和结束时更平滑
-fn ease_in_out_cubic(t: f32) -> f32 {
-    if t < 0.5 {
-        4.0 * t * t * t
-    } else {
-        let f = 2.0 * t - 2.0;
-        1.0 + f * f * f * 0.5
-    }
-} 
+ 
