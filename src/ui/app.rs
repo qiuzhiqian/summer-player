@@ -71,7 +71,6 @@ impl PlayerApp {
     pub fn update(&mut self, message: Message) -> Task<Message> {
         match message {
             Message::PlayPause => self.handle_play_pause(),
-            Message::Stop => self.handle_stop(),
             Message::OpenFile => self.handle_open_file(),
             Message::FileSelected(file_path) => self.handle_file_selected(file_path),
             Message::PlaylistItemSelected(index) => self.handle_playlist_item_selected(index),
@@ -205,13 +204,7 @@ impl PlayerApp {
         Task::none()
     }
 
-    fn handle_stop(&mut self) -> Task<Message> {
-        if let Some(sender) = &self.command_sender {
-            let _ = sender.send(PlaybackCommand::Stop);
-        }
-        self.cleanup_playback_state();
-        Task::none()
-    }
+
 
     fn handle_open_file(&mut self) -> Task<Message> {
         Task::perform(open_file_dialog(), Message::FileSelected)

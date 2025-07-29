@@ -175,8 +175,8 @@ pub fn file_info_view(audio_info: Option<&AudioInfo>, file_path: &str) -> Elemen
             }
             
             main_column = main_column.push(
-                // 技术信息部分
-                text("技术信息")
+                // 音频信息部分
+                text("音频信息")
                     .size(14)
                     .style(|theme: &Theme| {
                         let palette = theme.extended_palette();
@@ -406,69 +406,6 @@ pub fn control_buttons_view() -> Element<'static, Message> {
             .width(Length::Fixed(52.0))
             .height(Length::Fixed(52.0))
             .on_press(Message::PlayPause),
-            
-            // 停止
-            button(
-                container(text("⏹").size(14).shaping(Shaping::Advanced))
-                    .width(Length::Fill)
-                    .height(Length::Fill)
-                    .align_x(Horizontal::Center)
-                    .align_y(Vertical::Center)
-            )
-            .style(|theme: &Theme, status| {
-                let palette = theme.extended_palette();
-                match status {
-                    button::Status::Active => button::Style {
-                        background: Some(Background::Color(Color {
-                            a: 0.8,
-                            ..palette.danger.base.color
-                        })),
-                        text_color: Color::WHITE,
-                        border: Border {
-                            radius: Radius::from(20.0),
-                            width: 0.0,
-                            color: Color::TRANSPARENT,
-                        },
-                        shadow: Shadow {
-                            color: Color::from_rgba(0.0, 0.0, 0.0, 0.2),
-                            offset: iced::Vector::new(0.0, 2.0),
-                            blur_radius: 4.0,
-                        },
-                    },
-                    button::Status::Hovered => button::Style {
-                        background: Some(Background::Color(palette.danger.strong.color)),
-                        text_color: Color::WHITE,
-                        border: Border {
-                            radius: Radius::from(20.0),
-                            width: 0.0,
-                            color: Color::TRANSPARENT,
-                        },
-                        shadow: Shadow {
-                            color: Color::from_rgba(0.0, 0.0, 0.0, 0.3),
-                            offset: iced::Vector::new(0.0, 4.0),
-                            blur_radius: 8.0,
-                        },
-                    },
-                    button::Status::Pressed => button::Style {
-                        background: Some(Background::Color(palette.danger.weak.color)),
-                        text_color: Color::WHITE,
-                        border: Border {
-                            radius: Radius::from(20.0),
-                            width: 0.0,
-                            color: Color::TRANSPARENT,
-                        },
-                        shadow: Shadow {
-                            color: Color::from_rgba(0.0, 0.0, 0.0, 0.15),
-                            offset: iced::Vector::new(0.0, 1.0),
-                            blur_radius: 2.0,
-                        },
-                    },
-                    _ => button::Style::default(),
-                }
-            })
-            .width(Length::Fixed(40.0))
-            .height(Length::Fixed(40.0))
-            .on_press(Message::Stop),
             
             // 下一首
             button(

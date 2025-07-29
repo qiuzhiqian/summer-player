@@ -26,7 +26,7 @@ pub mod fonts {
 /// UI常量
 pub mod ui {
     /// 主面板宽度
-    pub const MAIN_PANEL_WIDTH: f32 = 250.0;
+    pub const MAIN_PANEL_WIDTH: f32 = 200.0;
     
     /// 播放列表面板高度
     pub const PLAYLIST_HEIGHT: f32 = 300.0;

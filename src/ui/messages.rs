@@ -12,8 +12,6 @@ use crate::audio::{PlaybackCommand, PlaybackState};
 pub enum Message {
     /// 播放/暂停切换
     PlayPause,
-    /// 停止播放
-    Stop,
     /// 打开文件对话框
     OpenFile,
     /// 文件选择完成
