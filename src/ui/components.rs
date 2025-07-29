@@ -66,28 +66,126 @@ pub fn file_info_view(audio_info: Option<&AudioInfo>, file_path: &str) -> Elemen
             .unwrap_or("未知文件")
             .to_string();
         
-        column![
-            // 文件名
-            text(file_name)
-                .size(16)
-                .style(|theme: &Theme| {
-                    let palette = theme.extended_palette();
-                    text::Style {
-                        color: Some(palette.primary.base.color),
-                    }
-                }),
+        // 创建音频信息列
+        let mut audio_info_column = column![
+            info_row("🎵", "声道", &format!("{}", info.channels)),
+            info_row("📡", "采样率", &format!("{} Hz", info.sample_rate)),
+            info_row("⏱️", "时长", &if let Some(duration) = info.duration {
+                format_duration(duration)
+            } else {
+                "未知".to_string()
+            }),
+        ].spacing(8);
+        
+        // 如果有比特深度信息，添加它
+        if let Some(bits) = info.bits_per_sample {
+            audio_info_column = audio_info_column.push(
+                info_row("🎚️", "位深", &format!("{} bit", bits))
+            );
+        }
+        
+        // 创建元数据信息列
+        let mut metadata_column = column![].spacing(8);
+        
+        // 添加元数据信息
+        if let Some(title) = &info.metadata.title {
+            metadata_column = metadata_column.push(
+                info_row("🎤", "标题", &title.clone())
+            );
+        }
+        
+        if let Some(artist) = &info.metadata.artist {
+            metadata_column = metadata_column.push(
+                info_row("🎨", "艺术家", &artist.clone())
+            );
+        }
+        
+        if let Some(album) = &info.metadata.album {
+            metadata_column = metadata_column.push(
+                info_row("💿", "专辑", &album.clone())
+            );
+        }
+        
+        if let Some(year) = &info.metadata.year {
+            metadata_column = metadata_column.push(
+                info_row("📅", "年份", &year.clone())
+            );
+        }
+        
+        if let Some(genre) = &info.metadata.genre {
+            metadata_column = metadata_column.push(
+                info_row("🎭", "流派", &genre.clone())
+            );
+        }
+        
+        if let Some(track_number) = &info.metadata.track_number {
+            metadata_column = metadata_column.push(
+                info_row("🔢", "音轨", &track_number.clone())
+            );
+        }
+        
+        if let Some(composer) = &info.metadata.composer {
+            metadata_column = metadata_column.push(
+                info_row("✍️", "作曲", &composer.clone())
+            );
+        }
+        
+        // 如果没有元数据，显示文件名
+        let display_title = info.metadata.title.clone()
+            .unwrap_or(file_name);
+        
+        {
+            let mut main_column = column![
+                // 显示标题（优先使用元数据中的标题）
+                text(display_title)
+                    .size(16)
+                    .style(|theme: &Theme| {
+                        let palette = theme.extended_palette();
+                        text::Style {
+                            color: Some(palette.primary.base.color),
+                        }
+                    }),
+                
+                // 技术信息部分
+                text("技术信息")
+                    .size(14)
+                    .style(|theme: &Theme| {
+                        let palette = theme.extended_palette();
+                        text::Style {
+                            color: Some(Color {
+                                a: 0.8,
+                                ..palette.background.base.text
+                            }),
+                        }
+                    }),
+                audio_info_column,
+            ].spacing(12);
             
-            // 音频信息
-            column![
-                info_row("🎵", "声道", &format!("{}", info.channels)),
-                info_row("📡", "采样率", &format!("{} Hz", info.sample_rate)),
-                info_row("⏱️", "时长", &if let Some(duration) = info.duration {
-                    format_duration(duration)
-                } else {
-                    "未知".to_string()
-                }),
-            ].spacing(8)
-        ].spacing(12)
+            // 如果有元数据信息，添加元数据部分
+            if info.metadata.title.is_some() || info.metadata.artist.is_some() || 
+               info.metadata.album.is_some() || info.metadata.year.is_some() ||
+               info.metadata.genre.is_some() || info.metadata.track_number.is_some() ||
+               info.metadata.composer.is_some() {
+                main_column = main_column.push(
+                    column![
+                        text("元数据信息")
+                            .size(14)
+                            .style(|theme: &Theme| {
+                                let palette = theme.extended_palette();
+                                text::Style {
+                                    color: Some(Color {
+                                        a: 0.8,
+                                        ..palette.background.base.text
+                                    }),
+                                }
+                            }),
+                        metadata_column,
+                    ].spacing(8)
+                );
+            }
+            
+            main_column
+        }
     } else {
         column![
             text("🎼")

@@ -18,7 +18,7 @@ path = "src/main.rs"
 [dependencies]
 clap = { version = "4.1.6", features = ["derive"] }
 cpal = "0.15.0"
-symphonia = { version = "0.5", features = ["mp3", "aac", "isomp4"] }
+symphonia = { version = "0.5", features = ["mp3", "aac", "isomp4", "flac", "ogg", "wav"] }
 iced = { version = "0.13", features = ["tokio", "advanced", "image"] }
 tokio = { version = "1.0", features = ["full"] }
 rfd = "0.14"
