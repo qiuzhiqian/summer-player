@@ -1,0 +1,14 @@
+[Desktop Entry]
+Version=1.0
+Type=Application
+Name=Summer Player
+Name[zh_CN]=夏日播放器
+Comment=A summer-themed audio player with lyrics support
+Comment[zh_CN]=一个支持歌词显示的夏日主题音频播放器
+Exec=summer_player
+Icon=%{_datadir}/pixmaps/summer-player.png
+Terminal=false
+StartupNotify=true
+Categories=AudioVideo;Audio;Player;
+MimeType=audio/mpeg;audio/flac;audio/wav;audio/ogg;audio/aac;audio/mp4;audio/x-m4a;
+Keywords=audio;music;player;summer; 

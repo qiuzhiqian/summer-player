@@ -1,12 +1,15 @@
 use clap::Parser;
-use iced::Font;
+use iced::{Font, window};
 
-use player::{
-    PlayerApp, 
+use summer_player::{
+    PlayerApp,
     audio::{AudioFile, list_audio_devices},
     utils::format_duration,
     error::Result,
 };
+
+// 包含图标数据
+const ICON_BYTES: &[u8] = include_bytes!("../icon.png");
 
 /// CLI参数
 #[derive(Parser)]
@@ -42,11 +45,18 @@ fn main() {
         return;
     }
     
+    // 创建窗口图标
+    let icon = window::icon::from_file_data(ICON_BYTES, None)
+        .expect("Failed to load icon");
+    
     let app = PlayerApp::new();
     
-    iced::application("player", PlayerApp::update, PlayerApp::view)
+    iced::application("Summer Player", PlayerApp::update, PlayerApp::view)
         .subscription(PlayerApp::subscription)
-        /*.font(include_bytes!("../fonts/NotoColorEmoji.ttf"))*/
+        .window(window::Settings {
+            icon: Some(icon),
+            ..window::Settings::default()
+        })
         .default_font(Font::with_name("Noto Sans CJK SC"))
         .run_with(|| (app, iced::Task::none()))
         .unwrap();

@@ -1,25 +1,25 @@
 [package]
-name = "player"
+name = "summer_player"
 version = "0.3.0"
 edition = "2021"
-description = "A audio player with progress display, playback controls, and file info"
+description = "A summer-themed audio player with progress display, playback controls, and lyrics support"
 authors = ["xml <xiamengliang@gmail.com>"]
 license = "MIT"
 readme = "README.md"
 
 [lib]
-name = "player"
+name = "summer_player"
 path = "src/lib.rs"
 
 [[bin]]
-name = "player"
+name = "summer_player"
 path = "src/main.rs"
 
 [dependencies]
 clap = { version = "4.1.6", features = ["derive"] }
 cpal = "0.15.0"
 symphonia = { version = "0.5", features = ["mp3", "aac", "isomp4"] }
-iced = { version = "0.13", features = ["tokio", "advanced"] }
+iced = { version = "0.13", features = ["tokio", "advanced", "image"] }
 tokio = { version = "1.0", features = ["full"] }
 rfd = "0.14"
 anim = { version = "0.1", default-features = false, features = ["iced-backend"] }

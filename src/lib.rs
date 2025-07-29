@@ -1,6 +1,6 @@
-//! # Audio Player Library
+//! # Summer Audio Player Library
 //! 
-//! 一个现代化的音频播放器库，支持多种音频格式和播放列表功能。
+//! 一个现代化的夏日主题音频播放器库，支持多种音频格式和播放列表功能。
 
 pub mod error;
 pub mod audio;

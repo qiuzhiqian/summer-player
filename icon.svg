@@ -1,0 +1,53 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" width="128" height="128">
+  <!-- 背景圆形 -->
+  <circle cx="64" cy="64" r="60" fill="#FFB366" stroke="#FF8C42" stroke-width="3"/>
+  
+  <!-- 太阳光芒 -->
+  <g stroke="#FFA726" stroke-width="4" stroke-linecap="round">
+    <line x1="64" y1="12" x2="64" y2="20"/>
+    <line x1="64" y1="108" x2="64" y2="116"/>
+    <line x1="12" y1="64" x2="20" y2="64"/>
+    <line x1="108" y1="64" x2="116" y2="64"/>
+    <line x1="25.8" y1="25.8" x2="31.5" y2="31.5"/>
+    <line x1="96.5" y1="96.5" x2="102.2" y2="102.2"/>
+    <line x1="102.2" y1="25.8" x2="96.5" y2="31.5"/>
+    <line x1="31.5" y1="96.5" x2="25.8" y2="102.2"/>
+  </g>
+  
+  <!-- 播放按钮三角形 -->
+  <polygon points="48,40 48,88 88,64" fill="#FFFFFF" stroke="#FF6B35" stroke-width="2"/>
+  
+  <!-- 音符装饰 -->
+  <g fill="#FF6B35">
+    <!-- 第一个音符 -->
+    <circle cx="90" cy="35" r="3"/>
+    <rect x="92" y="25" width="2" height="15"/>
+    <path d="M94 25 Q98 22 100 25 Q98 28 94 25" fill="#FF6B35"/>
+    
+    <!-- 第二个音符 -->
+    <circle cx="100" cy="45" r="2.5"/>
+    <rect x="101.5" y="37" width="1.5" height="12"/>
+    <path d="M103 37 Q106 35 107 37 Q106 39 103 37" fill="#FF6B35"/>
+  </g>
+  
+  <!-- 波浪线（音频波形） -->
+  <g stroke="#FFFFFF" stroke-width="2" fill="none" opacity="0.8">
+    <path d="M25 75 Q30 70 35 75 Q40 80 45 75"/>
+    <path d="M25 80 Q35 75 45 80"/>
+    <path d="M25 85 Q30 82 35 85 Q40 88 45 85"/>
+  </g>
+  
+  <!-- 夏日元素 - 小太阳 -->
+  <circle cx="35" cy="40" r="8" fill="#FFEB3B" stroke="#FFC107" stroke-width="1"/>
+  <g stroke="#FFC107" stroke-width="1" stroke-linecap="round">
+    <line x1="35" y1="28" x2="35" y2="30"/>
+    <line x1="35" y1="50" x2="35" y2="52"/>
+    <line x1="23" y1="40" x2="25" y2="40"/>
+    <line x1="45" y1="40" x2="47" y2="40"/>
+    <line x1="27.3" y1="32.3" x2="28.7" y2="33.7"/>
+    <line x1="41.3" y1="46.3" x2="42.7" y2="47.7"/>
+    <line x1="42.7" y1="32.3" x2="41.3" y2="33.7"/>
+    <line x1="28.7" y1="46.3" x2="27.3" y2="47.7"/>
+  </g>
+</svg> 
