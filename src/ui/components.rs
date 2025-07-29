@@ -835,6 +835,7 @@ pub fn playlist_view(
                 row![
                     text(icon).size(14).shaping(Shaping::Advanced),
                     text(song_name)
+                        .shaping(Shaping::Advanced)
                         .width(Length::FillPortion(4))
                         .style(move |theme: &Theme| {
                             let palette = theme.extended_palette();
