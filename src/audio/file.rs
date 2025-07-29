@@ -15,6 +15,17 @@ use symphonia::default;
 use crate::error::{PlayerError, Result};
 use crate::config::audio::{MAX_ESTIMATION_PACKETS, DEFAULT_SAMPLE_RATE};
 
+/// 封面图片信息
+#[derive(Debug, Clone)]
+pub struct CoverArt {
+    /// 图片数据
+    pub data: Vec<u8>,
+    /// MIME类型 (如 "image/jpeg", "image/png")
+    pub mime_type: String,
+    /// 描述
+    pub description: Option<String>,
+}
+
 /// 音频元数据信息
 #[derive(Debug, Clone, Default)]
 pub struct AudioMetadata {
@@ -36,6 +47,8 @@ pub struct AudioMetadata {
     pub composer: Option<String>,
     /// 评论
     pub comment: Option<String>,
+    /// 封面图片
+    pub cover_art: Option<CoverArt>,
     /// 其他标签
     pub other_tags: HashMap<String, String>,
 }
@@ -45,10 +58,54 @@ impl AudioMetadata {
     pub fn from_symphonia_metadata(metadata: &symphonia::core::meta::MetadataRevision) -> Self {
         let mut audio_metadata = AudioMetadata::default();
         
+        // 首先处理视觉数据（封面）
+        for visual in metadata.visuals() {
+            // 检查usage字段来确定这是封面图片
+            if let Some(usage) = &visual.usage {
+                use symphonia::core::meta::StandardVisualKey;
+                if matches!(usage, StandardVisualKey::FrontCover | StandardVisualKey::BackCover) {
+                    // 只有在还没有封面的时候才设置，优先使用前封面
+                    if audio_metadata.cover_art.is_none() || matches!(usage, StandardVisualKey::FrontCover) {
+                        let mime_type = if visual.media_type.is_empty() {
+                            detect_image_format(&visual.data)
+                        } else {
+                            visual.media_type.clone()
+                        };
+                        
+                        if !mime_type.is_empty() {
+                            audio_metadata.cover_art = Some(CoverArt {
+                                data: visual.data.to_vec(),
+                                mime_type,
+                                description: None, // Visual结构体可能没有description字段
+                            });
+                        }
+                    }
+                }
+            } else {
+                // 如果没有usage字段，尝试将其作为封面（通常是第一个视觉数据）
+                if audio_metadata.cover_art.is_none() {
+                    let mime_type = if visual.media_type.is_empty() {
+                        detect_image_format(&visual.data)
+                    } else {
+                        visual.media_type.clone()
+                    };
+                    
+                    if !mime_type.is_empty() {
+                        audio_metadata.cover_art = Some(CoverArt {
+                            data: visual.data.to_vec(),
+                            mime_type,
+                            description: None,
+                        });
+                    }
+                }
+            }
+        }
+        
+        // 然后处理文本标签
         for tag in metadata.tags() {
             let value = match &tag.value {
                 Value::String(s) => s.clone(),
-                Value::Binary(_) => continue, // 跳过二进制数据
+                Value::Binary(_) => continue, // 跳过二进制数据，视觉数据已经在上面处理了
                 _ => tag.value.to_string(),
             };
             
@@ -80,6 +137,45 @@ impl AudioMetadata {
         
         audio_metadata
     }
+}
+
+/// 检测图片格式
+fn detect_image_format(data: &[u8]) -> String {
+    if data.len() < 8 {
+        return String::new();
+    }
+    
+    // JPEG格式检测 (FF D8 FF)
+    if data.len() >= 3 && data[0] == 0xFF && data[1] == 0xD8 && data[2] == 0xFF {
+        return "image/jpeg".to_string();
+    }
+    
+    // PNG格式检测 (89 50 4E 47 0D 0A 1A 0A)
+    if data.len() >= 8 && 
+       data[0] == 0x89 && data[1] == 0x50 && data[2] == 0x4E && data[3] == 0x47 &&
+       data[4] == 0x0D && data[5] == 0x0A && data[6] == 0x1A && data[7] == 0x0A {
+        return "image/png".to_string();
+    }
+    
+    // GIF格式检测 (47 49 46 38)
+    if data.len() >= 4 && 
+       data[0] == 0x47 && data[1] == 0x49 && data[2] == 0x46 && data[3] == 0x38 {
+        return "image/gif".to_string();
+    }
+    
+    // BMP格式检测 (42 4D)
+    if data.len() >= 2 && data[0] == 0x42 && data[1] == 0x4D {
+        return "image/bmp".to_string();
+    }
+    
+    // WebP格式检测 (52 49 46 46 ... 57 45 42 50)
+    if data.len() >= 12 && 
+       data[0] == 0x52 && data[1] == 0x49 && data[2] == 0x46 && data[3] == 0x46 &&
+       data[8] == 0x57 && data[9] == 0x45 && data[10] == 0x42 && data[11] == 0x50 {
+        return "image/webp".to_string();
+    }
+    
+    String::new()
 }
 
 /// 音频文件信息

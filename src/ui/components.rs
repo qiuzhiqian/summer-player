@@ -3,7 +3,7 @@
 //! 包含可重用的UI组件。
 
 use iced::{
-    widget::{button, column, row, text, progress_bar, scrollable, Space, container},
+    widget::{button, column, row, text, progress_bar, scrollable, Space, container, image},
     Element, Length, Border, Shadow, Background, Color,
     alignment::{Horizontal, Vertical},
     theme::Theme,
@@ -145,7 +145,36 @@ pub fn file_info_view(audio_info: Option<&AudioInfo>, file_path: &str) -> Elemen
                             color: Some(palette.primary.base.color),
                         }
                     }),
-                
+            ].spacing(12);
+            
+            // 如果有封面图片，显示封面
+            if let Some(cover_art) = &info.metadata.cover_art {
+                let cover_image = image::Handle::from_bytes(cover_art.data.clone());
+                main_column = main_column.push(
+                    container(
+                        image(cover_image)
+                            .width(Length::Shrink)
+                            .height(Length::Shrink)
+                    )
+                    .style(|theme: &Theme| {
+                        let palette = theme.extended_palette();
+                        container::Style {
+                            background: Some(Background::Color(palette.background.weak.color)),
+                            border: Border {
+                                radius: Radius::from(8.0),
+                                width: 1.0,
+                                color: palette.background.strong.color,
+                            },
+                            ..Default::default()
+                        }
+                    })
+                    .padding(4)
+                    .width(Length::Shrink)
+                    .align_x(Horizontal::Center)
+                );
+            }
+            
+            main_column = main_column.push(
                 // 技术信息部分
                 text("技术信息")
                     .size(14)
@@ -157,9 +186,8 @@ pub fn file_info_view(audio_info: Option<&AudioInfo>, file_path: &str) -> Elemen
                                 ..palette.background.base.text
                             }),
                         }
-                    }),
-                audio_info_column,
-            ].spacing(12);
+                    })
+            ).push(audio_info_column);
             
             // 如果有元数据信息，添加元数据部分
             if info.metadata.title.is_some() || info.metadata.artist.is_some() || 

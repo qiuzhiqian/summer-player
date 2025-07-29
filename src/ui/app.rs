@@ -90,7 +90,7 @@ impl PlayerApp {
     /// 创建应用程序视图
     pub fn view(&self) -> Element<Message> {
         let left_panel = column![
-            title_view(),
+            /*title_view(),*/
             file_info_view(self.audio_info.as_ref(), &self.file_path),
             file_controls_view(),
             control_buttons_view(),
