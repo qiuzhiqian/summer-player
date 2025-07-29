@@ -23,3 +23,22 @@ iced = { version = "0.13", features = ["tokio", "advanced", "image"] }
 tokio = { version = "1.0", features = ["full"] }
 rfd = "0.14"
 anim = { version = "0.1", default-features = false, features = ["iced-backend"] }
+
+[package.metadata.deb]
+maintainer = "xml <xiamengliang@gmail.com>"
+copyright = "2025, xml <xiamengliang@gmail.com>"
+license-file = ["LICENSE", "0"]
+extended-description = """\
+Summer Player 是一个使用 Rust 编写的现代化图形界面音频播放器，\
+带有夏日主题，使用 iced GUI 框架构建。支持多种音频格式，\
+包括 MP3、FLAC、WAV、OGG、AAC、M4A 等，具有播放列表支持、\
+歌词显示、音量控制等功能。"""
+depends = "$auto, libasound2-dev, libpulse-dev, libxkbcommon-dev, libfontconfig1-dev"
+section = "sound"
+priority = "optional"
+assets = [
+    ["target/release/summer_player", "usr/bin/", "755"],
+    ["icon.png", "usr/share/pixmaps/summer-player.png", "644"],
+    ["summer-player.desktop", "usr/share/applications/", "644"],
+    ["README.md", "usr/share/doc/summer-player/", "644"],
+]
