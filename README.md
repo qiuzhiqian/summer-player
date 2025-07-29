@@ -31,10 +31,62 @@
 - Rust 1.70+
 - Linux/Windows/macOS
 
+### 编译依赖
+
+**Linux (Debian/Ubuntu)**:
+```bash
+# 安装 Rust 工具链
+curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
+
+# 安装系统依赖
+sudo apt update
+sudo apt install -y build-essential pkg-config libasound2-dev libfontconfig1-dev libxkbcommon-dev
+```
+
+**其他 Linux 发行版**:
+- **Fedora/RHEL**: `sudo dnf install alsa-lib-devel fontconfig-devel libxkbcommon-devel`
+- **Arch Linux**: `sudo pacman -S alsa-lib fontconfig libxkbcommon`
+- **openSUSE**: `sudo zypper install alsa-devel fontconfig-devel libxkbcommon-devel`
+
+**macOS**:
+```bash
+# 安装 Xcode 命令行工具
+xcode-select --install
+
+# 使用 Homebrew 安装依赖（可选）
+brew install pkg-config
+```
+
+**Windows**:
+- 安装 [Microsoft C++ Build Tools](https://visualstudio.microsoft.com/visual-cpp-build-tools/)
+- 或安装 Visual Studio with C++ 支持
+
 ### 编译
 
 ```bash
 cargo build --release
+```
+
+### 构建 deb 包
+
+如果你想创建 Debian/Ubuntu 安装包：
+
+```bash
+# 安装 cargo-deb
+cargo install cargo-deb
+
+# 构建 deb 包
+cargo deb
+
+# 生成的包位于：target/debian/summer-player_0.3.0-1_amd64.deb
+```
+
+**安装 deb 包**:
+```bash
+sudo dpkg -i target/debian/summer-player_0.3.0-1_amd64.deb
+
+# 如果有依赖问题，运行：
+sudo apt-get install -f
 ```
 
 ### 运行

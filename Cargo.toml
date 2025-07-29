@@ -33,7 +33,7 @@ Summer Player 是一个使用 Rust 编写的现代化图形界面音频播放器
 带有夏日主题，使用 iced GUI 框架构建。支持多种音频格式，\
 包括 MP3、FLAC、WAV、OGG、AAC、M4A 等，具有播放列表支持、\
 歌词显示、音量控制等功能。"""
-depends = "$auto, libasound2-dev, libpulse-dev, libxkbcommon-dev, libfontconfig1-dev"
+depends = "$auto"
 section = "sound"
 priority = "optional"
 assets = [
