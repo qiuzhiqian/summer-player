@@ -9,6 +9,7 @@ use iced::{
     theme::Theme,
     border::Radius,
 };
+use iced::advanced::text::Shaping;
 
 use crate::audio::{AudioInfo, PlaybackState};
 use crate::playlist::Playlist;
@@ -91,7 +92,8 @@ pub fn file_info_view(audio_info: Option<&AudioInfo>, file_path: &str) -> Elemen
         column![
             text("🎼")
                 .size(32)
-                .align_x(Horizontal::Center),
+                .align_x(Horizontal::Center)
+                .shaping(Shaping::Advanced),
             text("未选择文件")
                 .size(14)
                 .align_x(Horizontal::Center)
@@ -117,7 +119,7 @@ pub fn file_info_view(audio_info: Option<&AudioInfo>, file_path: &str) -> Elemen
 /// 创建信息行
 fn info_row(icon: &'static str, label: &'static str, value: &str) -> Element<'static, Message> {
     row![
-        text(icon).size(14),
+        text(icon).size(14).shaping(Shaping::Advanced),
         text(format!("{}: {}", label, value))
             .size(12)
             .style(|theme: &Theme| {
@@ -144,9 +146,11 @@ pub fn control_buttons_view() -> Element<'static, Message> {
         row![
             // 上一首
             button(
-                container(text("⏮").size(18))
-                    .center_x(Length::Fixed(48.0))
-                    .center_y(Length::Fixed(48.0))
+                container(text("⏮").size(18).shaping(Shaping::Advanced))
+                    .width(Length::Fill)
+                    .height(Length::Fill)
+                    .align_x(Horizontal::Center)
+                    .align_y(Vertical::Center)
             )
             .style(|theme: &Theme, status| {
                 let palette = theme.extended_palette();
@@ -205,9 +209,11 @@ pub fn control_buttons_view() -> Element<'static, Message> {
             
             // 播放/暂停 - 主要按钮，更大更突出
             button(
-                container(text("⏯").size(24))
-                    .center_x(Length::Fixed(64.0))
-                    .center_y(Length::Fixed(64.0))
+                container(text("⏯").size(24).shaping(Shaping::Advanced))
+                    .width(Length::Fill)
+                    .height(Length::Fill)
+                    .align_x(Horizontal::Center)
+                    .align_y(Vertical::Center)
             )
             .style(|theme: &Theme, status| {
                 let palette = theme.extended_palette();
@@ -277,9 +283,11 @@ pub fn control_buttons_view() -> Element<'static, Message> {
             
             // 停止
             button(
-                container(text("⏹").size(18))
-                    .center_x(Length::Fixed(48.0))
-                    .center_y(Length::Fixed(48.0))
+                container(text("⏹").size(18).shaping(Shaping::Advanced))
+                    .width(Length::Fill)
+                    .height(Length::Fill)
+                    .align_x(Horizontal::Center)
+                    .align_y(Vertical::Center)
             )
             .style(|theme: &Theme, status| {
                 let palette = theme.extended_palette();
@@ -338,9 +346,11 @@ pub fn control_buttons_view() -> Element<'static, Message> {
             
             // 下一首
             button(
-                container(text("⏭").size(18))
-                    .center_x(Length::Fixed(48.0))
-                    .center_y(Length::Fixed(48.0))
+                container(text("⏭").size(18).shaping(Shaping::Advanced))
+                    .width(Length::Fill)
+                    .height(Length::Fill)
+                    .align_x(Horizontal::Center)
+                    .align_y(Vertical::Center)
             )
             .style(|theme: &Theme, status| {
                 let palette = theme.extended_palette();
@@ -414,7 +424,7 @@ pub fn file_controls_view() -> Element<'static, Message> {
     container(
         button(
             row![
-                container(text("📁").size(16))
+                container(text("📁").size(16).shaping(Shaping::Advanced))
                     .style(|theme: &Theme| {
                         let palette = theme.extended_palette();
                         container::Style {
@@ -532,7 +542,7 @@ pub fn view_toggle_button(current_view: &ViewType) -> Element<'static, Message> 
     container(
         button(
             row![
-                container(text(icon).size(18))
+                container(text(icon).size(18).shaping(Shaping::Advanced))
                     .style(move |theme: &Theme| {
                         let palette = theme.extended_palette();
                         let color = if is_playlist {
@@ -769,7 +779,7 @@ pub fn status_view(is_playing: bool) -> Element<'static, Message> {
     
     container(
         row![
-            text(icon).size(16),
+            text(icon).size(16).shaping(Shaping::Advanced),
             text(status_text)
                 .size(14)
                 .style(move |theme: &Theme| {
@@ -823,7 +833,7 @@ pub fn playlist_view(
             
             let content = container(
                 row![
-                    text(icon).size(14),
+                    text(icon).size(14).shaping(Shaping::Advanced),
                     text(song_name)
                         .width(Length::FillPortion(4))
                         .style(move |theme: &Theme| {
@@ -961,7 +971,7 @@ pub fn playlist_view(
             column![
                 // 播放列表标题
                 row![
-                    text("📋").size(18),
+                    text("📋").size(18).shaping(Shaping::Advanced),
                     text(format!("播放列表 ({} 首歌曲)", playlist.len()))
                         .size(16)
                         .style(|theme: &Theme| {
@@ -986,7 +996,7 @@ pub fn playlist_view(
     } else {
         container(
             column![
-                text("📂").size(48).align_x(Horizontal::Center),
+                text("📂").size(48).align_x(Horizontal::Center).shaping(Shaping::Advanced),
                 text("未加载播放列表")
                     .size(16)
                     .align_x(Horizontal::Center)
@@ -1035,7 +1045,7 @@ pub fn lyrics_view(file_path: &str, is_playing: bool, current_time: f64, lyrics:
     if file_path.is_empty() {
         return container(
             column![
-                text("🎵").size(48).align_x(Horizontal::Center),
+                text("🎵").size(48).align_x(Horizontal::Center).shaping(Shaping::Advanced),
                 text("歌词显示")
                     .size(20)
                     .align_x(Horizontal::Center)
@@ -1100,6 +1110,7 @@ pub fn lyrics_view(file_path: &str, is_playing: bool, current_time: f64, lyrics:
                 text(format!("🎤 {}", artist))
                     .size(14)
                     .align_x(Horizontal::Center)
+                    .shaping(Shaping::Advanced)
                     .style(|theme: &Theme| {
                         let palette = theme.extended_palette();
                         text::Style {
@@ -1119,6 +1130,7 @@ pub fn lyrics_view(file_path: &str, is_playing: bool, current_time: f64, lyrics:
             text("🎵 歌词显示")
                 .size(18)
                 .align_x(Horizontal::Center)
+                .shaping(Shaping::Advanced)
                 .style(|theme: &Theme| {
                     let palette = theme.extended_palette();
                     text::Style {
@@ -1213,6 +1225,7 @@ pub fn lyrics_view(file_path: &str, is_playing: bool, current_time: f64, lyrics:
                             text(format!("▶ {}", lyric_text))
                                 .size(18)
                                 .align_x(Horizontal::Center)
+                                .shaping(Shaping::Advanced)
                                 .style(|theme: &Theme| {
                                     let palette = theme.extended_palette();
                                     text::Style {
@@ -1244,6 +1257,7 @@ pub fn lyrics_view(file_path: &str, is_playing: bool, current_time: f64, lyrics:
                         text(lyric_text)
                             .size(16)
                             .align_x(Horizontal::Center)
+                            .shaping(Shaping::Advanced)
                             .style(|theme: &Theme| {
                                 let palette = theme.extended_palette();
                                 text::Style {
@@ -1256,6 +1270,7 @@ pub fn lyrics_view(file_path: &str, is_playing: bool, current_time: f64, lyrics:
                         text(lyric_text)
                             .size(14)
                             .align_x(Horizontal::Center)
+                            .shaping(Shaping::Advanced)
                             .style(|theme: &Theme| {
                                 let palette = theme.extended_palette();
                                 text::Style {
@@ -1271,6 +1286,7 @@ pub fn lyrics_view(file_path: &str, is_playing: bool, current_time: f64, lyrics:
                         text(lyric_text)
                             .size(14)
                             .align_x(Horizontal::Center)
+                            .shaping(Shaping::Advanced)
                             .style(|theme: &Theme| {
                                 let palette = theme.extended_palette();
                                 text::Style {
@@ -1304,6 +1320,7 @@ pub fn lyrics_view(file_path: &str, is_playing: bool, current_time: f64, lyrics:
                     text("♪ 音乐开始了... ♪")
                         .size(14)
                         .align_x(Horizontal::Center)
+                        .shaping(Shaping::Advanced)
                         .style(|theme: &Theme| {
                             let palette = theme.extended_palette();
                             text::Style {
@@ -1319,6 +1336,7 @@ pub fn lyrics_view(file_path: &str, is_playing: bool, current_time: f64, lyrics:
             lyrics_elements.push(
                 text("⚠️ 歌词文件已加载，但没有找到歌词内容")
                     .align_x(Horizontal::Center)
+                    .shaping(Shaping::Advanced)
                     .style(|theme: &Theme| {
                         let palette = theme.extended_palette();
                         text::Style {
@@ -1338,6 +1356,7 @@ pub fn lyrics_view(file_path: &str, is_playing: bool, current_time: f64, lyrics:
                 text("♪ 正在播放中... ♪")
                     .size(18)
                     .align_x(Horizontal::Center)
+                    .shaping(Shaping::Advanced)
                     .style(|theme: &Theme| {
                         let palette = theme.extended_palette();
                         text::Style {
@@ -1350,6 +1369,7 @@ pub fn lyrics_view(file_path: &str, is_playing: bool, current_time: f64, lyrics:
             lyrics_elements.push(
                 text("🎵 暂无歌词文件")
                     .align_x(Horizontal::Center)
+                    .shaping(Shaping::Advanced)
                     .style(|theme: &Theme| {
                         let palette = theme.extended_palette();
                         text::Style {
@@ -1366,6 +1386,7 @@ pub fn lyrics_view(file_path: &str, is_playing: bool, current_time: f64, lyrics:
                 text(format!("⏱️ {}", format_duration(current_time)))
                     .size(12)
                     .align_x(Horizontal::Center)
+                    .shaping(Shaping::Advanced)
                     .style(|theme: &Theme| {
                         let palette = theme.extended_palette();
                         text::Style {
@@ -1382,6 +1403,7 @@ pub fn lyrics_view(file_path: &str, is_playing: bool, current_time: f64, lyrics:
                 text("♪ 歌词显示 ♪")
                     .size(18)
                     .align_x(Horizontal::Center)
+                    .shaping(Shaping::Advanced)
                     .style(|theme: &Theme| {
                         let palette = theme.extended_palette();
                         text::Style {
@@ -1394,6 +1416,7 @@ pub fn lyrics_view(file_path: &str, is_playing: bool, current_time: f64, lyrics:
             lyrics_elements.push(
                 text("⏸️ 暂停播放中")
                     .align_x(Horizontal::Center)
+                    .shaping(Shaping::Advanced)
                     .style(|theme: &Theme| {
                         let palette = theme.extended_palette();
                         text::Style {
@@ -1413,15 +1436,16 @@ pub fn lyrics_view(file_path: &str, is_playing: bool, current_time: f64, lyrics:
                 column![
                     text("💡 使用提示")
                         .size(14)
+                        .shaping(Shaping::Advanced)
                         .style(|theme: &Theme| {
                             let palette = theme.extended_palette();
                             text::Style {
                                 color: Some(palette.primary.base.color),
                             }
                         }),
-                    text("📁 将 .lrc 歌词文件放在音频文件同目录下").size(11),
-                    text("📝 歌词文件名需与音频文件名相同").size(11),
-                    text("🕐 支持时间同步的LRC格式歌词").size(11),
+                    text("📁 将 .lrc 歌词文件放在音频文件同目录下").size(11).shaping(Shaping::Advanced),
+                    text("📝 歌词文件名需与音频文件名相同").size(11).shaping(Shaping::Advanced),
+                    text("🕐 支持时间同步的LRC格式歌词").size(11).shaping(Shaping::Advanced),
                 ].spacing(6)
             )
             .style(|theme: &Theme| {
@@ -1472,7 +1496,7 @@ pub fn lyrics_view(file_path: &str, is_playing: bool, current_time: f64, lyrics:
 pub fn title_view() -> Element<'static, Message> {
     container(
         row![
-            text("🎵").size(24),
+            text("🎵").size(24).shaping(Shaping::Advanced),
             text("音频播放器")
                 .size(20)
                 .style(|theme: &Theme| {
