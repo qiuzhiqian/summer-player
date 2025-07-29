@@ -46,6 +46,7 @@ fn main() {
     
     iced::application("player", PlayerApp::update, PlayerApp::view)
         .subscription(PlayerApp::subscription)
+        .font(include_bytes!("../fonts/NotoColorEmoji.ttf"))
         .default_font(Font::with_name("Noto Sans CJK SC"))
         .run_with(|| (app, iced::Task::none()))
         .unwrap();

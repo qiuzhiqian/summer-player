@@ -15,6 +15,12 @@ pub const BUFFER_WRITE_DELAY: u64 = 10;
 pub mod fonts {
     /// 中文字体
     pub const CHINESE_FONT: &str = "SimHei";
+    
+    /// Emoji 字体文件路径
+    pub const EMOJI_FONT_PATH: &str = "fonts/NotoColorEmoji.ttf";
+    
+    /// Emoji 字体名称
+    pub const EMOJI_FONT_NAME: &str = "NotoColorEmoji";
 }
 
 /// UI常量

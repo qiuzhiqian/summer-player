@@ -3,8 +3,11 @@
 //! 包含可重用的UI组件。
 
 use iced::{
-    widget::{button, column, row, text, progress_bar, scrollable, Space},
-    Element, Length,
+    widget::{button, column, row, text, progress_bar, scrollable, Space, container},
+    Element, Length, Border, Shadow, Background, Color,
+    alignment::{Horizontal, Vertical},
+    theme::Theme,
+    border::Radius,
 };
 
 use crate::audio::{AudioInfo, PlaybackState};
@@ -23,6 +26,29 @@ pub enum ViewType {
     Lyrics,
 }
 
+
+
+/// 现代化卡片容器样式
+fn card_style() -> fn(&Theme) -> container::Style {
+    |theme: &Theme| {
+        let palette = theme.extended_palette();
+        container::Style {
+            background: Some(Background::Color(palette.background.base.color)),
+            border: Border {
+                radius: Radius::from(12.0),
+                width: 1.0,
+                color: palette.background.strong.color,
+            },
+            shadow: Shadow {
+                color: Color::from_rgba(0.0, 0.0, 0.0, 0.1),
+                offset: iced::Vector::new(0.0, 2.0),
+                blur_radius: 8.0,
+            },
+            text_color: Some(palette.background.base.text),
+        }
+    }
+}
+
 /// 创建文件信息显示组件
 /// 
 /// # 参数
@@ -32,24 +58,81 @@ pub enum ViewType {
 /// # 返回
 /// 文件信息UI元素
 pub fn file_info_view(audio_info: Option<&AudioInfo>, file_path: &str) -> Element<'static, Message> {
-    if let Some(info) = audio_info {
+    let content = if let Some(info) = audio_info {
+        let file_name = std::path::Path::new(file_path)
+            .file_stem()
+            .and_then(|s| s.to_str())
+            .unwrap_or("未知文件")
+            .to_string();
+        
         column![
-            text(format!("文件: {}", file_path)),
-            text(format!("声道: {}", info.channels)),
-            text(format!("采样率: {} Hz", info.sample_rate)),
-            text(format!("时长: {}", 
-                if let Some(duration) = info.duration {
+            // 文件名
+            text(file_name)
+                .size(16)
+                .style(|theme: &Theme| {
+                    let palette = theme.extended_palette();
+                    text::Style {
+                        color: Some(palette.primary.base.color),
+                    }
+                }),
+            
+            // 音频信息
+            column![
+                info_row("🎵", "声道", &format!("{}", info.channels)),
+                info_row("📡", "采样率", &format!("{} Hz", info.sample_rate)),
+                info_row("⏱️", "时长", &if let Some(duration) = info.duration {
                     format_duration(duration)
                 } else {
                     "未知".to_string()
-                }
-            )),
-        ].spacing(10).into()
+                }),
+            ].spacing(8)
+        ].spacing(12)
     } else {
         column![
-            text("未选择文件"),
-        ].spacing(10).into()
-    }
+            text("🎼")
+                .size(32)
+                .align_x(Horizontal::Center),
+            text("未选择文件")
+                .size(14)
+                .align_x(Horizontal::Center)
+                .style(|theme: &Theme| {
+                    let palette = theme.extended_palette();
+                    text::Style {
+                        color: Some(Color {
+                            a: 0.7,
+                            ..palette.background.base.text
+                        }),
+                    }
+                }),
+        ].spacing(8).align_x(Horizontal::Center)
+    };
+
+    container(content)
+        .style(card_style())
+        .padding(16)
+        .width(Length::Fill)
+        .into()
+}
+
+/// 创建信息行
+fn info_row(icon: &'static str, label: &'static str, value: &str) -> Element<'static, Message> {
+    row![
+        text(icon).size(14),
+        text(format!("{}: {}", label, value))
+            .size(12)
+            .style(|theme: &Theme| {
+                let palette = theme.extended_palette();
+                text::Style {
+                    color: Some(Color {
+                        a: 0.8,
+                        ..palette.background.base.text
+                    }),
+                }
+            }),
+    ]
+    .spacing(8)
+    .align_y(Vertical::Center)
+    .into()
 }
 
 /// 创建播放控制按钮组
@@ -57,12 +140,270 @@ pub fn file_info_view(audio_info: Option<&AudioInfo>, file_path: &str) -> Elemen
 /// # 返回
 /// 控制按钮UI元素
 pub fn control_buttons_view() -> Element<'static, Message> {
-    row![
-        button("播放/暂停").on_press(Message::PlayPause),
-        button("停止").on_press(Message::Stop),
-        button("上一首").on_press(Message::PreviousTrack),
-        button("下一首").on_press(Message::NextTrack),
-    ].spacing(10).into()
+    container(
+        row![
+            // 上一首
+            button(
+                container(text("⏮").size(18))
+                    .center_x(Length::Fixed(48.0))
+                    .center_y(Length::Fixed(48.0))
+            )
+            .style(|theme: &Theme, status| {
+                let palette = theme.extended_palette();
+                match status {
+                    button::Status::Active => button::Style {
+                        background: Some(Background::Color(Color {
+                            a: 0.8,
+                            ..palette.secondary.base.color
+                        })),
+                        text_color: Color::WHITE,
+                        border: Border {
+                            radius: Radius::from(24.0),
+                            width: 0.0,
+                            color: Color::TRANSPARENT,
+                        },
+                        shadow: Shadow {
+                            color: Color::from_rgba(0.0, 0.0, 0.0, 0.2),
+                            offset: iced::Vector::new(0.0, 3.0),
+                            blur_radius: 6.0,
+                        },
+                    },
+                    button::Status::Hovered => button::Style {
+                        background: Some(Background::Color(palette.secondary.strong.color)),
+                        text_color: Color::WHITE,
+                        border: Border {
+                            radius: Radius::from(24.0),
+                            width: 0.0,
+                            color: Color::TRANSPARENT,
+                        },
+                        shadow: Shadow {
+                            color: Color::from_rgba(0.0, 0.0, 0.0, 0.3),
+                            offset: iced::Vector::new(0.0, 6.0),
+                            blur_radius: 12.0,
+                        },
+                    },
+                    button::Status::Pressed => button::Style {
+                        background: Some(Background::Color(palette.secondary.weak.color)),
+                        text_color: Color::WHITE,
+                        border: Border {
+                            radius: Radius::from(24.0),
+                            width: 0.0,
+                            color: Color::TRANSPARENT,
+                        },
+                        shadow: Shadow {
+                            color: Color::from_rgba(0.0, 0.0, 0.0, 0.15),
+                            offset: iced::Vector::new(0.0, 1.0),
+                            blur_radius: 3.0,
+                        },
+                    },
+                    _ => button::Style::default(),
+                }
+            })
+            .width(Length::Fixed(48.0))
+            .height(Length::Fixed(48.0))
+            .on_press(Message::PreviousTrack),
+            
+            // 播放/暂停 - 主要按钮，更大更突出
+            button(
+                container(text("⏯").size(24))
+                    .center_x(Length::Fixed(64.0))
+                    .center_y(Length::Fixed(64.0))
+            )
+            .style(|theme: &Theme, status| {
+                let palette = theme.extended_palette();
+                match status {
+                    button::Status::Active => button::Style {
+                        background: Some(Background::Color(palette.primary.strong.color)),
+                        text_color: Color::WHITE,
+                        border: Border {
+                            radius: Radius::from(32.0),
+                            width: 2.0,
+                            color: Color {
+                                a: 0.3,
+                                ..Color::WHITE
+                            },
+                        },
+                        shadow: Shadow {
+                            color: Color::from_rgba(0.0, 0.0, 0.0, 0.25),
+                            offset: iced::Vector::new(0.0, 4.0),
+                            blur_radius: 12.0,
+                        },
+                    },
+                    button::Status::Hovered => button::Style {
+                        background: Some(Background::Color(Color {
+                            r: palette.primary.strong.color.r * 1.1,
+                            g: palette.primary.strong.color.g * 1.1,
+                            b: palette.primary.strong.color.b * 1.1,
+                            a: 1.0,
+                        })),
+                        text_color: Color::WHITE,
+                        border: Border {
+                            radius: Radius::from(32.0),
+                            width: 2.0,
+                            color: Color {
+                                a: 0.5,
+                                ..Color::WHITE
+                            },
+                        },
+                        shadow: Shadow {
+                            color: Color::from_rgba(0.0, 0.0, 0.0, 0.35),
+                            offset: iced::Vector::new(0.0, 6.0),
+                            blur_radius: 16.0,
+                        },
+                    },
+                    button::Status::Pressed => button::Style {
+                        background: Some(Background::Color(palette.primary.base.color)),
+                        text_color: Color::WHITE,
+                        border: Border {
+                            radius: Radius::from(32.0),
+                            width: 2.0,
+                            color: Color {
+                                a: 0.2,
+                                ..Color::WHITE
+                            },
+                        },
+                        shadow: Shadow {
+                            color: Color::from_rgba(0.0, 0.0, 0.0, 0.2),
+                            offset: iced::Vector::new(0.0, 2.0),
+                            blur_radius: 6.0,
+                        },
+                    },
+                    _ => button::Style::default(),
+                }
+            })
+            .width(Length::Fixed(64.0))
+            .height(Length::Fixed(64.0))
+            .on_press(Message::PlayPause),
+            
+            // 停止
+            button(
+                container(text("⏹").size(18))
+                    .center_x(Length::Fixed(48.0))
+                    .center_y(Length::Fixed(48.0))
+            )
+            .style(|theme: &Theme, status| {
+                let palette = theme.extended_palette();
+                match status {
+                    button::Status::Active => button::Style {
+                        background: Some(Background::Color(Color {
+                            a: 0.8,
+                            ..palette.danger.base.color
+                        })),
+                        text_color: Color::WHITE,
+                        border: Border {
+                            radius: Radius::from(24.0),
+                            width: 0.0,
+                            color: Color::TRANSPARENT,
+                        },
+                        shadow: Shadow {
+                            color: Color::from_rgba(0.0, 0.0, 0.0, 0.2),
+                            offset: iced::Vector::new(0.0, 3.0),
+                            blur_radius: 6.0,
+                        },
+                    },
+                    button::Status::Hovered => button::Style {
+                        background: Some(Background::Color(palette.danger.strong.color)),
+                        text_color: Color::WHITE,
+                        border: Border {
+                            radius: Radius::from(24.0),
+                            width: 0.0,
+                            color: Color::TRANSPARENT,
+                        },
+                        shadow: Shadow {
+                            color: Color::from_rgba(0.0, 0.0, 0.0, 0.3),
+                            offset: iced::Vector::new(0.0, 6.0),
+                            blur_radius: 12.0,
+                        },
+                    },
+                    button::Status::Pressed => button::Style {
+                        background: Some(Background::Color(palette.danger.weak.color)),
+                        text_color: Color::WHITE,
+                        border: Border {
+                            radius: Radius::from(24.0),
+                            width: 0.0,
+                            color: Color::TRANSPARENT,
+                        },
+                        shadow: Shadow {
+                            color: Color::from_rgba(0.0, 0.0, 0.0, 0.15),
+                            offset: iced::Vector::new(0.0, 1.0),
+                            blur_radius: 3.0,
+                        },
+                    },
+                    _ => button::Style::default(),
+                }
+            })
+            .width(Length::Fixed(48.0))
+            .height(Length::Fixed(48.0))
+            .on_press(Message::Stop),
+            
+            // 下一首
+            button(
+                container(text("⏭").size(18))
+                    .center_x(Length::Fixed(48.0))
+                    .center_y(Length::Fixed(48.0))
+            )
+            .style(|theme: &Theme, status| {
+                let palette = theme.extended_palette();
+                match status {
+                    button::Status::Active => button::Style {
+                        background: Some(Background::Color(Color {
+                            a: 0.8,
+                            ..palette.secondary.base.color
+                        })),
+                        text_color: Color::WHITE,
+                        border: Border {
+                            radius: Radius::from(24.0),
+                            width: 0.0,
+                            color: Color::TRANSPARENT,
+                        },
+                        shadow: Shadow {
+                            color: Color::from_rgba(0.0, 0.0, 0.0, 0.2),
+                            offset: iced::Vector::new(0.0, 3.0),
+                            blur_radius: 6.0,
+                        },
+                    },
+                    button::Status::Hovered => button::Style {
+                        background: Some(Background::Color(palette.secondary.strong.color)),
+                        text_color: Color::WHITE,
+                        border: Border {
+                            radius: Radius::from(24.0),
+                            width: 0.0,
+                            color: Color::TRANSPARENT,
+                        },
+                        shadow: Shadow {
+                            color: Color::from_rgba(0.0, 0.0, 0.0, 0.3),
+                            offset: iced::Vector::new(0.0, 6.0),
+                            blur_radius: 12.0,
+                        },
+                    },
+                    button::Status::Pressed => button::Style {
+                        background: Some(Background::Color(palette.secondary.weak.color)),
+                        text_color: Color::WHITE,
+                        border: Border {
+                            radius: Radius::from(24.0),
+                            width: 0.0,
+                            color: Color::TRANSPARENT,
+                        },
+                        shadow: Shadow {
+                            color: Color::from_rgba(0.0, 0.0, 0.0, 0.15),
+                            offset: iced::Vector::new(0.0, 1.0),
+                            blur_radius: 3.0,
+                        },
+                    },
+                    _ => button::Style::default(),
+                }
+            })
+            .width(Length::Fixed(48.0))
+            .height(Length::Fixed(48.0))
+            .on_press(Message::NextTrack),
+        ]
+        .spacing(16)
+        .align_y(Vertical::Center)
+    )
+    .style(card_style())
+    .padding(20)
+    .width(Length::Fill)
+    .into()
 }
 
 /// 创建文件操作按钮组
@@ -70,9 +411,107 @@ pub fn control_buttons_view() -> Element<'static, Message> {
 /// # 返回
 /// 文件操作按钮UI元素
 pub fn file_controls_view() -> Element<'static, Message> {
-    row![
-        button("打开文件").on_press(Message::OpenFile),
-    ].spacing(10).into()
+    container(
+        button(
+            row![
+                container(text("📁").size(16))
+                    .style(|theme: &Theme| {
+                        let palette = theme.extended_palette();
+                        container::Style {
+                            background: Some(Background::Color(Color {
+                                a: 0.1,
+                                ..palette.primary.base.color
+                            })),
+                            border: Border {
+                                radius: Radius::from(6.0),
+                                width: 0.0,
+                                color: Color::TRANSPARENT,
+                            },
+                            shadow: Shadow::default(),
+                            text_color: Some(palette.primary.base.color),
+                        }
+                    })
+                    .padding(8),
+                text("打开文件").size(14).style(|theme: &Theme| {
+                    let palette = theme.extended_palette();
+                    text::Style {
+                        color: Some(palette.primary.base.text),
+                    }
+                })
+            ].spacing(12).align_y(Vertical::Center)
+        )
+        .style(|theme: &Theme, status| {
+            let palette = theme.extended_palette();
+            match status {
+                button::Status::Active => button::Style {
+                    background: Some(Background::Color(Color {
+                        a: 0.05,
+                        ..palette.primary.base.color
+                    })),
+                    text_color: palette.primary.base.text,
+                    border: Border {
+                        radius: Radius::from(12.0),
+                        width: 1.0,
+                        color: palette.primary.weak.color,
+                    },
+                    shadow: Shadow {
+                        color: Color::from_rgba(0.0, 0.0, 0.0, 0.08),
+                        offset: iced::Vector::new(0.0, 2.0),
+                        blur_radius: 4.0,
+                    },
+                },
+                button::Status::Hovered => button::Style {
+                    background: Some(Background::Color(Color {
+                        a: 0.1,
+                        ..palette.primary.base.color
+                    })),
+                    text_color: palette.primary.strong.text,
+                    border: Border {
+                        radius: Radius::from(12.0),
+                        width: 1.0,
+                        color: palette.primary.base.color,
+                    },
+                    shadow: Shadow {
+                        color: Color::from_rgba(0.0, 0.0, 0.0, 0.15),
+                        offset: iced::Vector::new(0.0, 4.0),
+                        blur_radius: 8.0,
+                    },
+                },
+                button::Status::Pressed => button::Style {
+                    background: Some(Background::Color(Color {
+                        a: 0.15,
+                        ..palette.primary.base.color
+                    })),
+                    text_color: palette.primary.strong.text,
+                    border: Border {
+                        radius: Radius::from(12.0),
+                        width: 1.0,
+                        color: palette.primary.base.color,
+                    },
+                    shadow: Shadow {
+                        color: Color::from_rgba(0.0, 0.0, 0.0, 0.1),
+                        offset: iced::Vector::new(0.0, 1.0),
+                        blur_radius: 2.0,
+                    },
+                },
+                button::Status::Disabled => button::Style {
+                    background: Some(Background::Color(palette.background.weak.color)),
+                    text_color: palette.background.weak.text,
+                    border: Border {
+                        radius: Radius::from(12.0),
+                        width: 1.0,
+                        color: palette.background.strong.color,
+                    },
+                    shadow: Shadow::default(),
+                },
+            }
+        })
+        .padding([16, 20])
+        .width(Length::Fill)
+        .on_press(Message::OpenFile)
+    )
+    .width(Length::Fill)
+    .into()
 }
 
 /// 创建视图切换按钮
@@ -83,14 +522,143 @@ pub fn file_controls_view() -> Element<'static, Message> {
 /// # 返回
 /// 视图切换按钮UI元素
 pub fn view_toggle_button(current_view: &ViewType) -> Element<'static, Message> {
-    let button_text = match current_view {
-        ViewType::Playlist => "切换到歌词",
-        ViewType::Lyrics => "切换到播放列表",
+    let (icon, text_content, subtitle) = match current_view {
+        ViewType::Playlist => ("🎵", "切换到歌词", "查看歌词同步"),
+        ViewType::Lyrics => ("📋", "切换到播放列表", "浏览音乐库"),
     };
     
-    button(button_text)
+    let is_playlist = matches!(current_view, ViewType::Playlist);
+    
+    container(
+        button(
+            row![
+                container(text(icon).size(18))
+                    .style(move |theme: &Theme| {
+                        let palette = theme.extended_palette();
+                        let color = if is_playlist {
+                            palette.success.base.color
+                        } else {
+                            palette.secondary.base.color
+                        };
+                        container::Style {
+                            background: Some(Background::Color(Color {
+                                a: 0.15,
+                                ..color
+                            })),
+                            border: Border {
+                                radius: Radius::from(8.0),
+                                width: 0.0,
+                                color: Color::TRANSPARENT,
+                            },
+                            shadow: Shadow::default(),
+                            text_color: Some(color),
+                        }
+                    })
+                    .padding(10),
+                column![
+                    text(text_content)
+                        .size(14)
+                        .style(|theme: &Theme| {
+                            let palette = theme.extended_palette();
+                            text::Style {
+                                color: Some(palette.background.base.text),
+                            }
+                        }),
+                    text(subtitle)
+                    .size(11)
+                    .style(|theme: &Theme| {
+                        let palette = theme.extended_palette();
+                        text::Style {
+                            color: Some(Color {
+                                a: 0.6,
+                                ..palette.background.base.text
+                            }),
+                        }
+                    }),
+                ].spacing(2)
+            ].spacing(12).align_y(Vertical::Center)
+        )
+        .style(|theme: &Theme, status| {
+            let palette = theme.extended_palette();
+            match status {
+                button::Status::Active => button::Style {
+                    background: Some(Background::Color(Color {
+                        a: 0.03,
+                        ..palette.primary.base.color
+                    })),
+                    text_color: palette.background.base.text,
+                    border: Border {
+                        radius: Radius::from(12.0),
+                        width: 1.0,
+                        color: Color {
+                            a: 0.1,
+                            ..palette.primary.base.color
+                        },
+                    },
+                    shadow: Shadow {
+                        color: Color::from_rgba(0.0, 0.0, 0.0, 0.05),
+                        offset: iced::Vector::new(0.0, 1.0),
+                        blur_radius: 3.0,
+                    },
+                },
+                button::Status::Hovered => button::Style {
+                    background: Some(Background::Color(Color {
+                        a: 0.08,
+                        ..palette.primary.base.color
+                    })),
+                    text_color: palette.background.base.text,
+                    border: Border {
+                        radius: Radius::from(12.0),
+                        width: 1.0,
+                        color: Color {
+                            a: 0.2,
+                            ..palette.primary.base.color
+                        },
+                    },
+                    shadow: Shadow {
+                        color: Color::from_rgba(0.0, 0.0, 0.0, 0.1),
+                        offset: iced::Vector::new(0.0, 3.0),
+                        blur_radius: 6.0,
+                    },
+                },
+                button::Status::Pressed => button::Style {
+                    background: Some(Background::Color(Color {
+                        a: 0.12,
+                        ..palette.primary.base.color
+                    })),
+                    text_color: palette.background.base.text,
+                    border: Border {
+                        radius: Radius::from(12.0),
+                        width: 1.0,
+                        color: Color {
+                            a: 0.3,
+                            ..palette.primary.base.color
+                        },
+                    },
+                    shadow: Shadow {
+                        color: Color::from_rgba(0.0, 0.0, 0.0, 0.05),
+                        offset: iced::Vector::new(0.0, 1.0),
+                        blur_radius: 2.0,
+                    },
+                },
+                button::Status::Disabled => button::Style {
+                    background: Some(Background::Color(palette.background.weak.color)),
+                    text_color: palette.background.weak.text,
+                    border: Border {
+                        radius: Radius::from(12.0),
+                        width: 1.0,
+                        color: palette.background.strong.color,
+                    },
+                    shadow: Shadow::default(),
+                },
+            }
+        })
+        .padding([16, 20])
+        .width(Length::Fill)
         .on_press(Message::ToggleView)
-        .into()
+    )
+    .width(Length::Fill)
+    .into()
 }
 
 /// 创建播放进度显示组件
@@ -101,21 +669,88 @@ pub fn view_toggle_button(current_view: &ViewType) -> Element<'static, Message> 
 /// # 返回
 /// 进度显示UI元素
 pub fn progress_view(playback_state: &PlaybackState) -> Element<'static, Message> {
-    if playback_state.total_duration > 0.0 {
-        let progress_value = (playback_state.current_time / playback_state.total_duration) as f32;
-        column![
-            progress_bar(0.0..=1.0, progress_value),
-            text(format!("{} / {}", 
-                format_duration(playback_state.current_time),
-                format_duration(playback_state.total_duration)
-            )),
-        ].spacing(5).into()
+    let progress_value = if playback_state.total_duration > 0.0 {
+        (playback_state.current_time / playback_state.total_duration) as f32
     } else {
+        0.0
+    };
+    
+    let current_time_text = format_duration(playback_state.current_time);
+    let total_time_text = format_duration(playback_state.total_duration);
+    
+    container(
         column![
-            progress_bar(0.0..=1.0, 0.0),
-            text("0:00 / 0:00"),
-        ].spacing(5).into()
-    }
+            // 时间显示
+            row![
+                text(current_time_text)
+                    .size(12)
+                    .style(|theme: &Theme| {
+                        let palette = theme.extended_palette();
+                        text::Style {
+                            color: Some(palette.primary.base.color),
+                        }
+                    }),
+                Space::new(Length::Fill, Length::Shrink),
+                text(total_time_text)
+                    .size(12)
+                    .style(|theme: &Theme| {
+                        let palette = theme.extended_palette();
+                        text::Style {
+                            color: Some(Color {
+                                a: 0.7,
+                                ..palette.background.base.text
+                            }),
+                        }
+                    }),
+            ],
+            
+            // 进度条
+            container(
+                progress_bar(0.0..=1.0, progress_value)
+                    .height(Length::Fixed(6.0))
+                    .style(|theme: &Theme| {
+                        let palette = theme.extended_palette();
+                        progress_bar::Style {
+                            background: Background::Color(Color {
+                                a: 0.3,
+                                ..palette.background.strong.color
+                            }),
+                            bar: Background::Color(palette.primary.strong.color),
+                            border: Border {
+                                radius: Radius::from(3.0),
+                                width: 0.0,
+                                color: Color::TRANSPARENT,
+                            },
+                        }
+                    })
+            )
+            .style(|theme: &Theme| {
+                let palette = theme.extended_palette();
+                container::Style {
+                    background: Some(Background::Color(Color {
+                        a: 0.05,
+                        ..palette.primary.base.color
+                    })),
+                    border: Border {
+                        radius: Radius::from(6.0),
+                        width: 0.0,
+                        color: Color::TRANSPARENT,
+                    },
+                    shadow: Shadow {
+                        color: Color::from_rgba(0.0, 0.0, 0.0, 0.05),
+                        offset: iced::Vector::new(0.0, 1.0),
+                        blur_radius: 2.0,
+                    },
+                    text_color: None,
+                }
+            })
+            .padding(2),
+        ].spacing(8)
+    )
+    .style(card_style())
+    .padding(16)
+    .width(Length::Fill)
+    .into()
 }
 
 /// 创建播放状态显示组件
@@ -126,9 +761,33 @@ pub fn progress_view(playback_state: &PlaybackState) -> Element<'static, Message
 /// # 返回
 /// 状态显示UI元素
 pub fn status_view(is_playing: bool) -> Element<'static, Message> {
-    text(format!("状态: {}", 
-        if is_playing { "播放中" } else { "已停止" }
-    )).into()
+    let (icon, status_text) = if is_playing {
+        ("🎵", "播放中")
+    } else {
+        ("⏸", "已停止")
+    };
+    
+    container(
+        row![
+            text(icon).size(16),
+            text(status_text)
+                .size(14)
+                .style(move |theme: &Theme| {
+                    let palette = theme.extended_palette();
+                    text::Style {
+                        color: Some(if is_playing {
+                            palette.success.base.color
+                        } else {
+                            palette.background.base.text
+                        }),
+                    }
+                }),
+        ].spacing(8).align_y(Vertical::Center)
+    )
+    .style(card_style())
+    .padding(12)
+    .width(Length::Fill)
+    .into()
 }
 
 /// 创建播放列表视图组件
@@ -150,77 +809,215 @@ pub fn playlist_view(
             let is_current = playlist.current_index() == Some(index);
             let is_playing_current = is_current && is_playing;
             
-            let song_name = if is_current {
-                format!("▶ {}", item.name)
+            let (icon, song_name) = if is_current {
+                if is_playing_current {
+                    ("🎵", item.name.clone())
+                } else {
+                    ("⏸", item.name.clone())
+                }
             } else {
-                format!("  {}", item.name)
+                ("🎼", item.name.clone())
             };
             
-            let duration_text = item.duration.map_or("未知时长".to_string(), |d| format_duration(d));
+            let duration_text = item.duration.map_or("--:--".to_string(), |d| format_duration(d));
             
-            let row_content = row![
-                text(song_name).width(Length::FillPortion(3)),
-                text(duration_text).width(Length::FillPortion(1)).align_x(iced::alignment::Horizontal::Right),
-            ].spacing(10);
+            let content = container(
+                row![
+                    text(icon).size(14),
+                    text(song_name)
+                        .width(Length::FillPortion(4))
+                        .style(move |theme: &Theme| {
+                            let palette = theme.extended_palette();
+                            text::Style {
+                                color: Some(if is_current {
+                                    palette.primary.base.color
+                                } else {
+                                    palette.background.base.text
+                                }),
+                            }
+                        }),
+                    text(duration_text)
+                        .width(Length::FillPortion(1))
+                        .size(12)
+                        .align_x(Horizontal::Right)
+                        .style(|theme: &Theme| {
+                            let palette = theme.extended_palette();
+                            text::Style {
+                                color: Some(Color {
+                                    a: 0.7,
+                                    ..palette.background.base.text
+                                }),
+                            }
+                        }),
+                ].spacing(12).align_y(Vertical::Center)
+            )
+            .padding([8, 12])
+            .width(Length::Fill);
             
-            let btn = button(row_content)
+            let btn = button(content)
                 .on_press(Message::PlaylistItemSelected(index))
-                .width(Length::Fill);
+                .width(Length::Fill)
+                .style(move |theme: &Theme, status| {
+                    let palette = theme.extended_palette();
+                    
+                    if is_playing_current {
+                        match status {
+                            button::Status::Active => button::Style {
+                                background: Some(Background::Color(palette.primary.weak.color)),
+                                text_color: palette.primary.strong.text,
+                                border: Border {
+                                    radius: Radius::from(8.0),
+                                    width: 0.0,
+                                    color: Color::TRANSPARENT,
+                                },
+                                shadow: Shadow {
+                                    color: Color::from_rgba(0.0, 0.0, 0.0, 0.1),
+                                    offset: iced::Vector::new(0.0, 1.0),
+                                    blur_radius: 3.0,
+                                },
+                            },
+                            button::Status::Hovered => button::Style {
+                                background: Some(Background::Color(palette.primary.base.color)),
+                                text_color: palette.primary.base.text,
+                                border: Border {
+                                    radius: Radius::from(8.0),
+                                    width: 0.0,
+                                    color: Color::TRANSPARENT,
+                                },
+                                shadow: Shadow {
+                                    color: Color::from_rgba(0.0, 0.0, 0.0, 0.15),
+                                    offset: iced::Vector::new(0.0, 2.0),
+                                    blur_radius: 4.0,
+                                },
+                            },
+                            _ => button::Style::default(),
+                        }
+                    } else if is_current {
+                        match status {
+                            button::Status::Active => button::Style {
+                                background: Some(Background::Color(palette.secondary.weak.color)),
+                                text_color: palette.secondary.strong.text,
+                                border: Border {
+                                    radius: Radius::from(8.0),
+                                    width: 0.0,
+                                    color: Color::TRANSPARENT,
+                                },
+                                shadow: Shadow {
+                                    color: Color::from_rgba(0.0, 0.0, 0.0, 0.05),
+                                    offset: iced::Vector::new(0.0, 1.0),
+                                    blur_radius: 2.0,
+                                },
+                            },
+                            button::Status::Hovered => button::Style {
+                                background: Some(Background::Color(palette.secondary.base.color)),
+                                text_color: palette.secondary.base.text,
+                                border: Border {
+                                    radius: Radius::from(8.0),
+                                    width: 0.0,
+                                    color: Color::TRANSPARENT,
+                                },
+                                shadow: Shadow {
+                                    color: Color::from_rgba(0.0, 0.0, 0.0, 0.1),
+                                    offset: iced::Vector::new(0.0, 2.0),
+                                    blur_radius: 4.0,
+                                },
+                            },
+                            _ => button::Style::default(),
+                        }
+                    } else {
+                        match status {
+                            button::Status::Hovered => button::Style {
+                                background: Some(Background::Color(palette.background.strong.color)),
+                                text_color: palette.background.strong.text,
+                                border: Border {
+                                    radius: Radius::from(8.0),
+                                    width: 0.0,
+                                    color: Color::TRANSPARENT,
+                                },
+                                shadow: Shadow {
+                                    color: Color::from_rgba(0.0, 0.0, 0.0, 0.05),
+                                    offset: iced::Vector::new(0.0, 1.0),
+                                    blur_radius: 2.0,
+                                },
+                            },
+                            _ => button::Style {
+                                background: Some(Background::Color(Color::TRANSPARENT)),
+                                text_color: palette.background.base.text,
+                                border: Border {
+                                    radius: Radius::from(8.0),
+                                    width: 0.0,
+                                    color: Color::TRANSPARENT,
+                                },
+                                shadow: Shadow::default(),
+                            },
+                        }
+                    }
+                });
             
-            // 为当前播放的项目添加样式
-            if is_playing_current {
-                btn.style(|theme: &iced::Theme, status| {
-                    let palette = theme.extended_palette();
-                    match status {
-                        iced::widget::button::Status::Active => iced::widget::button::Style {
-                            background: Some(iced::Background::Color(palette.primary.weak.color)),
-                            text_color: palette.primary.strong.text,
-                            border: iced::Border::default(),
-                            shadow: iced::Shadow::default(),
-                        },
-                        iced::widget::button::Status::Hovered => iced::widget::button::Style {
-                            background: Some(iced::Background::Color(palette.primary.base.color)),
-                            text_color: palette.primary.strong.text,
-                            border: iced::Border::default(),
-                            shadow: iced::Shadow::default(),
-                        },
-                        _ => iced::widget::button::Style::default(),
-                    }
-                }).into()
-            } else if is_current {
-                btn.style(|theme: &iced::Theme, status| {
-                    let palette = theme.extended_palette();
-                    match status {
-                        iced::widget::button::Status::Active => iced::widget::button::Style {
-                            background: Some(iced::Background::Color(palette.secondary.weak.color)),
-                            text_color: palette.secondary.strong.text,
-                            border: iced::Border::default(),
-                            shadow: iced::Shadow::default(),
-                        },
-                        iced::widget::button::Status::Hovered => iced::widget::button::Style {
-                            background: Some(iced::Background::Color(palette.secondary.base.color)),
-                            text_color: palette.secondary.strong.text,
-                            border: iced::Border::default(),
-                            shadow: iced::Shadow::default(),
-                        },
-                        _ => iced::widget::button::Style::default(),
-                    }
-                }).into()
-            } else {
-                btn.into()
-            }
+            btn.into()
         }).collect();
         
-        column![
-            text(format!("播放列表 ({} 首歌曲)", playlist.len())).size(16),
-            scrollable(
-                column(playlist_items).spacing(5).width(Length::Fill)
-            ).height(Length::Fill).width(Length::Fill),
-        ].spacing(10).into()
+        container(
+            column![
+                // 播放列表标题
+                row![
+                    text("📋").size(18),
+                    text(format!("播放列表 ({} 首歌曲)", playlist.len()))
+                        .size(16)
+                        .style(|theme: &Theme| {
+                            let palette = theme.extended_palette();
+                            text::Style {
+                                color: Some(palette.primary.base.color),
+                            }
+                        }),
+                ].spacing(8).align_y(Vertical::Center),
+                
+                // 播放列表项目
+                scrollable(
+                    column(playlist_items).spacing(4).padding([8, 0])
+                ).height(Length::Fill).width(Length::Fill),
+            ].spacing(16)
+        )
+        .style(card_style())
+        .padding(16)
+        .width(Length::Fill)
+        .height(Length::Fill)
+        .into()
     } else {
-        column![
-            text("未加载播放列表"),
-        ].spacing(10).into()
+        container(
+            column![
+                text("📂").size(48).align_x(Horizontal::Center),
+                text("未加载播放列表")
+                    .size(16)
+                    .align_x(Horizontal::Center)
+                    .style(|theme: &Theme| {
+                        let palette = theme.extended_palette();
+                        text::Style {
+                            color: Some(Color {
+                                a: 0.7,
+                                ..palette.background.base.text
+                            }),
+                        }
+                    }),
+                text("点击「打开文件」开始")
+                    .size(12)
+                    .align_x(Horizontal::Center)
+                    .style(|theme: &Theme| {
+                        let palette = theme.extended_palette();
+                        text::Style {
+                            color: Some(Color {
+                                a: 0.5,
+                                ..palette.background.base.text
+                            }),
+                        }
+                    }),
+            ].spacing(12).align_x(Horizontal::Center)
+        )
+        .style(card_style())
+        .padding(32)
+        .width(Length::Fill)
+        .height(Length::Fill)
+        .into()
     }
 }
 
@@ -236,10 +1033,37 @@ pub fn playlist_view(
 /// 歌词显示UI元素
 pub fn lyrics_view(file_path: &str, is_playing: bool, current_time: f64, lyrics: &Option<crate::lyrics::Lyrics>, window_height: f32) -> Element<'static, Message> {
     if file_path.is_empty() {
-        return column![
-            text("歌词显示").size(16),
-            text("请选择音频文件"),
-        ].spacing(10).into();
+        return container(
+            column![
+                text("🎵").size(48).align_x(Horizontal::Center),
+                text("歌词显示")
+                    .size(20)
+                    .align_x(Horizontal::Center)
+                    .style(|theme: &Theme| {
+                        let palette = theme.extended_palette();
+                        text::Style {
+                            color: Some(palette.primary.base.color),
+                        }
+                    }),
+                text("请选择音频文件")
+                    .size(14)
+                    .align_x(Horizontal::Center)
+                    .style(|theme: &Theme| {
+                        let palette = theme.extended_palette();
+                        text::Style {
+                            color: Some(Color {
+                                a: 0.7,
+                                ..palette.background.base.text
+                            }),
+                        }
+                    }),
+            ].spacing(16).align_x(Horizontal::Center)
+        )
+        .style(card_style())
+        .padding(32)
+        .width(Length::Fill)
+        .height(Length::Fill)
+        .into();
     }
     
     // 创建歌词内容
@@ -258,15 +1082,51 @@ pub fn lyrics_view(file_path: &str, is_playing: bool, current_time: f64, lyrics:
                 .to_string()
         };
         
-        lyrics_elements.push(text(title).size(18).into());
+        lyrics_elements.push(
+            text(title)
+                .size(20)
+                .align_x(Horizontal::Center)
+                .style(|theme: &Theme| {
+                    let palette = theme.extended_palette();
+                    text::Style {
+                        color: Some(palette.primary.base.color),
+                    }
+                })
+                .into()
+        );
         
         if let Some(ref artist) = lyrics_data.metadata.artist {
-            lyrics_elements.push(text(format!("演唱: {}", artist)).size(14).into());
+            lyrics_elements.push(
+                text(format!("🎤 {}", artist))
+                    .size(14)
+                    .align_x(Horizontal::Center)
+                    .style(|theme: &Theme| {
+                        let palette = theme.extended_palette();
+                        text::Style {
+                            color: Some(Color {
+                                a: 0.8,
+                                ..palette.background.base.text
+                            }),
+                        }
+                    })
+                    .into()
+            );
         }
         
         lyrics_elements.push(text("").into()); // 空行
     } else {
-        lyrics_elements.push(text("歌词显示").size(16).into());
+        lyrics_elements.push(
+            text("🎵 歌词显示")
+                .size(18)
+                .align_x(Horizontal::Center)
+                .style(|theme: &Theme| {
+                    let palette = theme.extended_palette();
+                    text::Style {
+                        color: Some(palette.primary.base.color),
+                    }
+                })
+                .into()
+        );
     }
     
     // 显示歌词内容 - 动态行数显示，当前行居中
@@ -325,7 +1185,7 @@ pub fn lyrics_view(file_path: &str, is_playing: bool, current_time: f64, lyrics:
                 lyrics_elements.push(
                     text("")
                         .size(16)
-                        .align_x(iced::alignment::Horizontal::Center)
+                        .align_x(Horizontal::Center)
                         .into()
                 );
             }
@@ -347,56 +1207,80 @@ pub fn lyrics_view(file_path: &str, is_playing: bool, current_time: f64, lyrics:
                     };
                     
                     // 根据状态设置样式
-                    let text_element = if is_current && is_playing {
+                    let text_element: Element<Message> = if is_current && is_playing {
                         // 当前播放行 - 高亮显示，居中对齐
-                        text(format!("▶ {}", lyric_text))
-                            .size(18)
-                            .align_x(iced::alignment::Horizontal::Center)
-                            .style(|theme: &iced::Theme| {
-                                let palette = theme.extended_palette();
-                                iced::widget::text::Style {
-                                    color: Some(palette.primary.strong.color),
-                                }
-                            })
+                        container(
+                            text(format!("▶ {}", lyric_text))
+                                .size(18)
+                                .align_x(Horizontal::Center)
+                                .style(|theme: &Theme| {
+                                    let palette = theme.extended_palette();
+                                    text::Style {
+                                        color: Some(palette.primary.strong.color),
+                                    }
+                                })
+                        )
+                        .style(|theme: &Theme| {
+                            let palette = theme.extended_palette();
+                            container::Style {
+                                background: Some(Background::Color(Color {
+                                    a: 0.1,
+                                    ..palette.primary.base.color
+                                })),
+                                border: Border {
+                                    radius: Radius::from(8.0),
+                                    width: 0.0,
+                                    color: Color::TRANSPARENT,
+                                },
+                                shadow: Shadow::default(),
+                                text_color: None,
+                            }
+                        })
+                        .padding([8, 16])
+                        .width(Length::Fill)
+                        .into()
                     } else if is_upcoming && is_playing {
                         // 下一行 - 稍微突出显示
                         text(lyric_text)
                             .size(16)
-                            .align_x(iced::alignment::Horizontal::Center)
-                            .style(|theme: &iced::Theme| {
+                            .align_x(Horizontal::Center)
+                            .style(|theme: &Theme| {
                                 let palette = theme.extended_palette();
-                                iced::widget::text::Style {
+                                text::Style {
                                     color: Some(palette.secondary.base.color),
                                 }
                             })
+                            .into()
                     } else if current_line_index.map_or(false, |current| lyrics_index <= current) {
                         // 已播放的行 - 淡化显示
                         text(lyric_text)
                             .size(14)
-                            .align_x(iced::alignment::Horizontal::Center)
-                            .style(|theme: &iced::Theme| {
+                            .align_x(Horizontal::Center)
+                            .style(|theme: &Theme| {
                                 let palette = theme.extended_palette();
-                                iced::widget::text::Style {
-                                    color: Some(iced::Color {
+                                text::Style {
+                                    color: Some(Color {
                                         a: 0.4,
                                         ..palette.background.weak.text
                                     }),
                                 }
                             })
+                            .into()
                     } else {
                         // 未播放的行 - 正常显示但稍微淡一些
                         text(lyric_text)
                             .size(14)
-                            .align_x(iced::alignment::Horizontal::Center)
-                            .style(|theme: &iced::Theme| {
+                            .align_x(Horizontal::Center)
+                            .style(|theme: &Theme| {
                                 let palette = theme.extended_palette();
-                                iced::widget::text::Style {
-                                    color: Some(iced::Color {
+                                text::Style {
+                                    color: Some(Color {
                                         a: 0.7,
                                         ..palette.background.weak.text
                                     }),
                                 }
                             })
+                            .into()
                     };
                     
                     lyrics_elements.push(text_element.into());
@@ -408,7 +1292,7 @@ pub fn lyrics_view(file_path: &str, is_playing: bool, current_time: f64, lyrics:
                 lyrics_elements.push(
                     text("")
                         .size(16)
-                        .align_x(iced::alignment::Horizontal::Center)
+                        .align_x(Horizontal::Center)
                         .into()
                 );
             }
@@ -419,7 +1303,13 @@ pub fn lyrics_view(file_path: &str, is_playing: bool, current_time: f64, lyrics:
                 lyrics_elements.push(
                     text("♪ 音乐开始了... ♪")
                         .size(14)
-                        .align_x(iced::alignment::Horizontal::Center)
+                        .align_x(Horizontal::Center)
+                        .style(|theme: &Theme| {
+                            let palette = theme.extended_palette();
+                            text::Style {
+                                color: Some(palette.primary.base.color),
+                            }
+                        })
                         .into()
                 );
             }
@@ -427,8 +1317,17 @@ pub fn lyrics_view(file_path: &str, is_playing: bool, current_time: f64, lyrics:
         } else {
             // 歌词文件存在但没有歌词内容
             lyrics_elements.push(
-                text("歌词文件已加载，但没有找到歌词内容")
-                    .align_x(iced::alignment::Horizontal::Center)
+                text("⚠️ 歌词文件已加载，但没有找到歌词内容")
+                    .align_x(Horizontal::Center)
+                    .style(|theme: &Theme| {
+                        let palette = theme.extended_palette();
+                        text::Style {
+                            color: Some(Color {
+                                a: 0.7,
+                                ..palette.background.base.text
+                            }),
+                        }
+                    })
                     .into()
             );
         }
@@ -437,52 +1336,133 @@ pub fn lyrics_view(file_path: &str, is_playing: bool, current_time: f64, lyrics:
         if is_playing {
             lyrics_elements.push(
                 text("♪ 正在播放中... ♪")
-                    .size(16)
-                    .align_x(iced::alignment::Horizontal::Center)
+                    .size(18)
+                    .align_x(Horizontal::Center)
+                    .style(|theme: &Theme| {
+                        let palette = theme.extended_palette();
+                        text::Style {
+                            color: Some(palette.primary.base.color),
+                        }
+                    })
                     .into()
             );
             lyrics_elements.push(text("").into());
             lyrics_elements.push(
-                text("暂无歌词文件")
-                    .align_x(iced::alignment::Horizontal::Center)
+                text("🎵 暂无歌词文件")
+                    .align_x(Horizontal::Center)
+                    .style(|theme: &Theme| {
+                        let palette = theme.extended_palette();
+                        text::Style {
+                            color: Some(Color {
+                                a: 0.7,
+                                ..palette.background.base.text
+                            }),
+                        }
+                    })
                     .into()
             );
             lyrics_elements.push(text("").into());
             lyrics_elements.push(
-                text(format!("当前时间: {}", format_duration(current_time)))
+                text(format!("⏱️ {}", format_duration(current_time)))
                     .size(12)
-                    .align_x(iced::alignment::Horizontal::Center)
+                    .align_x(Horizontal::Center)
+                    .style(|theme: &Theme| {
+                        let palette = theme.extended_palette();
+                        text::Style {
+                            color: Some(Color {
+                                a: 0.6,
+                                ..palette.background.base.text
+                            }),
+                        }
+                    })
                     .into()
             );
         } else {
             lyrics_elements.push(
                 text("♪ 歌词显示 ♪")
-                    .size(16)
-                    .align_x(iced::alignment::Horizontal::Center)
+                    .size(18)
+                    .align_x(Horizontal::Center)
+                    .style(|theme: &Theme| {
+                        let palette = theme.extended_palette();
+                        text::Style {
+                            color: Some(palette.primary.base.color),
+                        }
+                    })
                     .into()
             );
             lyrics_elements.push(text("").into());
             lyrics_elements.push(
-                text("暂停播放中")
-                    .align_x(iced::alignment::Horizontal::Center)
+                text("⏸️ 暂停播放中")
+                    .align_x(Horizontal::Center)
+                    .style(|theme: &Theme| {
+                        let palette = theme.extended_palette();
+                        text::Style {
+                            color: Some(Color {
+                                a: 0.7,
+                                ..palette.background.base.text
+                            }),
+                        }
+                    })
                     .into()
             );
         }
         
         lyrics_elements.push(text("").into());
-        lyrics_elements.push(text("提示：").size(12).into());
-        lyrics_elements.push(text("• 将 .lrc 歌词文件放在音频文件同目录下").size(11).into());
-        lyrics_elements.push(text("• 歌词文件名需与音频文件名相同").size(11).into());
-        lyrics_elements.push(text("• 支持时间同步的LRC格式歌词").size(11).into());
+        lyrics_elements.push(
+            container(
+                column![
+                    text("💡 使用提示")
+                        .size(14)
+                        .style(|theme: &Theme| {
+                            let palette = theme.extended_palette();
+                            text::Style {
+                                color: Some(palette.primary.base.color),
+                            }
+                        }),
+                    text("📁 将 .lrc 歌词文件放在音频文件同目录下").size(11),
+                    text("📝 歌词文件名需与音频文件名相同").size(11),
+                    text("🕐 支持时间同步的LRC格式歌词").size(11),
+                ].spacing(6)
+            )
+            .style(|theme: &Theme| {
+                let palette = theme.extended_palette();
+                container::Style {
+                    background: Some(Background::Color(Color {
+                        a: 0.05,
+                        ..palette.primary.base.color
+                    })),
+                    border: Border {
+                        radius: Radius::from(8.0),
+                        width: 1.0,
+                        color: Color {
+                            a: 0.2,
+                            ..palette.primary.base.color
+                        },
+                    },
+                    shadow: Shadow::default(),
+                    text_color: Some(Color {
+                        a: 0.8,
+                        ..palette.background.base.text
+                    }),
+                }
+            })
+            .padding(12)
+            .into()
+        );
     }
     
     // 创建高度自适应的歌词显示区域，不使用滚动条
-    column(lyrics_elements)
-        .spacing(12)  // 增加行间距使视觉更舒适
-        .width(Length::Fill)
-        .height(Length::Shrink)  // 高度自适应内容
-        .padding(20)  // 添加内边距
-        .into()
+    container(
+        column(lyrics_elements)
+            .spacing(16)  // 增加行间距使视觉更舒适
+            .width(Length::Fill)
+            .align_x(Horizontal::Center)
+    )
+    .style(card_style())
+    .padding(24)  // 增加内边距
+    .width(Length::Fill)
+    .height(Length::Fill)
+    .into()
 }
 
 /// 创建应用程序标题
@@ -490,7 +1470,23 @@ pub fn lyrics_view(file_path: &str, is_playing: bool, current_time: f64, lyrics:
 /// # 返回
 /// 标题UI元素
 pub fn title_view() -> Element<'static, Message> {
-    text("音频播放器").size(24).into()
+    container(
+        row![
+            text("🎵").size(24),
+            text("音频播放器")
+                .size(20)
+                .style(|theme: &Theme| {
+                    let palette = theme.extended_palette();
+                    text::Style {
+                        color: Some(palette.primary.base.color),
+                    }
+                })
+        ].spacing(8).align_y(Vertical::Center)
+    )
+    .style(card_style())
+    .padding(16)
+    .width(Length::Fill)
+    .into()
 }
 
 /// 创建空白填充组件
@@ -513,10 +1509,10 @@ fn calculate_optimal_display_lines(total_lyrics_count: usize, window_height: f32
     // 基于实际窗口高度和歌词总数的动态策略
     
     // 1. 根据窗口高度计算可用空间
-    let title_and_metadata_height = 80.0;  // 标题和艺术家信息
-    let toggle_button_height = 40.0;       // 切换按钮
-    let progress_bar_height = 60.0;        // 进度条区域
-    let padding_and_spacing = 60.0;        // 内边距和间距
+    let title_and_metadata_height = 120.0;  // 标题和艺术家信息
+    let toggle_button_height = 50.0;        // 切换按钮
+    let progress_bar_height = 80.0;         // 进度条区域
+    let padding_and_spacing = 100.0;        // 内边距和间距
     
     let available_height = window_height 
         - title_and_metadata_height 
@@ -525,7 +1521,7 @@ fn calculate_optimal_display_lines(total_lyrics_count: usize, window_height: f32
         - padding_and_spacing;
     
     // 2. 根据可用高度计算行数
-    let line_height = 24.0; // 每行预估高度（字体 + 行间距）
+    let line_height = 28.0; // 每行预估高度（字体 + 行间距）
     let calculated_lines = (available_height / line_height) as usize;
     
     // 3. 基于歌词数量调整策略
