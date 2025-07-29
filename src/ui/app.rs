@@ -12,6 +12,7 @@ use iced::{
     Subscription,
     Task,
     event::{self, Event},
+    alignment::Vertical,
 };
 use tokio::sync::mpsc;
 
@@ -92,7 +93,6 @@ impl PlayerApp {
             /*title_view(),*/
             file_info_view(self.audio_info.as_ref(), &self.file_path),
             file_controls_view(),
-            control_buttons_view(self.is_playing),
             spacer(),
         ].spacing(10)
          .width(Length::Fixed(MAIN_PANEL_WIDTH))
@@ -117,10 +117,16 @@ impl PlayerApp {
 
         let main_content = row![left_panel, right_panel].spacing(10);
         
-        let progress = column![progress_view(&self.playback_state)]
-            .width(Length::Fill);
+        // 底部区域：控制按钮 + 进度条
+        let bottom_section = row![
+            container(control_buttons_view(self.is_playing))
+                .width(Length::Fixed(MAIN_PANEL_WIDTH))
+                .height(Length::Shrink),
+            column![progress_view(&self.playback_state)]
+                .width(Length::Fill)
+        ].spacing(10).align_y(Vertical::Center);
 
-        column![main_content, progress]
+        column![main_content, bottom_section]
             .spacing(10)
             .padding(10)
             .into()

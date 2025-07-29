@@ -473,12 +473,13 @@ pub fn control_buttons_view(is_playing: bool) -> Element<'static, Message> {
             .height(Length::Fixed(40.0))
             .on_press(Message::NextTrack),
         ]
-        .spacing(16)
+        .spacing(12)
         .align_y(Vertical::Center)
     )
     .style(card_style())
-    .padding(20)
+    .padding(12)
     .width(Length::Fill)
+    .align_x(Horizontal::Center)
     .into()
 }
 
