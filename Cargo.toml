@@ -2,8 +2,8 @@
 name = "player"
 version = "0.3.0"
 edition = "2021"
-description = "A TUI audio player with progress display, playback controls, and file info"
-authors = ["Your Name <your.email@example.com>"]
+description = "A audio player with progress display, playback controls, and file info"
+authors = ["xml <xiamengliang@gmail.com>"]
 license = "MIT"
 readme = "README.md"
 
