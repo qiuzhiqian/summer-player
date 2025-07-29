@@ -272,7 +272,7 @@ pub fn control_buttons_view() -> Element<'static, Message> {
         row![
             // 上一首
             button(
-                container(text("⏮").size(18).shaping(Shaping::Advanced))
+                container(text("⏮").size(14).shaping(Shaping::Advanced))
                     .width(Length::Fill)
                     .height(Length::Fill)
                     .align_x(Horizontal::Center)
@@ -288,54 +288,54 @@ pub fn control_buttons_view() -> Element<'static, Message> {
                         })),
                         text_color: Color::WHITE,
                         border: Border {
-                            radius: Radius::from(24.0),
+                            radius: Radius::from(20.0),
                             width: 0.0,
                             color: Color::TRANSPARENT,
                         },
                         shadow: Shadow {
                             color: Color::from_rgba(0.0, 0.0, 0.0, 0.2),
-                            offset: iced::Vector::new(0.0, 3.0),
-                            blur_radius: 6.0,
+                            offset: iced::Vector::new(0.0, 2.0),
+                            blur_radius: 4.0,
                         },
                     },
                     button::Status::Hovered => button::Style {
                         background: Some(Background::Color(palette.secondary.strong.color)),
                         text_color: Color::WHITE,
                         border: Border {
-                            radius: Radius::from(24.0),
+                            radius: Radius::from(20.0),
                             width: 0.0,
                             color: Color::TRANSPARENT,
                         },
                         shadow: Shadow {
                             color: Color::from_rgba(0.0, 0.0, 0.0, 0.3),
-                            offset: iced::Vector::new(0.0, 6.0),
-                            blur_radius: 12.0,
+                            offset: iced::Vector::new(0.0, 4.0),
+                            blur_radius: 8.0,
                         },
                     },
                     button::Status::Pressed => button::Style {
                         background: Some(Background::Color(palette.secondary.weak.color)),
                         text_color: Color::WHITE,
                         border: Border {
-                            radius: Radius::from(24.0),
+                            radius: Radius::from(20.0),
                             width: 0.0,
                             color: Color::TRANSPARENT,
                         },
                         shadow: Shadow {
                             color: Color::from_rgba(0.0, 0.0, 0.0, 0.15),
                             offset: iced::Vector::new(0.0, 1.0),
-                            blur_radius: 3.0,
+                            blur_radius: 2.0,
                         },
                     },
                     _ => button::Style::default(),
                 }
             })
-            .width(Length::Fixed(48.0))
-            .height(Length::Fixed(48.0))
+            .width(Length::Fixed(40.0))
+            .height(Length::Fixed(40.0))
             .on_press(Message::PreviousTrack),
             
             // 播放/暂停 - 主要按钮，更大更突出
             button(
-                container(text("⏯").size(24).shaping(Shaping::Advanced))
+                container(text("⏯").size(18).shaping(Shaping::Advanced))
                     .width(Length::Fill)
                     .height(Length::Fill)
                     .align_x(Horizontal::Center)
@@ -348,7 +348,7 @@ pub fn control_buttons_view() -> Element<'static, Message> {
                         background: Some(Background::Color(palette.primary.strong.color)),
                         text_color: Color::WHITE,
                         border: Border {
-                            radius: Radius::from(32.0),
+                            radius: Radius::from(26.0),
                             width: 2.0,
                             color: Color {
                                 a: 0.3,
@@ -357,8 +357,8 @@ pub fn control_buttons_view() -> Element<'static, Message> {
                         },
                         shadow: Shadow {
                             color: Color::from_rgba(0.0, 0.0, 0.0, 0.25),
-                            offset: iced::Vector::new(0.0, 4.0),
-                            blur_radius: 12.0,
+                            offset: iced::Vector::new(0.0, 3.0),
+                            blur_radius: 8.0,
                         },
                     },
                     button::Status::Hovered => button::Style {
@@ -370,7 +370,7 @@ pub fn control_buttons_view() -> Element<'static, Message> {
                         })),
                         text_color: Color::WHITE,
                         border: Border {
-                            radius: Radius::from(32.0),
+                            radius: Radius::from(26.0),
                             width: 2.0,
                             color: Color {
                                 a: 0.5,
@@ -379,15 +379,15 @@ pub fn control_buttons_view() -> Element<'static, Message> {
                         },
                         shadow: Shadow {
                             color: Color::from_rgba(0.0, 0.0, 0.0, 0.35),
-                            offset: iced::Vector::new(0.0, 6.0),
-                            blur_radius: 16.0,
+                            offset: iced::Vector::new(0.0, 5.0),
+                            blur_radius: 12.0,
                         },
                     },
                     button::Status::Pressed => button::Style {
                         background: Some(Background::Color(palette.primary.base.color)),
                         text_color: Color::WHITE,
                         border: Border {
-                            radius: Radius::from(32.0),
+                            radius: Radius::from(26.0),
                             width: 2.0,
                             color: Color {
                                 a: 0.2,
@@ -397,19 +397,19 @@ pub fn control_buttons_view() -> Element<'static, Message> {
                         shadow: Shadow {
                             color: Color::from_rgba(0.0, 0.0, 0.0, 0.2),
                             offset: iced::Vector::new(0.0, 2.0),
-                            blur_radius: 6.0,
+                            blur_radius: 4.0,
                         },
                     },
                     _ => button::Style::default(),
                 }
             })
-            .width(Length::Fixed(64.0))
-            .height(Length::Fixed(64.0))
+            .width(Length::Fixed(52.0))
+            .height(Length::Fixed(52.0))
             .on_press(Message::PlayPause),
             
             // 停止
             button(
-                container(text("⏹").size(18).shaping(Shaping::Advanced))
+                container(text("⏹").size(14).shaping(Shaping::Advanced))
                     .width(Length::Fill)
                     .height(Length::Fill)
                     .align_x(Horizontal::Center)
@@ -425,54 +425,54 @@ pub fn control_buttons_view() -> Element<'static, Message> {
                         })),
                         text_color: Color::WHITE,
                         border: Border {
-                            radius: Radius::from(24.0),
+                            radius: Radius::from(20.0),
                             width: 0.0,
                             color: Color::TRANSPARENT,
                         },
                         shadow: Shadow {
                             color: Color::from_rgba(0.0, 0.0, 0.0, 0.2),
-                            offset: iced::Vector::new(0.0, 3.0),
-                            blur_radius: 6.0,
+                            offset: iced::Vector::new(0.0, 2.0),
+                            blur_radius: 4.0,
                         },
                     },
                     button::Status::Hovered => button::Style {
                         background: Some(Background::Color(palette.danger.strong.color)),
                         text_color: Color::WHITE,
                         border: Border {
-                            radius: Radius::from(24.0),
+                            radius: Radius::from(20.0),
                             width: 0.0,
                             color: Color::TRANSPARENT,
                         },
                         shadow: Shadow {
                             color: Color::from_rgba(0.0, 0.0, 0.0, 0.3),
-                            offset: iced::Vector::new(0.0, 6.0),
-                            blur_radius: 12.0,
+                            offset: iced::Vector::new(0.0, 4.0),
+                            blur_radius: 8.0,
                         },
                     },
                     button::Status::Pressed => button::Style {
                         background: Some(Background::Color(palette.danger.weak.color)),
                         text_color: Color::WHITE,
                         border: Border {
-                            radius: Radius::from(24.0),
+                            radius: Radius::from(20.0),
                             width: 0.0,
                             color: Color::TRANSPARENT,
                         },
                         shadow: Shadow {
                             color: Color::from_rgba(0.0, 0.0, 0.0, 0.15),
                             offset: iced::Vector::new(0.0, 1.0),
-                            blur_radius: 3.0,
+                            blur_radius: 2.0,
                         },
                     },
                     _ => button::Style::default(),
                 }
             })
-            .width(Length::Fixed(48.0))
-            .height(Length::Fixed(48.0))
+            .width(Length::Fixed(40.0))
+            .height(Length::Fixed(40.0))
             .on_press(Message::Stop),
             
             // 下一首
             button(
-                container(text("⏭").size(18).shaping(Shaping::Advanced))
+                container(text("⏭").size(14).shaping(Shaping::Advanced))
                     .width(Length::Fill)
                     .height(Length::Fill)
                     .align_x(Horizontal::Center)
@@ -488,49 +488,49 @@ pub fn control_buttons_view() -> Element<'static, Message> {
                         })),
                         text_color: Color::WHITE,
                         border: Border {
-                            radius: Radius::from(24.0),
+                            radius: Radius::from(20.0),
                             width: 0.0,
                             color: Color::TRANSPARENT,
                         },
                         shadow: Shadow {
                             color: Color::from_rgba(0.0, 0.0, 0.0, 0.2),
-                            offset: iced::Vector::new(0.0, 3.0),
-                            blur_radius: 6.0,
+                            offset: iced::Vector::new(0.0, 2.0),
+                            blur_radius: 4.0,
                         },
                     },
                     button::Status::Hovered => button::Style {
                         background: Some(Background::Color(palette.secondary.strong.color)),
                         text_color: Color::WHITE,
                         border: Border {
-                            radius: Radius::from(24.0),
+                            radius: Radius::from(20.0),
                             width: 0.0,
                             color: Color::TRANSPARENT,
                         },
                         shadow: Shadow {
                             color: Color::from_rgba(0.0, 0.0, 0.0, 0.3),
-                            offset: iced::Vector::new(0.0, 6.0),
-                            blur_radius: 12.0,
+                            offset: iced::Vector::new(0.0, 4.0),
+                            blur_radius: 8.0,
                         },
                     },
                     button::Status::Pressed => button::Style {
                         background: Some(Background::Color(palette.secondary.weak.color)),
                         text_color: Color::WHITE,
                         border: Border {
-                            radius: Radius::from(24.0),
+                            radius: Radius::from(20.0),
                             width: 0.0,
                             color: Color::TRANSPARENT,
                         },
                         shadow: Shadow {
                             color: Color::from_rgba(0.0, 0.0, 0.0, 0.15),
                             offset: iced::Vector::new(0.0, 1.0),
-                            blur_radius: 3.0,
+                            blur_radius: 2.0,
                         },
                     },
                     _ => button::Style::default(),
                 }
             })
-            .width(Length::Fixed(48.0))
-            .height(Length::Fixed(48.0))
+            .width(Length::Fixed(40.0))
+            .height(Length::Fixed(40.0))
             .on_press(Message::NextTrack),
         ]
         .spacing(16)
