@@ -92,8 +92,7 @@ impl PlayerApp {
             /*title_view(),*/
             file_info_view(self.audio_info.as_ref(), &self.file_path),
             file_controls_view(),
-            control_buttons_view(),
-            status_view(self.is_playing),
+            control_buttons_view(self.is_playing),
             spacer(),
         ].spacing(10)
          .width(Length::Fixed(MAIN_PANEL_WIDTH))

@@ -265,9 +265,12 @@ fn info_row(icon: &'static str, label: &'static str, value: &str) -> Element<'st
 
 /// 创建播放控制按钮组
 /// 
+/// # 参数
+/// * `is_playing` - 是否正在播放
+/// 
 /// # 返回
 /// 控制按钮UI元素
-pub fn control_buttons_view() -> Element<'static, Message> {
+pub fn control_buttons_view(is_playing: bool) -> Element<'static, Message> {
     container(
         row![
             // 上一首
@@ -335,7 +338,7 @@ pub fn control_buttons_view() -> Element<'static, Message> {
             
             // 播放/暂停 - 主要按钮，更大更突出
             button(
-                container(text("⏯").size(18).shaping(Shaping::Advanced))
+                container(text(if is_playing { "⏸️" } else { "▶️" }).size(18).shaping(Shaping::Advanced))
                     .width(Length::Fill)
                     .height(Length::Fill)
                     .align_x(Horizontal::Center)
@@ -826,42 +829,7 @@ pub fn progress_view(playback_state: &PlaybackState) -> Element<'static, Message
     .into()
 }
 
-/// 创建播放状态显示组件
-/// 
-/// # 参数
-/// * `is_playing` - 是否正在播放
-/// 
-/// # 返回
-/// 状态显示UI元素
-pub fn status_view(is_playing: bool) -> Element<'static, Message> {
-    let (icon, status_text) = if is_playing {
-        ("🎵", "播放中")
-    } else {
-        ("⏸", "已停止")
-    };
-    
-    container(
-        row![
-            text(icon).size(16).shaping(Shaping::Advanced),
-            text(status_text)
-                .size(14)
-                .style(move |theme: &Theme| {
-                    let palette = theme.extended_palette();
-                    text::Style {
-                        color: Some(if is_playing {
-                            palette.success.base.color
-                        } else {
-                            palette.background.base.text
-                        }),
-                    }
-                }),
-        ].spacing(8).align_y(Vertical::Center)
-    )
-    .style(card_style())
-    .padding(12)
-    .width(Length::Fill)
-    .into()
-}
+
 
 /// 创建播放列表视图组件
 /// 
