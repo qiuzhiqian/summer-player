@@ -82,7 +82,7 @@ jobs:
         fi
 
     - name: Upload artifact
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: ${{ matrix.asset_name }}
         path: artifacts/${{ matrix.asset_name }}
@@ -127,7 +127,7 @@ jobs:
         echo "deb_name=$(basename $DEB_FILE)" >> $GITHUB_OUTPUT
 
     - name: Upload DEB artifact
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: summer_player-deb
         path: ${{ steps.find_deb.outputs.deb_file }}
@@ -141,7 +141,7 @@ jobs:
       uses: actions/checkout@v4
 
     - name: Download all artifacts
-      uses: actions/download-artifact@v3
+      uses: actions/download-artifact@v4
       with:
         path: artifacts
 
