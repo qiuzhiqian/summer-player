@@ -84,6 +84,7 @@ impl PlayerApp {
             Message::ToggleView => self.handle_toggle_view(),
             Message::AnimationTick => self.handle_animation_tick(),
             Message::WindowResized(width, height) => self.handle_window_resized(width, height),
+            Message::ProgressChanged(progress) => self.handle_progress_changed(progress),
         }
     }
 
@@ -377,6 +378,30 @@ impl PlayerApp {
 
     fn handle_window_resized(&mut self, width: f32, height: f32) -> Task<Message> {
         self.window_size = (width, height);
+        Task::none()
+    }
+
+    fn handle_progress_changed(&mut self, progress: f32) -> Task<Message> {
+        // 如果没有加载文件或总时长为0，忽略进度变化
+        if self.file_path.is_empty() || self.playback_state.total_duration <= 0.0 {
+            return Task::none();
+        }
+        
+        // 计算新的播放时间
+        let new_time = progress as f64 * self.playback_state.total_duration;
+        
+        // 更新当前时间状态，提供即时UI反馈
+        self.playback_state.current_time = new_time;
+        
+        // 如果有播放会话，发送跳转命令
+        if let Some(sender) = &self.command_sender {
+            if let Err(e) = sender.send(PlaybackCommand::Seek(new_time)) {
+                eprintln!("Failed to send seek command: {}", e);
+            } else {
+                println!("UI: Seek command sent for {:.2}s ({:.1}%)", new_time, progress * 100.0);
+            }
+        }
+        
         Task::none()
     }
 

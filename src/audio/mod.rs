@@ -13,7 +13,7 @@ pub use file::{AudioFile, AudioInfo};
 pub use device::{list_audio_devices, setup_audio_device};
 pub use playback::{
     PlaybackState, PlaybackCommand, AudioBuffer,
-    start_audio_playback, run_audio_playback_with_control
+    start_audio_playback, start_audio_playback_with_state, run_audio_playback_with_control
 };
 pub use decoder::create_decoder;
 pub use stream::{create_audio_stream, create_stream}; 

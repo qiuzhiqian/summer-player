@@ -3,7 +3,7 @@
 //! 包含可重用的UI组件。
 
 use iced::{
-    widget::{button, column, row, text, progress_bar, scrollable, Space, container, image},
+    widget::{button, column, row, text, slider, scrollable, Space, container, image},
     Element, Length, Border, Shadow, Background, Color,
     alignment::{Horizontal, Vertical},
     theme::Theme,
@@ -781,22 +781,33 @@ pub fn progress_view(playback_state: &PlaybackState) -> Element<'static, Message
                     }),
             ],
             
-            // 进度条
+            // 进度滑块
             container(
-                progress_bar(0.0..=1.0, progress_value)
-                    .height(Length::Fixed(6.0))
-                    .style(|theme: &Theme| {
+                slider(0.0..=1.0, progress_value, Message::ProgressChanged)
+                    .step(0.001)
+                    .style(|theme: &Theme, _status| {
                         let palette = theme.extended_palette();
-                        progress_bar::Style {
-                            background: Background::Color(Color {
-                                a: 0.3,
-                                ..palette.background.strong.color
-                            }),
-                            bar: Background::Color(palette.primary.strong.color),
-                            border: Border {
-                                radius: Radius::from(3.0),
-                                width: 0.0,
-                                color: Color::TRANSPARENT,
+                        slider::Style {
+                            rail: slider::Rail {
+                                backgrounds: (
+                                    Background::Color(Color {
+                                        a: 0.3,
+                                        ..palette.background.strong.color
+                                    }),
+                                    Background::Color(palette.primary.strong.color),
+                                ),
+                                width: 6.0,
+                                border: Border {
+                                    radius: Radius::from(3.0),
+                                    width: 0.0,
+                                    color: Color::TRANSPARENT,
+                                },
+                            },
+                            handle: slider::Handle {
+                                shape: slider::HandleShape::Circle { radius: 8.0 },
+                                background: Background::Color(palette.primary.strong.color),
+                                border_width: 2.0,
+                                border_color: Color::WHITE,
                             },
                         }
                     })
