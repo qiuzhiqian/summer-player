@@ -26,7 +26,7 @@ jobs:
           - os: macos-latest
             target: x86_64-apple-darwin
             binary_name: summer_player
-            asset_name: summer_player-macos-amd64
+            asset_name: summer_player-macos-amd64.dmg
 
     steps:
     - name: Checkout code
