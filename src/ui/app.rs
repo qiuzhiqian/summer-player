@@ -56,11 +56,28 @@ pub struct PlayerApp {
 
 impl PlayerApp {
     /// 创建新的应用程序实例
-    pub fn new() -> Self {
-        Self {
+    pub fn new(initial_file: Option<String>) -> (Self, Task<Message>) {
+        let mut app = Self {
             window_size: (1000.0, 700.0), // 初始窗口大小
             ..Self::default()
+        };
+        
+        // 如果有初始文件，加载它并开始播放
+        if let Some(file_path) = initial_file {
+            if !file_path.is_empty() {
+                app.handle_initial_file_load(&file_path);
+                // 自动开始播放
+                if !app.file_path.is_empty() {
+                    let file_path_clone = app.file_path.clone();
+                    return (app, Task::perform(
+                        start_audio_playback(file_path_clone),
+                        |(sender, _handle)| Message::AudioSessionStarted(sender)
+                    ));
+                }
+            }
         }
+        
+        (app, Task::none())
     }
 
     /// 获取应用程序标题
@@ -250,6 +267,36 @@ impl PlayerApp {
         }
         
         Task::none()
+    }
+
+    fn handle_initial_file_load(&mut self, file_path: &str) {
+        if is_m3u_playlist(file_path) {
+            match parse_m3u_playlist(file_path) {
+                Ok(playlist) => {
+                    self.playlist = playlist;
+                    self.playlist_loaded = true;
+                    if let Some(first_item) = self.playlist.set_current_index(0) {
+                        let file_path = first_item.path.clone();
+                        self.load_audio_file(&file_path);
+                    }
+                }
+                Err(e) => {
+                    eprintln!("Failed to parse initial playlist: {}", e);
+                }
+            }
+        } else {
+            let path = file_path.to_string();
+            match create_single_file_playlist(&path) {
+                Ok(playlist) => {
+                    self.playlist = playlist;
+                    self.playlist_loaded = true;
+                    self.load_audio_file(&path);
+                }
+                Err(e) => {
+                    eprintln!("Failed to create initial playlist: {}", e);
+                }
+            }
+        }
     }
 
     fn handle_playlist_item_selected(&mut self, index: usize) -> Task<Message> {

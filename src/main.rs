@@ -49,7 +49,13 @@ fn main() {
     let icon = window::icon::from_file_data(ICON_BYTES, None)
         .expect("Failed to load icon");
     
-    let app = PlayerApp::new();
+    // 传递命令行文件参数给应用程序
+    let initial_file = if !file_path.is_empty() {
+        Some(file_path)
+    } else {
+        None
+    };
+    let (app, initial_task) = PlayerApp::new(initial_file);
     
     iced::application("Summer Player", PlayerApp::update, PlayerApp::view)
         .subscription(PlayerApp::subscription)
@@ -58,7 +64,7 @@ fn main() {
             ..window::Settings::default()
         })
         .default_font(Font::with_name("Noto Sans CJK SC"))
-        .run_with(|| (app, iced::Task::none()))
+        .run_with(|| (app, initial_task))
         .unwrap();
 }
 
