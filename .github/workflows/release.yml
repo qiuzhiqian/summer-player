@@ -15,18 +15,26 @@ jobs:
     strategy:
       matrix:
         include:
-          - os: ubuntu-22.04
+          - build: x86_64-linux
+            os: ubuntu-22.04
             target: x86_64-unknown-linux-gnu
             binary_name: summer_player
             asset_name: summer_player-linux-amd64
-          - os: windows-latest
+          - build: aarch64-linux
+            os: ubuntu-22.04-arm
+            target: aarch64-unknown-linux-gnu
+            binary_name: summer_player
+            asset_name: summer_player-linux-arm64
+          - build: x86_64-windows
+            os: windows-latest
             target: x86_64-pc-windows-msvc
             binary_name: summer_player.exe
             asset_name: summer_player-windows-amd64.exe
-          - os: macos-latest
+          - build: x86_64-macos
+            os: macos-latest
             target: x86_64-apple-darwin
             binary_name: summer_player
-            asset_name: summer_player-macos-amd64.dmg
+            asset_name: summer_player-macos-amd64
 
     steps:
     - name: Checkout code
@@ -50,7 +58,7 @@ jobs:
 
     # 在Linux上安装必要的依赖
     - name: Install Linux dependencies
-      if: matrix.os == 'ubuntu-22.04'
+      if: matrix.os == 'ubuntu-22.04' || matrix.os == 'ubuntu-22.04-arm'
       run: |
         sudo apt-get update
         sudo apt-get install -y libasound2-dev pkg-config
@@ -88,14 +96,27 @@ jobs:
         path: artifacts/${{ matrix.asset_name }}
 
   build-deb:
-    name: Build DEB package
-    runs-on: ubuntu-22.04
+    name: Build DEB package for ${{ matrix.arch }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        include:
+          - arch: amd64
+            os: ubuntu-22.04
+            target: x86_64-unknown-linux-gnu
+            asset_name: summer_player-amd64.deb
+          - arch: arm64
+            os: ubuntu-22.04-arm
+            target: aarch64-unknown-linux-gnu
+            asset_name: summer_player-arm64.deb
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
 
     - name: Setup Rust
       uses: dtolnay/rust-toolchain@stable
+      with:
+        targets: ${{ matrix.target }}
 
     - name: Cache cargo registry
       uses: actions/cache@v3
@@ -104,9 +125,9 @@ jobs:
           ~/.cargo/registry
           ~/.cargo/git
           target
-        key: ubuntu-cargo-deb-${{ hashFiles('**/Cargo.lock') }}
+        key: ${{ matrix.os }}-cargo-deb-${{ hashFiles('**/Cargo.lock') }}
         restore-keys: |
-          ubuntu-cargo-deb-
+          ${{ matrix.os }}-cargo-deb-
 
     - name: Install Linux dependencies
       run: |
@@ -117,19 +138,19 @@ jobs:
       run: cargo install cargo-deb
 
     - name: Build DEB package
-      run: cargo deb
+      run: cargo deb --target ${{ matrix.target }}
 
     - name: Find DEB file
       id: find_deb
       run: |
-        DEB_FILE=$(find target/debian -name "*.deb" | head -1)
+        DEB_FILE=$(find target/${{ matrix.target }}/debian -name "*.deb" | head -1)
         echo "deb_file=$DEB_FILE" >> $GITHUB_OUTPUT
         echo "deb_name=$(basename $DEB_FILE)" >> $GITHUB_OUTPUT
 
     - name: Upload DEB artifact
       uses: actions/upload-artifact@v4
       with:
-        name: summer_player-deb
+        name: ${{ matrix.asset_name }}
         path: ${{ steps.find_deb.outputs.deb_file }}
 
   release:
@@ -162,14 +183,19 @@ jobs:
           ## Summer Player Release ${{ github.ref }}
           
           ### 下载说明
-          - **Linux**: 下载 `summer_player-linux-amd64` 二进制文件或 `.deb` 安装包
+          - **Linux x86_64**: 下载 `summer_player-linux-amd64` 二进制文件或 `summer_player_*_amd64.deb` 安装包
+          - **Linux ARM64**: 下载 `summer_player-linux-arm64` 二进制文件或 `summer_player_*_arm64.deb` 安装包
           - **Windows**: 下载 `summer_player-windows-amd64.exe`
           - **macOS**: 下载 `summer_player-macos-amd64`
           
           ### 安装说明
           #### Linux
-          - 二进制文件：下载后添加可执行权限：`chmod +x summer_player-linux-amd64`
+          - 二进制文件：下载后添加可执行权限：
+            - x86_64: `chmod +x summer_player-linux-amd64`
+            - ARM64: `chmod +x summer_player-linux-arm64`
           - DEB包：使用 `sudo dpkg -i summer_player_*.deb` 安装
+            - x86_64: 安装 `*_amd64.deb` 包
+            - ARM64: 安装 `*_arm64.deb` 包
           
           #### Windows
           直接运行 `summer_player-windows-amd64.exe`
@@ -210,21 +236,51 @@ jobs:
         asset_name: summer_player-macos-amd64
         asset_content_type: application/octet-stream
 
-    # 上传DEB包
-    - name: Find DEB package
-      id: find_deb_release
-      run: |
-        DEB_FILE=$(find artifacts/summer_player-deb -name "*.deb" | head -1)
-        DEB_NAME=$(basename "$DEB_FILE")
-        echo "deb_path=$DEB_FILE" >> $GITHUB_OUTPUT
-        echo "deb_name=$DEB_NAME" >> $GITHUB_OUTPUT
-
-    - name: Upload DEB Package
+    # 上传Linux ARM64二进制文件
+    - name: Upload Linux ARM64 Binary
       uses: actions/upload-release-asset@v1
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
         upload_url: ${{ steps.create_release.outputs.upload_url }}
-        asset_path: ${{ steps.find_deb_release.outputs.deb_path }}
-        asset_name: ${{ steps.find_deb_release.outputs.deb_name }}
+        asset_path: artifacts/summer_player-linux-arm64/summer_player-linux-arm64
+        asset_name: summer_player-linux-arm64
+        asset_content_type: application/octet-stream
+
+    # 上传AMD64 DEB包
+    - name: Find AMD64 DEB package
+      id: find_deb_amd64
+      run: |
+        DEB_FILE=$(find artifacts/summer_player-amd64.deb -name "*.deb" | head -1)
+        DEB_NAME=$(basename "$DEB_FILE")
+        echo "deb_path=$DEB_FILE" >> $GITHUB_OUTPUT
+        echo "deb_name=$DEB_NAME" >> $GITHUB_OUTPUT
+
+    - name: Upload AMD64 DEB Package
+      uses: actions/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ steps.create_release.outputs.upload_url }}
+        asset_path: ${{ steps.find_deb_amd64.outputs.deb_path }}
+        asset_name: ${{ steps.find_deb_amd64.outputs.deb_name }}
+        asset_content_type: application/vnd.debian.binary-package
+
+    # 上传ARM64 DEB包
+    - name: Find ARM64 DEB package
+      id: find_deb_arm64
+      run: |
+        DEB_FILE=$(find artifacts/summer_player-arm64.deb -name "*.deb" | head -1)
+        DEB_NAME=$(basename "$DEB_FILE")
+        echo "deb_path=$DEB_FILE" >> $GITHUB_OUTPUT
+        echo "deb_name=$DEB_NAME" >> $GITHUB_OUTPUT
+
+    - name: Upload ARM64 DEB Package
+      uses: actions/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ steps.create_release.outputs.upload_url }}
+        asset_path: ${{ steps.find_deb_arm64.outputs.deb_path }}
+        asset_name: ${{ steps.find_deb_arm64.outputs.deb_name }}
         asset_content_type: application/vnd.debian.binary-package 
