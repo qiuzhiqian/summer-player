@@ -15,3 +15,5 @@ pub use error::{PlayerError, Result};
 pub use audio::{AudioFile, AudioInfo, PlaybackState, PlaybackCommand};
 pub use playlist::{Playlist, PlaylistItem};
 pub use ui::PlayerApp; 
+
+rust_i18n::i18n!("locales");

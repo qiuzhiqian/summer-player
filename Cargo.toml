@@ -23,6 +23,8 @@ iced = { version = "0.13", features = ["tokio", "advanced", "image"] }
 tokio = { version = "1.0", features = ["full"] }
 rfd = "0.14"
 anim = { version = "0.1", default-features = false, features = ["iced-backend"] }
+rust-i18n = "3"
+sys-locale = "0.3.2"
 
 [package.metadata.deb]
 maintainer = "xml <xiamengliang@gmail.com>"
@@ -42,3 +44,15 @@ assets = [
     ["summer-player.desktop", "usr/share/applications/", "644"],
     ["README.md", "usr/share/doc/summer-player/", "644"],
 ]
+
+[package.metadata.i18n]
+# The available locales for your application, default: ["en"].
+available-locales = ["en", "zh-CN"]
+
+# The default locale, default: "en".
+# default-locale = "en"
+
+# Path for your translations YAML file, default: "locales".
+# This config for let `cargo i18n` command line tool know where to find your translations.
+# You must keep this path same as the one you pass to method `rust_i18n::i18n!`.
+# load-path = "locales"

@@ -5,7 +5,7 @@
 use iced::{
     widget::{button, column, row, text, slider, scrollable, Space, container, image},
     Element, Length, Border, Shadow, Background, Color,
-    alignment::{Horizontal, Vertical},
+    alignment::{Horizontal, Vertical, Alignment},
     theme::Theme,
     border::Radius,
 };
@@ -16,6 +16,7 @@ use crate::playlist::Playlist;
 use crate::utils::format_duration;
 
 use super::Message;
+use rust_i18n::t;
 
 /// 视图类型枚举
 #[derive(Debug, Clone, PartialEq, Default)]
@@ -26,8 +27,6 @@ pub enum ViewType {
     /// 歌词显示视图
     Lyrics,
 }
-
-
 
 /// 现代化卡片容器样式
 fn card_style() -> fn(&Theme) -> container::Style {
@@ -63,14 +62,14 @@ pub fn file_info_view(audio_info: Option<&AudioInfo>, file_path: &str) -> Elemen
         let file_name = std::path::Path::new(file_path)
             .file_stem()
             .and_then(|s| s.to_str())
-            .unwrap_or("未知文件")
+            .unwrap_or("unknown file")
             .to_string();
         
         // 创建音频信息列
         let mut audio_info_column = column![
-            info_row("🎵", "声道", &format!("{}", info.channels)),
-            info_row("📡", "采样率", &format!("{} Hz", info.sample_rate)),
-            info_row("⏱️", "时长", &if let Some(duration) = info.duration {
+            info_row("🎵", t!("Channel Count").as_ref(), &format!("{}", info.channels)),
+            info_row("📡", t!("Sample Rate").as_ref(), &format!("{} Hz", info.sample_rate)),
+            info_row("⏱️", t!("Duration").as_ref(), &if let Some(duration) = info.duration {
                 format_duration(duration)
             } else {
                 "未知".to_string()
@@ -80,7 +79,7 @@ pub fn file_info_view(audio_info: Option<&AudioInfo>, file_path: &str) -> Elemen
         // 如果有比特深度信息，添加它
         if let Some(bits) = info.bits_per_sample {
             audio_info_column = audio_info_column.push(
-                info_row("🎚️", "位深", &format!("{} bit", bits))
+                info_row("🎚️", t!("Bit Depth").as_ref(), &format!("{} {}", bits, "位"))
             );
         }
         
@@ -90,43 +89,43 @@ pub fn file_info_view(audio_info: Option<&AudioInfo>, file_path: &str) -> Elemen
         // 添加元数据信息
         if let Some(title) = &info.metadata.title {
             metadata_column = metadata_column.push(
-                info_row("🎤", "标题", &title.clone())
+                info_row("🎤", t!("Title").as_ref(), &title.clone())
             );
         }
         
         if let Some(artist) = &info.metadata.artist {
             metadata_column = metadata_column.push(
-                info_row("🎨", "艺术家", &artist.clone())
+                info_row("🎨", t!("Artist").as_ref(), &artist.clone())
             );
         }
         
         if let Some(album) = &info.metadata.album {
             metadata_column = metadata_column.push(
-                info_row("💿", "专辑", &album.clone())
+                info_row("💿", t!("Album").as_ref(), &album.clone())
             );
         }
         
         if let Some(year) = &info.metadata.year {
             metadata_column = metadata_column.push(
-                info_row("📅", "年份", &year.clone())
+                info_row("📅", t!("Year").as_ref(), &year.clone())
             );
         }
         
         if let Some(genre) = &info.metadata.genre {
             metadata_column = metadata_column.push(
-                info_row("🎭", "流派", &genre.clone())
+                info_row("🎭", t!("Genre").as_ref(), &genre.clone())
             );
         }
         
         if let Some(track_number) = &info.metadata.track_number {
             metadata_column = metadata_column.push(
-                info_row("🔢", "音轨", &track_number.clone())
+                info_row("🔢", t!("Track Number").as_ref(), &track_number.clone())
             );
         }
         
         if let Some(composer) = &info.metadata.composer {
             metadata_column = metadata_column.push(
-                info_row("✍️", "作曲", &composer.clone())
+                info_row("✍️", t!("Composer").as_ref(), &composer.clone())
             );
         }
         
@@ -176,7 +175,7 @@ pub fn file_info_view(audio_info: Option<&AudioInfo>, file_path: &str) -> Elemen
             
             main_column = main_column.push(
                 // 音频信息部分
-                text("音频信息")
+                text(t!("Audio Info"))
                     .size(14)
                     .style(|theme: &Theme| {
                         let palette = theme.extended_palette();
@@ -196,7 +195,7 @@ pub fn file_info_view(audio_info: Option<&AudioInfo>, file_path: &str) -> Elemen
                info.metadata.composer.is_some() {
                 main_column = main_column.push(
                     column![
-                        text("元数据信息")
+                        text(t!("Metadata"))
                             .size(14)
                             .style(|theme: &Theme| {
                                 let palette = theme.extended_palette();
@@ -220,7 +219,7 @@ pub fn file_info_view(audio_info: Option<&AudioInfo>, file_path: &str) -> Elemen
                 .size(32)
                 .align_x(Horizontal::Center)
                 .shaping(Shaping::Advanced),
-            text("未选择文件")
+            text(t!("File not selected"))
                 .size(14)
                 .align_x(Horizontal::Center)
                 .style(|theme: &Theme| {
@@ -243,7 +242,7 @@ pub fn file_info_view(audio_info: Option<&AudioInfo>, file_path: &str) -> Elemen
 }
 
 /// 创建信息行
-fn info_row(icon: &'static str, label: &'static str, value: &str) -> Element<'static, Message> {
+fn info_row(icon: &'static str, label: &str, value: &str) -> Element<'static, Message> {
     row![
         text(icon).size(14).shaping(Shaping::Advanced),
         text(format!("{}: {}", label, value))
@@ -259,7 +258,7 @@ fn info_row(icon: &'static str, label: &'static str, value: &str) -> Element<'st
             }),
     ]
     .spacing(8)
-    .align_y(Vertical::Center)
+    .align_y(Alignment::Center)
     .into()
 }
 
@@ -509,7 +508,7 @@ pub fn file_controls_view() -> Element<'static, Message> {
                         }
                     })
                     .padding(8),
-                text("打开文件").size(14).style(|theme: &Theme| {
+                text(t!("Open File")).size(14).style(|theme: &Theme| {
                     let palette = theme.extended_palette();
                     text::Style {
                         color: Some(palette.primary.base.text),
@@ -600,8 +599,8 @@ pub fn file_controls_view() -> Element<'static, Message> {
 /// 视图切换按钮UI元素
 pub fn view_toggle_button(current_view: &ViewType) -> Element<'static, Message> {
     let (icon, text_content, subtitle) = match current_view {
-        ViewType::Playlist => ("🎵", "切换到歌词", "查看歌词同步"),
-        ViewType::Lyrics => ("📋", "切换到播放列表", "浏览音乐库"),
+        ViewType::Playlist => ("🎵", t!("Switch to Lyrics").to_string(), t!("View Lyrics Synchronization").to_string()),
+        ViewType::Lyrics => ("📋", t!("Switch to Playlist").to_string(), t!("Browse Music Library").to_string()),
     };
     
     let is_playlist = matches!(current_view, ViewType::Playlist);
@@ -1016,7 +1015,7 @@ pub fn playlist_view(
                 // 播放列表标题
                 row![
                     text("📋").size(18).shaping(Shaping::Advanced),
-                    text(format!("播放列表 ({} 首歌曲)", playlist.len()))
+                    text(format!("Playlist ({} songs)", playlist.len()))
                         .size(16)
                         .style(|theme: &Theme| {
                             let palette = theme.extended_palette();
@@ -1041,7 +1040,7 @@ pub fn playlist_view(
         container(
             column![
                 text("📂").size(48).align_x(Horizontal::Center).shaping(Shaping::Advanced),
-                text("未加载播放列表")
+                text(t!("No playlist loaded"))
                     .size(16)
                     .align_x(Horizontal::Center)
                     .style(|theme: &Theme| {
@@ -1053,7 +1052,7 @@ pub fn playlist_view(
                             }),
                         }
                     }),
-                text("点击「打开文件」开始")
+                text(t!(r#"Click "Open File" to start"#.to_string()))
                     .size(12)
                     .align_x(Horizontal::Center)
                     .style(|theme: &Theme| {
@@ -1090,7 +1089,7 @@ pub fn lyrics_view(file_path: &str, is_playing: bool, current_time: f64, lyrics:
         return container(
             column![
                 text("🎵").size(48).align_x(Horizontal::Center).shaping(Shaping::Advanced),
-                text("歌词显示")
+                text(t!("Lyrics Display"))
                     .size(20)
                     .align_x(Horizontal::Center)
                     .style(|theme: &Theme| {
@@ -1099,7 +1098,7 @@ pub fn lyrics_view(file_path: &str, is_playing: bool, current_time: f64, lyrics:
                             color: Some(palette.primary.base.color),
                         }
                     }),
-                text("请选择音频文件")
+                text(t!("Please select an audio file"))
                     .size(14)
                     .align_x(Horizontal::Center)
                     .style(|theme: &Theme| {
@@ -1541,7 +1540,7 @@ pub fn title_view() -> Element<'static, Message> {
     container(
         row![
             text("🎵").size(24).shaping(Shaping::Advanced),
-            text("音频播放器")
+            text(t!("summer audio player"))
                 .size(20)
                 .style(|theme: &Theme| {
                     let palette = theme.extended_palette();

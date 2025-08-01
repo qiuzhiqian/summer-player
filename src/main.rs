@@ -1,5 +1,6 @@
 use clap::Parser;
 use iced::{Font, window};
+use sys_locale::get_locale;
 
 use summer_player::{
     PlayerApp,
@@ -7,6 +8,8 @@ use summer_player::{
     utils::format_duration,
     error::Result,
 };
+
+
 
 // 包含图标数据
 const ICON_BYTES: &[u8] = include_bytes!("../icon.png");
@@ -29,6 +32,9 @@ struct Cli {
 }
 
 fn main() {
+    let current_locale = get_locale().unwrap_or_else(|| String::from("en-US"));
+    rust_i18n::set_locale(&current_locale);
+
     let args = Cli::parse();
     
     if args.list_devices {
@@ -57,7 +63,7 @@ fn main() {
     };
     let (app, initial_task) = PlayerApp::new(initial_file);
     
-    iced::application("Summer Player", PlayerApp::update, PlayerApp::view)
+    iced::application("Summer Audio Player", PlayerApp::update, PlayerApp::view)
         .subscription(PlayerApp::subscription)
         .window(window::Settings {
             icon: Some(icon),

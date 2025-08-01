@@ -1,0 +1,74 @@
+Album:
+  en: Album
+  zh-CN: 专辑
+Artist:
+  en: Artist
+  zh-CN: 艺术家
+Audio Info:
+  en: Audio Info
+  zh-CN: 音频信息
+Bit Depth:
+  en: Bit Depth
+  zh-CN: 比特深度
+Browse Music Library:
+  en: Browse Music Library
+  zh-CN: 浏览音乐库
+Channel Count:
+  en: Channel Count
+  zh-CN: 通道数
+Composer:
+  en: Composer
+  zh-CN: 作曲家
+Duration:
+  en: Duration
+  zh-CN: 时长
+File not selected:
+  en: File not selected
+  zh-CN: 未选择文件
+Genre:
+  en: Genre
+  zh-CN: 流派
+Lyrics Display:
+  en: Lyrics Display
+  zh-CN: 歌词显示
+Metadata:
+  en: Metadata
+  zh-CN: 元信息
+No playlist loaded:
+  en: No playlist loaded
+  zh-CN: 未加载播放列表
+Open File:
+  en: Open File
+  zh-CN: 打开文件
+Please select an audio file:
+  en: Please select an audio file
+  zh-CN: 请选择一个音频文件
+Sample Rate:
+  en: Sample Rate
+  zh-CN: 采样率
+Switch to Lyrics:
+  en: Switch to Lyrics
+  zh-CN: 切换到歌词
+Switch to Playlist:
+  en: Switch to Playlist
+  zh-CN: 切换到播放列表
+Title:
+  en: Title
+  zh-CN: 标题
+Track Number:
+  en: Track Number
+  zh-CN: 音轨
+View Lyrics Synchronization:
+  en: View Lyrics Synchronization
+  zh-CN: 查看歌词同步
+Year:
+  en: Year
+  zh-CN: 年份
+_version: 2
+summer audio player:
+  en: summer audio player
+  zh-CN: summer音乐播放器
+Click "Open File" to start:
+  en: Click "Open File" to start
+  zh-CN: 点击「打开文件」开始
+
