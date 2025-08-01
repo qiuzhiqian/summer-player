@@ -253,7 +253,8 @@ jobs:
       run: |
         DEB_FILE=$(find artifacts/summer_player-amd64.deb -name "*.deb" | head -1)
         DEB_NAME=$(basename "$DEB_FILE")
-        echo "deb_path=$DEB_FILE" >> $GITHUB_OUTPUT
+        DEB_PATH=$(dirname "$DEB_FILE")
+        echo "deb_path=$DEB_PATH" >> $GITHUB_OUTPUT
         echo "deb_name=$DEB_NAME" >> $GITHUB_OUTPUT
 
     - name: Upload AMD64 DEB Package
@@ -272,7 +273,8 @@ jobs:
       run: |
         DEB_FILE=$(find artifacts/summer_player-arm64.deb -name "*.deb" | head -1)
         DEB_NAME=$(basename "$DEB_FILE")
-        echo "deb_path=$DEB_FILE" >> $GITHUB_OUTPUT
+        DEB_PATH=$(dirname "$DEB_FILE")
+        echo "deb_path=$DEB_PATH" >> $GITHUB_OUTPUT
         echo "deb_name=$DEB_NAME" >> $GITHUB_OUTPUT
 
     - name: Upload ARM64 DEB Package
