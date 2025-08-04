@@ -16,6 +16,7 @@ use crate::playlist::Playlist;
 use crate::utils::format_duration;
 
 use super::Message;
+use super::theme::AppTheme;
 use rust_i18n::t;
 
 /// 视图类型枚举
@@ -28,26 +29,7 @@ pub enum ViewType {
     Lyrics,
 }
 
-/// 现代化卡片容器样式
-fn card_style() -> fn(&Theme) -> container::Style {
-    |theme: &Theme| {
-        let palette = theme.extended_palette();
-        container::Style {
-            background: Some(Background::Color(palette.background.base.color)),
-            border: Border {
-                radius: Radius::from(12.0),
-                width: 1.0,
-                color: palette.background.strong.color,
-            },
-            shadow: Shadow {
-                color: Color::from_rgba(0.0, 0.0, 0.0, 0.1),
-                offset: iced::Vector::new(0.0, 2.0),
-                blur_radius: 8.0,
-            },
-            text_color: Some(palette.background.base.text),
-        }
-    }
-}
+
 
 /// 创建文件信息显示组件
 /// 
@@ -235,7 +217,7 @@ pub fn file_info_view(audio_info: Option<&AudioInfo>, file_path: &str) -> Elemen
     };
 
     container(content)
-        .style(card_style())
+        .style(AppTheme::card_container())
         .padding(16)
         .width(Length::Fill)
         .into()
@@ -280,57 +262,7 @@ pub fn control_buttons_view(is_playing: bool) -> Element<'static, Message> {
                     .align_x(Horizontal::Center)
                     .align_y(Vertical::Center)
             )
-            .style(|theme: &Theme, status| {
-                let palette = theme.extended_palette();
-                match status {
-                    button::Status::Active => button::Style {
-                        background: Some(Background::Color(Color {
-                            a: 0.8,
-                            ..palette.secondary.base.color
-                        })),
-                        text_color: Color::WHITE,
-                        border: Border {
-                            radius: Radius::from(20.0),
-                            width: 0.0,
-                            color: Color::TRANSPARENT,
-                        },
-                        shadow: Shadow {
-                            color: Color::from_rgba(0.0, 0.0, 0.0, 0.2),
-                            offset: iced::Vector::new(0.0, 2.0),
-                            blur_radius: 4.0,
-                        },
-                    },
-                    button::Status::Hovered => button::Style {
-                        background: Some(Background::Color(palette.secondary.strong.color)),
-                        text_color: Color::WHITE,
-                        border: Border {
-                            radius: Radius::from(20.0),
-                            width: 0.0,
-                            color: Color::TRANSPARENT,
-                        },
-                        shadow: Shadow {
-                            color: Color::from_rgba(0.0, 0.0, 0.0, 0.3),
-                            offset: iced::Vector::new(0.0, 4.0),
-                            blur_radius: 8.0,
-                        },
-                    },
-                    button::Status::Pressed => button::Style {
-                        background: Some(Background::Color(palette.secondary.weak.color)),
-                        text_color: Color::WHITE,
-                        border: Border {
-                            radius: Radius::from(20.0),
-                            width: 0.0,
-                            color: Color::TRANSPARENT,
-                        },
-                        shadow: Shadow {
-                            color: Color::from_rgba(0.0, 0.0, 0.0, 0.15),
-                            offset: iced::Vector::new(0.0, 1.0),
-                            blur_radius: 2.0,
-                        },
-                    },
-                    _ => button::Style::default(),
-                }
-            })
+            .style(AppTheme::control_button())
             .width(Length::Fixed(40.0))
             .height(Length::Fixed(40.0))
             .on_press(Message::PreviousTrack),
@@ -343,68 +275,7 @@ pub fn control_buttons_view(is_playing: bool) -> Element<'static, Message> {
                     .align_x(Horizontal::Center)
                     .align_y(Vertical::Center)
             )
-            .style(|theme: &Theme, status| {
-                let palette = theme.extended_palette();
-                match status {
-                    button::Status::Active => button::Style {
-                        background: Some(Background::Color(palette.primary.strong.color)),
-                        text_color: Color::WHITE,
-                        border: Border {
-                            radius: Radius::from(26.0),
-                            width: 2.0,
-                            color: Color {
-                                a: 0.3,
-                                ..Color::WHITE
-                            },
-                        },
-                        shadow: Shadow {
-                            color: Color::from_rgba(0.0, 0.0, 0.0, 0.25),
-                            offset: iced::Vector::new(0.0, 3.0),
-                            blur_radius: 8.0,
-                        },
-                    },
-                    button::Status::Hovered => button::Style {
-                        background: Some(Background::Color(Color {
-                            r: palette.primary.strong.color.r * 1.1,
-                            g: palette.primary.strong.color.g * 1.1,
-                            b: palette.primary.strong.color.b * 1.1,
-                            a: 1.0,
-                        })),
-                        text_color: Color::WHITE,
-                        border: Border {
-                            radius: Radius::from(26.0),
-                            width: 2.0,
-                            color: Color {
-                                a: 0.5,
-                                ..Color::WHITE
-                            },
-                        },
-                        shadow: Shadow {
-                            color: Color::from_rgba(0.0, 0.0, 0.0, 0.35),
-                            offset: iced::Vector::new(0.0, 5.0),
-                            blur_radius: 12.0,
-                        },
-                    },
-                    button::Status::Pressed => button::Style {
-                        background: Some(Background::Color(palette.primary.base.color)),
-                        text_color: Color::WHITE,
-                        border: Border {
-                            radius: Radius::from(26.0),
-                            width: 2.0,
-                            color: Color {
-                                a: 0.2,
-                                ..Color::WHITE
-                            },
-                        },
-                        shadow: Shadow {
-                            color: Color::from_rgba(0.0, 0.0, 0.0, 0.2),
-                            offset: iced::Vector::new(0.0, 2.0),
-                            blur_radius: 4.0,
-                        },
-                    },
-                    _ => button::Style::default(),
-                }
-            })
+            .style(AppTheme::play_button())
             .width(Length::Fixed(52.0))
             .height(Length::Fixed(52.0))
             .on_press(Message::PlayPause),
@@ -417,57 +288,7 @@ pub fn control_buttons_view(is_playing: bool) -> Element<'static, Message> {
                     .align_x(Horizontal::Center)
                     .align_y(Vertical::Center)
             )
-            .style(|theme: &Theme, status| {
-                let palette = theme.extended_palette();
-                match status {
-                    button::Status::Active => button::Style {
-                        background: Some(Background::Color(Color {
-                            a: 0.8,
-                            ..palette.secondary.base.color
-                        })),
-                        text_color: Color::WHITE,
-                        border: Border {
-                            radius: Radius::from(20.0),
-                            width: 0.0,
-                            color: Color::TRANSPARENT,
-                        },
-                        shadow: Shadow {
-                            color: Color::from_rgba(0.0, 0.0, 0.0, 0.2),
-                            offset: iced::Vector::new(0.0, 2.0),
-                            blur_radius: 4.0,
-                        },
-                    },
-                    button::Status::Hovered => button::Style {
-                        background: Some(Background::Color(palette.secondary.strong.color)),
-                        text_color: Color::WHITE,
-                        border: Border {
-                            radius: Radius::from(20.0),
-                            width: 0.0,
-                            color: Color::TRANSPARENT,
-                        },
-                        shadow: Shadow {
-                            color: Color::from_rgba(0.0, 0.0, 0.0, 0.3),
-                            offset: iced::Vector::new(0.0, 4.0),
-                            blur_radius: 8.0,
-                        },
-                    },
-                    button::Status::Pressed => button::Style {
-                        background: Some(Background::Color(palette.secondary.weak.color)),
-                        text_color: Color::WHITE,
-                        border: Border {
-                            radius: Radius::from(20.0),
-                            width: 0.0,
-                            color: Color::TRANSPARENT,
-                        },
-                        shadow: Shadow {
-                            color: Color::from_rgba(0.0, 0.0, 0.0, 0.15),
-                            offset: iced::Vector::new(0.0, 1.0),
-                            blur_radius: 2.0,
-                        },
-                    },
-                    _ => button::Style::default(),
-                }
-            })
+            .style(AppTheme::control_button())
             .width(Length::Fixed(40.0))
             .height(Length::Fixed(40.0))
             .on_press(Message::NextTrack),
@@ -475,7 +296,7 @@ pub fn control_buttons_view(is_playing: bool) -> Element<'static, Message> {
         .spacing(12)
         .align_y(Vertical::Center)
     )
-    .style(card_style())
+    .style(AppTheme::card_container())
     .padding(12)
     .width(Length::Fill)
     .align_x(Horizontal::Center)
@@ -508,80 +329,10 @@ pub fn file_controls_view() -> Element<'static, Message> {
                         }
                     })
                     .padding(8),
-                text(t!("Open File")).size(14).style(|theme: &Theme| {
-                    let palette = theme.extended_palette();
-                    text::Style {
-                        color: Some(palette.primary.base.text),
-                    }
-                })
+                text(t!("Open File")).size(14).style(AppTheme::emphasis_text())
             ].spacing(12).align_y(Vertical::Center)
         )
-        .style(|theme: &Theme, status| {
-            let palette = theme.extended_palette();
-            match status {
-                button::Status::Active => button::Style {
-                    background: Some(Background::Color(Color {
-                        a: 0.05,
-                        ..palette.primary.base.color
-                    })),
-                    text_color: palette.primary.base.text,
-                    border: Border {
-                        radius: Radius::from(12.0),
-                        width: 1.0,
-                        color: palette.primary.weak.color,
-                    },
-                    shadow: Shadow {
-                        color: Color::from_rgba(0.0, 0.0, 0.0, 0.08),
-                        offset: iced::Vector::new(0.0, 2.0),
-                        blur_radius: 4.0,
-                    },
-                },
-                button::Status::Hovered => button::Style {
-                    background: Some(Background::Color(Color {
-                        a: 0.1,
-                        ..palette.primary.base.color
-                    })),
-                    text_color: palette.primary.strong.text,
-                    border: Border {
-                        radius: Radius::from(12.0),
-                        width: 1.0,
-                        color: palette.primary.base.color,
-                    },
-                    shadow: Shadow {
-                        color: Color::from_rgba(0.0, 0.0, 0.0, 0.15),
-                        offset: iced::Vector::new(0.0, 4.0),
-                        blur_radius: 8.0,
-                    },
-                },
-                button::Status::Pressed => button::Style {
-                    background: Some(Background::Color(Color {
-                        a: 0.15,
-                        ..palette.primary.base.color
-                    })),
-                    text_color: palette.primary.strong.text,
-                    border: Border {
-                        radius: Radius::from(12.0),
-                        width: 1.0,
-                        color: palette.primary.base.color,
-                    },
-                    shadow: Shadow {
-                        color: Color::from_rgba(0.0, 0.0, 0.0, 0.1),
-                        offset: iced::Vector::new(0.0, 1.0),
-                        blur_radius: 2.0,
-                    },
-                },
-                button::Status::Disabled => button::Style {
-                    background: Some(Background::Color(palette.background.weak.color)),
-                    text_color: palette.background.weak.text,
-                    border: Border {
-                        radius: Radius::from(12.0),
-                        width: 1.0,
-                        color: palette.background.strong.color,
-                    },
-                    shadow: Shadow::default(),
-                },
-            }
-        })
+        .style(AppTheme::file_button())
         .padding([16, 20])
         .width(Length::Fill)
         .on_press(Message::OpenFile)
@@ -654,81 +405,7 @@ pub fn view_toggle_button(current_view: &ViewType) -> Element<'static, Message> 
                 ].spacing(2)
             ].spacing(12).align_y(Vertical::Center)
         )
-        .style(|theme: &Theme, status| {
-            let palette = theme.extended_palette();
-            match status {
-                button::Status::Active => button::Style {
-                    background: Some(Background::Color(Color {
-                        a: 0.03,
-                        ..palette.primary.base.color
-                    })),
-                    text_color: palette.background.base.text,
-                    border: Border {
-                        radius: Radius::from(12.0),
-                        width: 1.0,
-                        color: Color {
-                            a: 0.1,
-                            ..palette.primary.base.color
-                        },
-                    },
-                    shadow: Shadow {
-                        color: Color::from_rgba(0.0, 0.0, 0.0, 0.05),
-                        offset: iced::Vector::new(0.0, 1.0),
-                        blur_radius: 3.0,
-                    },
-                },
-                button::Status::Hovered => button::Style {
-                    background: Some(Background::Color(Color {
-                        a: 0.08,
-                        ..palette.primary.base.color
-                    })),
-                    text_color: palette.background.base.text,
-                    border: Border {
-                        radius: Radius::from(12.0),
-                        width: 1.0,
-                        color: Color {
-                            a: 0.2,
-                            ..palette.primary.base.color
-                        },
-                    },
-                    shadow: Shadow {
-                        color: Color::from_rgba(0.0, 0.0, 0.0, 0.1),
-                        offset: iced::Vector::new(0.0, 3.0),
-                        blur_radius: 6.0,
-                    },
-                },
-                button::Status::Pressed => button::Style {
-                    background: Some(Background::Color(Color {
-                        a: 0.12,
-                        ..palette.primary.base.color
-                    })),
-                    text_color: palette.background.base.text,
-                    border: Border {
-                        radius: Radius::from(12.0),
-                        width: 1.0,
-                        color: Color {
-                            a: 0.3,
-                            ..palette.primary.base.color
-                        },
-                    },
-                    shadow: Shadow {
-                        color: Color::from_rgba(0.0, 0.0, 0.0, 0.05),
-                        offset: iced::Vector::new(0.0, 1.0),
-                        blur_radius: 2.0,
-                    },
-                },
-                button::Status::Disabled => button::Style {
-                    background: Some(Background::Color(palette.background.weak.color)),
-                    text_color: palette.background.weak.text,
-                    border: Border {
-                        radius: Radius::from(12.0),
-                        width: 1.0,
-                        color: palette.background.strong.color,
-                    },
-                    shadow: Shadow::default(),
-                },
-            }
-        })
+        .style(AppTheme::view_toggle_button())
         .padding([16, 20])
         .width(Length::Fill)
         .on_press(Message::ToggleView)
@@ -760,56 +437,18 @@ pub fn progress_view(playback_state: &PlaybackState) -> Element<'static, Message
             row![
                 text(current_time_text)
                     .size(12)
-                    .style(|theme: &Theme| {
-                        let palette = theme.extended_palette();
-                        text::Style {
-                            color: Some(palette.primary.base.color),
-                        }
-                    }),
+                    .style(AppTheme::current_time_text()),
                 Space::new(Length::Fill, Length::Shrink),
                 text(total_time_text)
                     .size(12)
-                    .style(|theme: &Theme| {
-                        let palette = theme.extended_palette();
-                        text::Style {
-                            color: Some(Color {
-                                a: 0.7,
-                                ..palette.background.base.text
-                            }),
-                        }
-                    }),
+                    .style(AppTheme::total_time_text()),
             ],
             
             // 进度滑块
             container(
                 slider(0.0..=1.0, progress_value, Message::ProgressChanged)
                     .step(0.001)
-                    .style(|theme: &Theme, _status| {
-                        let palette = theme.extended_palette();
-                        slider::Style {
-                            rail: slider::Rail {
-                                backgrounds: (
-                                    Background::Color(Color {
-                                        a: 0.3,
-                                        ..palette.background.strong.color
-                                    }),
-                                    Background::Color(palette.primary.strong.color),
-                                ),
-                                width: 6.0,
-                                border: Border {
-                                    radius: Radius::from(3.0),
-                                    width: 0.0,
-                                    color: Color::TRANSPARENT,
-                                },
-                            },
-                            handle: slider::Handle {
-                                shape: slider::HandleShape::Circle { radius: 8.0 },
-                                background: Background::Color(palette.primary.strong.color),
-                                border_width: 2.0,
-                                border_color: Color::WHITE,
-                            },
-                        }
-                    })
+                    .style(AppTheme::progress_slider())
             )
             .style(|theme: &Theme| {
                 let palette = theme.extended_palette();
@@ -834,7 +473,7 @@ pub fn progress_view(playback_state: &PlaybackState) -> Element<'static, Message
             .padding(2),
         ].spacing(8)
     )
-    .style(card_style())
+    .style(AppTheme::card_container())
     .padding(16)
     .width(Length::Fill)
     .into()
@@ -910,102 +549,7 @@ pub fn playlist_view(
             let btn = button(content)
                 .on_press(Message::PlaylistItemSelected(index))
                 .width(Length::Fill)
-                .style(move |theme: &Theme, status| {
-                    let palette = theme.extended_palette();
-                    
-                    if is_playing_current {
-                        match status {
-                            button::Status::Active => button::Style {
-                                background: Some(Background::Color(palette.primary.weak.color)),
-                                text_color: palette.primary.strong.text,
-                                border: Border {
-                                    radius: Radius::from(8.0),
-                                    width: 0.0,
-                                    color: Color::TRANSPARENT,
-                                },
-                                shadow: Shadow {
-                                    color: Color::from_rgba(0.0, 0.0, 0.0, 0.1),
-                                    offset: iced::Vector::new(0.0, 1.0),
-                                    blur_radius: 3.0,
-                                },
-                            },
-                            button::Status::Hovered => button::Style {
-                                background: Some(Background::Color(palette.primary.base.color)),
-                                text_color: palette.primary.base.text,
-                                border: Border {
-                                    radius: Radius::from(8.0),
-                                    width: 0.0,
-                                    color: Color::TRANSPARENT,
-                                },
-                                shadow: Shadow {
-                                    color: Color::from_rgba(0.0, 0.0, 0.0, 0.15),
-                                    offset: iced::Vector::new(0.0, 2.0),
-                                    blur_radius: 4.0,
-                                },
-                            },
-                            _ => button::Style::default(),
-                        }
-                    } else if is_current {
-                        match status {
-                            button::Status::Active => button::Style {
-                                background: Some(Background::Color(palette.secondary.weak.color)),
-                                text_color: palette.secondary.strong.text,
-                                border: Border {
-                                    radius: Radius::from(8.0),
-                                    width: 0.0,
-                                    color: Color::TRANSPARENT,
-                                },
-                                shadow: Shadow {
-                                    color: Color::from_rgba(0.0, 0.0, 0.0, 0.05),
-                                    offset: iced::Vector::new(0.0, 1.0),
-                                    blur_radius: 2.0,
-                                },
-                            },
-                            button::Status::Hovered => button::Style {
-                                background: Some(Background::Color(palette.secondary.base.color)),
-                                text_color: palette.secondary.base.text,
-                                border: Border {
-                                    radius: Radius::from(8.0),
-                                    width: 0.0,
-                                    color: Color::TRANSPARENT,
-                                },
-                                shadow: Shadow {
-                                    color: Color::from_rgba(0.0, 0.0, 0.0, 0.1),
-                                    offset: iced::Vector::new(0.0, 2.0),
-                                    blur_radius: 4.0,
-                                },
-                            },
-                            _ => button::Style::default(),
-                        }
-                    } else {
-                        match status {
-                            button::Status::Hovered => button::Style {
-                                background: Some(Background::Color(palette.background.strong.color)),
-                                text_color: palette.background.strong.text,
-                                border: Border {
-                                    radius: Radius::from(8.0),
-                                    width: 0.0,
-                                    color: Color::TRANSPARENT,
-                                },
-                                shadow: Shadow {
-                                    color: Color::from_rgba(0.0, 0.0, 0.0, 0.05),
-                                    offset: iced::Vector::new(0.0, 1.0),
-                                    blur_radius: 2.0,
-                                },
-                            },
-                            _ => button::Style {
-                                background: Some(Background::Color(Color::TRANSPARENT)),
-                                text_color: palette.background.base.text,
-                                border: Border {
-                                    radius: Radius::from(8.0),
-                                    width: 0.0,
-                                    color: Color::TRANSPARENT,
-                                },
-                                shadow: Shadow::default(),
-                            },
-                        }
-                    }
-                });
+                .style(AppTheme::playlist_item_button(is_playing_current, is_current));
             
             btn.into()
         }).collect();
@@ -1031,7 +575,7 @@ pub fn playlist_view(
                 ).height(Length::Fill).width(Length::Fill),
             ].spacing(16)
         )
-        .style(card_style())
+        .style(AppTheme::card_container())
         .padding(16)
         .width(Length::Fill)
         .height(Length::Fill)
@@ -1043,30 +587,14 @@ pub fn playlist_view(
                 text(t!("No playlist loaded"))
                     .size(16)
                     .align_x(Horizontal::Center)
-                    .style(|theme: &Theme| {
-                        let palette = theme.extended_palette();
-                        text::Style {
-                            color: Some(Color {
-                                a: 0.7,
-                                ..palette.background.base.text
-                            }),
-                        }
-                    }),
+                    .style(AppTheme::subtitle_text()),
                 text(t!(r#"Click "Open File" to start"#.to_string()))
                     .size(12)
                     .align_x(Horizontal::Center)
-                    .style(|theme: &Theme| {
-                        let palette = theme.extended_palette();
-                        text::Style {
-                            color: Some(Color {
-                                a: 0.5,
-                                ..palette.background.base.text
-                            }),
-                        }
-                    }),
+                    .style(AppTheme::hint_text()),
             ].spacing(12).align_x(Horizontal::Center)
         )
-        .style(card_style())
+        .style(AppTheme::card_container())
         .padding(32)
         .width(Length::Fill)
         .height(Length::Fill)
@@ -1112,7 +640,7 @@ pub fn lyrics_view(file_path: &str, is_playing: bool, current_time: f64, lyrics:
                     }),
             ].spacing(16).align_x(Horizontal::Center)
         )
-        .style(card_style())
+        .style(AppTheme::card_container())
         .padding(32)
         .width(Length::Fill)
         .height(Length::Fill)
@@ -1525,7 +1053,7 @@ pub fn lyrics_view(file_path: &str, is_playing: bool, current_time: f64, lyrics:
             .width(Length::Fill)
             .align_x(Horizontal::Center)
     )
-    .style(card_style())
+    .style(AppTheme::card_container())
     .padding(24)  // 增加内边距
     .width(Length::Fill)
     .height(Length::Fill)
@@ -1550,7 +1078,7 @@ pub fn title_view() -> Element<'static, Message> {
                 })
         ].spacing(8).align_y(Vertical::Center)
     )
-    .style(card_style())
+    .style(AppTheme::card_container())
     .padding(16)
     .width(Length::Fill)
     .into()

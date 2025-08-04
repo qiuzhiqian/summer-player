@@ -6,6 +6,7 @@ pub mod app;
 pub mod messages;
 pub mod components;
 pub mod animation;
+pub mod theme;
 
 // 重新导出主要类型
 pub use app::PlayerApp;
