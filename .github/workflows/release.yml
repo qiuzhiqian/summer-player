@@ -20,21 +20,29 @@ jobs:
             target: x86_64-unknown-linux-gnu
             binary_name: summer_player
             asset_name: summer_player-linux-amd64
+            build_deb: true
+            deb_arch: amd64
+            deb_asset_name: summer_player-amd64.deb
           - build: aarch64-linux
             os: ubuntu-22.04-arm
             target: aarch64-unknown-linux-gnu
             binary_name: summer_player
             asset_name: summer_player-linux-arm64
+            build_deb: true
+            deb_arch: arm64
+            deb_asset_name: summer_player-arm64.deb
           - build: x86_64-windows
             os: windows-latest
             target: x86_64-pc-windows-msvc
             binary_name: summer_player.exe
             asset_name: summer_player-windows-amd64.exe
+            build_deb: false
           - build: x86_64-macos
             os: macos-latest
             target: x86_64-apple-darwin
             binary_name: summer_player
             asset_name: summer_player-macos-amd64
+            build_deb: false
 
     steps:
     - name: Checkout code
@@ -58,7 +66,14 @@ jobs:
 
     # 在Linux上安装必要的依赖
     - name: Install Linux dependencies
-      if: matrix.os == 'ubuntu-22.04' || matrix.os == 'ubuntu-22.04-arm'
+      if: matrix.build_deb == true
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y libasound2-dev pkg-config libfontconfig1-dev libxkbcommon-dev
+
+    # 在Linux上安装必要的依赖（仅二进制构建）
+    - name: Install Linux dependencies (binary only)
+      if: contains(matrix.os, 'ubuntu') && matrix.build_deb == false
       run: |
         sudo apt-get update
         sudo apt-get install -y libasound2-dev pkg-config
@@ -75,6 +90,11 @@ jobs:
       run: |
         # macOS通常不需要额外的系统依赖
 
+    # 安装cargo-deb（仅在需要构建DEB包时）
+    - name: Install cargo-deb
+      if: matrix.build_deb == true
+      run: cargo install cargo-deb
+
     - name: Build release binary
       run: cargo build --release --target ${{ matrix.target }}
 
@@ -89,73 +109,35 @@ jobs:
           chmod +x artifacts/${{ matrix.asset_name }}
         fi
 
-    - name: Upload artifact
+    - name: Upload binary artifact
       uses: actions/upload-artifact@v4
       with:
         name: ${{ matrix.asset_name }}
         path: artifacts/${{ matrix.asset_name }}
 
-  build-deb:
-    name: Build DEB package for ${{ matrix.arch }}
-    runs-on: ${{ matrix.os }}
-    strategy:
-      matrix:
-        include:
-          - arch: amd64
-            os: ubuntu-22.04
-            target: x86_64-unknown-linux-gnu
-            asset_name: summer_player-amd64.deb
-          - arch: arm64
-            os: ubuntu-22.04-arm
-            target: aarch64-unknown-linux-gnu
-            asset_name: summer_player-arm64.deb
-    steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
-
-    - name: Setup Rust
-      uses: dtolnay/rust-toolchain@stable
-      with:
-        targets: ${{ matrix.target }}
-
-    - name: Cache cargo registry
-      uses: actions/cache@v3
-      with:
-        path: |
-          ~/.cargo/registry
-          ~/.cargo/git
-          target
-        key: ${{ matrix.os }}-cargo-deb-${{ hashFiles('**/Cargo.lock') }}
-        restore-keys: |
-          ${{ matrix.os }}-cargo-deb-
-
-    - name: Install Linux dependencies
-      run: |
-        sudo apt-get update
-        sudo apt-get install -y libasound2-dev pkg-config libfontconfig1-dev libxkbcommon-dev
-
-    - name: Install cargo-deb
-      run: cargo install cargo-deb
-
+    # 构建DEB包（仅在Linux平台）
     - name: Build DEB package
+      if: matrix.build_deb == true
       run: cargo deb --target ${{ matrix.target }}
 
-    - name: Find DEB file
-      id: find_deb
+    - name: Prepare DEB file for upload
+      if: matrix.build_deb == true
       run: |
         DEB_FILE=$(find target/${{ matrix.target }}/debian -name "*.deb" | head -1)
-        echo "deb_file=$DEB_FILE" >> $GITHUB_OUTPUT
-        echo "deb_name=$(basename $DEB_FILE)" >> $GITHUB_OUTPUT
+        mkdir -p artifacts/deb-${{ matrix.deb_arch }}
+        cp "$DEB_FILE" "artifacts/deb-${{ matrix.deb_arch }}/"
+        echo "Copied DEB file: $(basename "$DEB_FILE")"
 
     - name: Upload DEB artifact
+      if: matrix.build_deb == true
       uses: actions/upload-artifact@v4
       with:
-        name: ${{ matrix.asset_name }}
-        path: ${{ steps.find_deb.outputs.deb_file }}
+        name: ${{ matrix.deb_asset_name }}
+        path: artifacts/deb-${{ matrix.deb_arch }}/*.deb
 
   release:
     name: Create Release
-    needs: [build, build-deb]
+    needs: [build]
     runs-on: ubuntu-22.04
     steps:
     - name: Checkout code
@@ -167,20 +149,34 @@ jobs:
         path: artifacts
 
     - name: Display structure of downloaded files
-      run: ls -la artifacts/
+      run: ls -laR artifacts/
 
-    - name: Create Release
-      id: create_release
-      uses: actions/create-release@v1
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    - name: Prepare release files
+      run: |
+        mkdir -p release_files
+        
+        # 复制二进制文件
+        cp artifacts/summer_player-linux-amd64/summer_player-linux-amd64 release_files/
+        cp artifacts/summer_player-windows-amd64.exe/summer_player-windows-amd64.exe release_files/
+        cp artifacts/summer_player-macos-amd64/summer_player-macos-amd64 release_files/
+        cp artifacts/summer_player-linux-arm64/summer_player-linux-arm64 release_files/
+        
+        # 复制DEB包
+        find artifacts/summer_player-amd64.deb -name "*.deb" -exec cp {} release_files/ \; 2>/dev/null || true
+        find artifacts/summer_player-arm64.deb -name "*.deb" -exec cp {} release_files/ \; 2>/dev/null || true
+        
+        # 显示准备好的文件
+        ls -la release_files/
+
+    - name: Create Release and Upload Assets
+      uses: softprops/action-gh-release@v2
       with:
-        tag_name: ${{ github.ref }}
-        release_name: Summer Player ${{ github.ref }}
+        tag_name: ${{ github.ref_name }}
+        name: Summer Player ${{ github.ref_name }}
         draft: false
         prerelease: false
         body: |
-          ## Summer Player Release ${{ github.ref }}
+          ## Summer Player Release ${{ github.ref_name }}
           
           ### 下载说明
           - **Linux x86_64**: 下载 `summer_player-linux-amd64` 二进制文件或 `summer_player_*_amd64.deb` 安装包
@@ -202,87 +198,7 @@ jobs:
           
           #### macOS
           下载后添加可执行权限：`chmod +x summer_player-macos-amd64`
-
-    # 上传Linux二进制文件
-    - name: Upload Linux Binary
-      uses: actions/upload-release-asset@v1
+        files: |
+          release_files/*
       env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      with:
-        upload_url: ${{ steps.create_release.outputs.upload_url }}
-        asset_path: artifacts/summer_player-linux-amd64/summer_player-linux-amd64
-        asset_name: summer_player-linux-amd64
-        asset_content_type: application/octet-stream
-
-    # 上传Windows二进制文件
-    - name: Upload Windows Binary
-      uses: actions/upload-release-asset@v1
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      with:
-        upload_url: ${{ steps.create_release.outputs.upload_url }}
-        asset_path: artifacts/summer_player-windows-amd64.exe/summer_player-windows-amd64.exe
-        asset_name: summer_player-windows-amd64.exe
-        asset_content_type: application/octet-stream
-
-    # 上传macOS二进制文件
-    - name: Upload macOS Binary
-      uses: actions/upload-release-asset@v1
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      with:
-        upload_url: ${{ steps.create_release.outputs.upload_url }}
-        asset_path: artifacts/summer_player-macos-amd64/summer_player-macos-amd64
-        asset_name: summer_player-macos-amd64
-        asset_content_type: application/octet-stream
-
-    # 上传Linux ARM64二进制文件
-    - name: Upload Linux ARM64 Binary
-      uses: actions/upload-release-asset@v1
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      with:
-        upload_url: ${{ steps.create_release.outputs.upload_url }}
-        asset_path: artifacts/summer_player-linux-arm64/summer_player-linux-arm64
-        asset_name: summer_player-linux-arm64
-        asset_content_type: application/octet-stream
-
-    # 上传AMD64 DEB包
-    - name: Find AMD64 DEB package
-      id: find_deb_amd64
-      run: |
-        DEB_FILE=$(find artifacts/summer_player-amd64.deb -name "*.deb" | head -1)
-        DEB_NAME=$(basename "$DEB_FILE")
-        DEB_PATH=$(dirname "$DEB_FILE")
-        echo "deb_path=$DEB_PATH" >> $GITHUB_OUTPUT
-        echo "deb_name=$DEB_NAME" >> $GITHUB_OUTPUT
-
-    - name: Upload AMD64 DEB Package
-      uses: actions/upload-release-asset@v1
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      with:
-        upload_url: ${{ steps.create_release.outputs.upload_url }}
-        asset_path: ${{ steps.find_deb_amd64.outputs.deb_path }}
-        asset_name: ${{ steps.find_deb_amd64.outputs.deb_name }}
-        asset_content_type: application/vnd.debian.binary-package
-
-    # 上传ARM64 DEB包
-    - name: Find ARM64 DEB package
-      id: find_deb_arm64
-      run: |
-        DEB_FILE=$(find artifacts/summer_player-arm64.deb -name "*.deb" | head -1)
-        DEB_NAME=$(basename "$DEB_FILE")
-        DEB_PATH=$(dirname "$DEB_FILE")
-        echo "deb_path=$DEB_PATH" >> $GITHUB_OUTPUT
-        echo "deb_name=$DEB_NAME" >> $GITHUB_OUTPUT
-
-    - name: Upload ARM64 DEB Package
-      uses: actions/upload-release-asset@v1
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      with:
-        upload_url: ${{ steps.create_release.outputs.upload_url }}
-        asset_path: ${{ steps.find_deb_arm64.outputs.deb_path }}
-        asset_name: ${{ steps.find_deb_arm64.outputs.deb_name }}
-        asset_content_type: application/vnd.debian.binary-package 
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} 
