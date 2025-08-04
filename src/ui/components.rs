@@ -559,7 +559,8 @@ pub fn playlist_view(
                 // 播放列表标题
                 row![
                     text("📋").size(18).shaping(Shaping::Advanced),
-                    text(format!("Playlist ({} songs)", playlist.len()))
+                    //text(format!("Playlist ({} songs)", playlist.len()))
+                    text(t!("messages.Playlist", count = format!("{}", playlist.len())))
                         .size(16)
                         .style(|theme: &Theme| {
                             let palette = theme.extended_palette();
