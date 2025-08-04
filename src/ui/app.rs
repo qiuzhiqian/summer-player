@@ -250,6 +250,9 @@ impl PlayerApp {
             return Task::none();
         };
 
+        // 记录是否之前正在播放
+        let was_playing = self.is_playing;
+
         if is_m3u_playlist(&path) {
             match parse_m3u_playlist(&path) {
                 Ok(playlist) => {
@@ -258,6 +261,16 @@ impl PlayerApp {
                     if let Some(first_item) = self.playlist.set_current_index(0) {
                         let file_path = first_item.path.clone();
                         self.load_audio_file(&file_path);
+                        
+                        // 停止当前播放，然后如果之前正在播放则启动新的播放会话
+                        self.stop_current_playback();
+                        
+                        if was_playing {
+                            return Task::perform(
+                                start_audio_playback(file_path),
+                                |(sender, _handle)| Message::AudioSessionStarted(sender)
+                            );
+                        }
                     }
                 }
                 Err(e) => {
@@ -271,6 +284,16 @@ impl PlayerApp {
                     self.playlist = playlist;
                     self.playlist_loaded = true;
                     self.load_audio_file(&path);
+                    
+                    // 停止当前播放，然后如果之前正在播放则启动新的播放会话
+                    self.stop_current_playback();
+                    
+                    if was_playing {
+                        return Task::perform(
+                            start_audio_playback(path),
+                            |(sender, _handle)| Message::AudioSessionStarted(sender)
+                        );
+                    }
                 }
                 Err(e) => {
                     eprintln!("Failed to create playlist: {}", e);
@@ -474,10 +497,15 @@ impl PlayerApp {
     fn load_audio_file(&mut self, file_path: &str) {
         self.file_path = file_path.to_string();
         
+        // 重置播放状态
+        self.playback_state.current_time = 0.0;
+        self.playback_state.current_samples = 0;
+        
         // 加载音频信息
         if let Ok(audio_file) = AudioFile::open(file_path) {
             self.audio_info = Some(audio_file.info.clone());
             self.playback_state.total_duration = audio_file.info.duration.unwrap_or(0.0);
+            self.playback_state.sample_rate = audio_file.info.sample_rate;
         }
         
         // 加载歌词
