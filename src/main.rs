@@ -65,6 +65,7 @@ fn main() {
     
     iced::application("Summer Audio Player", PlayerApp::update, PlayerApp::view)
         .subscription(PlayerApp::subscription)
+        .theme(PlayerApp::theme)
         .window(window::Settings {
             icon: Some(icon),
             ..window::Settings::default()

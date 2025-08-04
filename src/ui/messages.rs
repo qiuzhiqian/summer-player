@@ -38,4 +38,6 @@ pub enum Message {
     WindowResized(f32, f32),
     /// 进度条变化（值为0.0-1.0的比例）
     ProgressChanged(f32),
+    /// 切换主题
+    ToggleTheme,
 } 

@@ -16,7 +16,7 @@ use crate::playlist::Playlist;
 use crate::utils::format_duration;
 
 use super::Message;
-use super::theme::AppTheme;
+use super::theme::{AppTheme, AppThemeVariant};
 use rust_i18n::t;
 
 /// 视图类型枚举
@@ -411,6 +411,37 @@ pub fn view_toggle_button(current_view: &ViewType) -> Element<'static, Message> 
         .on_press(Message::ToggleView)
     )
     .width(Length::Fill)
+    .into()
+}
+
+/// 创建主题切换按钮
+/// 
+/// # 参数
+/// * `current_theme` - 当前主题
+/// 
+/// # 返回
+/// 主题切换按钮UI元素
+pub fn theme_toggle_button(current_theme: &AppThemeVariant) -> Element<'static, Message> {
+    let (icon, text_content) = match current_theme {
+        AppThemeVariant::Light => ("🌙", t!("Dark Mode")),
+        AppThemeVariant::Dark => ("☀️", t!("Light Mode")),
+    };
+    
+    container(
+        button(
+            row![
+                container(text(icon).size(16).shaping(Shaping::Advanced))
+                    .style(AppTheme::transparent_container())
+                    .padding(8),
+                text(text_content)
+                    .size(14)
+                    .style(AppTheme::emphasis_text())
+            ].spacing(8).align_y(Vertical::Center)
+        )
+        .style(AppTheme::theme_toggle_button())
+        .padding([12, 16])
+        .on_press(Message::ToggleTheme)
+    )
     .into()
 }
 

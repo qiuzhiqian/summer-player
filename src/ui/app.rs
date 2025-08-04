@@ -24,6 +24,7 @@ use crate::config::ui::MAIN_PANEL_WIDTH;
 use super::Message;
 use super::components::*;
 use super::animation::ViewTransitionAnimation;
+use super::theme::AppThemeVariant;
 
 /// 主应用程序结构
 #[derive(Default)]
@@ -52,6 +53,8 @@ pub struct PlayerApp {
     current_lyrics: Option<Lyrics>,
     /// 当前窗口大小
     window_size: (f32, f32), // (width, height)
+    /// 当前主题
+    current_theme: AppThemeVariant,
 }
 
 impl PlayerApp {
@@ -102,7 +105,13 @@ impl PlayerApp {
             Message::AnimationTick => self.handle_animation_tick(),
             Message::WindowResized(width, height) => self.handle_window_resized(width, height),
             Message::ProgressChanged(progress) => self.handle_progress_changed(progress),
+            Message::ToggleTheme => self.handle_toggle_theme(),
         }
+    }
+
+    /// 获取当前主题
+    pub fn theme(&self) -> iced::Theme {
+        self.current_theme.to_iced_theme()
     }
 
     /// 创建应用程序视图
@@ -129,7 +138,10 @@ impl PlayerApp {
         };
 
         let right_panel = column![
-            view_toggle_button(&self.current_view),
+            row![
+                view_toggle_button(&self.current_view),
+                theme_toggle_button(&self.current_theme),
+            ].spacing(10),
             right_panel_content,
         ].spacing(10).width(Length::Fill);
 
@@ -449,6 +461,11 @@ impl PlayerApp {
             }
         }
         
+        Task::none()
+    }
+
+    fn handle_toggle_theme(&mut self) -> Task<Message> {
+        self.current_theme = self.current_theme.toggle();
         Task::none()
     }
 
