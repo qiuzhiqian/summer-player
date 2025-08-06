@@ -866,7 +866,7 @@ impl AppTheme {
                         Background::Color(primary),
                         Background::Color(Color {
                             a: 0.3,
-                            ..AppColors::border(theme)
+                            ..AppColors::text_secondary(theme)
                         }),
                     ),
                     width: 6.0,
