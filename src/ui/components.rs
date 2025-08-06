@@ -323,6 +323,7 @@ pub fn file_info_view(audio_info: Option<&AudioInfo>, file_path: &str) -> Elemen
             let mut main_column = column![
                 // 显示标题（优先使用元数据中的标题）
                 text(display_title)
+                    .shaping(Shaping::Advanced)
                     .size(16)
                     .style(|theme: &iced::Theme| {
                         let palette = theme.extended_palette();
@@ -432,6 +433,7 @@ fn info_row(icon: &'static str, label: &str, value: &str) -> Element<'static, Me
     row![
         text(icon).size(14).shaping(Shaping::Advanced),
         text(format!("{}: {}", label, value))
+            .shaping(Shaping::Advanced)
             .size(12)
             .style(|theme: &iced::Theme| {
                 let palette = theme.extended_palette();
