@@ -1,9 +1,15 @@
 Album:
   en: Album
   zh-CN: 专辑
+Appearance:
+  en: Appearance
+  zh-CN: 外观
 Artist:
   en: Artist
   zh-CN: 艺术家
+Audio:
+  en: Audio
+  zh-CN: 音频
 Audio Info:
   en: Audio Info
   zh-CN: 音频信息
@@ -13,12 +19,24 @@ Bit Depth:
 Browse Music Library:
   en: Browse Music Library
   zh-CN: 浏览音乐库
+Change:
+  en: Change
+  zh-CN: 更改
 Channel Count:
   en: Channel Count
   zh-CN: 通道数
+Chinese:
+  en: Chinese
+  zh-CN: 中文
 Composer:
   en: Composer
   zh-CN: 作曲家
+Dark:
+  en: Dark
+  zh-CN: 深色
+Default:
+  en: Default
+  zh-CN: 默认
 Duration:
   en: Duration
   zh-CN: 时长
@@ -28,6 +46,18 @@ File not selected:
 Genre:
   en: Genre
   zh-CN: 流派
+Home:
+  en: Home
+  zh-CN: 主页
+Interface Language:
+  en: Interface Language
+  zh-CN: 界面语言
+Language:
+  en: Language
+  zh-CN: 语言
+Light:
+  en: Light
+  zh-CN: 浅色
 Lyrics Display:
   en: Lyrics Display
   zh-CN: 歌词显示
@@ -40,27 +70,42 @@ No playlist loaded:
 Open File:
   en: Open File
   zh-CN: 打开文件
+Output Device:
+  en: Output Device
+  zh-CN: 输出设备
 Please select an audio file:
   en: Please select an audio file
   zh-CN: 请选择一个音频文件
 Sample Rate:
   en: Sample Rate
   zh-CN: 采样率
+Settings:
+  en: Settings
+  zh-CN: 设置
 Switch to Lyrics:
   en: Switch to Lyrics
   zh-CN: 切换到歌词
 Switch to Playlist:
   en: Switch to Playlist
   zh-CN: 切换到播放列表
+Theme:
+  en: Theme
+  zh-CN: 主题
 Title:
   en: Title
   zh-CN: 标题
+Toggle:
+  en: Toggle
+  zh-CN: 切换
 Track Number:
   en: Track Number
   zh-CN: 音轨
 View Lyrics Synchronization:
   en: View Lyrics Synchronization
   zh-CN: 查看歌词同步
+Volume:
+  en: Volume
+  zh-CN: 音量
 Year:
   en: Year
   zh-CN: 年份

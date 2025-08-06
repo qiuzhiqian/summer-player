@@ -24,7 +24,7 @@ use crate::config::ui::MAIN_PANEL_WIDTH;
 use super::Message;
 use super::components::*;
 use super::animation::ViewTransitionAnimation;
-use super::theme::AppThemeVariant;
+use super::theme::{AppThemeVariant, AppTheme};
 
 /// 主应用程序结构
 #[derive(Default)]
@@ -45,7 +45,9 @@ pub struct PlayerApp {
     playlist: Playlist,
     /// 播放列表是否已加载
     playlist_loaded: bool,
-    /// 当前视图类型
+    /// 当前页面类型
+    current_page: PageType,
+    /// 当前视图类型（主页面内的视图切换）
     current_view: ViewType,
     /// 动画状态（使用 anim-rs）
     view_animation: ViewTransitionAnimation,
@@ -106,6 +108,7 @@ impl PlayerApp {
             Message::WindowResized(width, height) => self.handle_window_resized(width, height),
             Message::ProgressChanged(progress) => self.handle_progress_changed(progress),
             Message::ToggleTheme => self.handle_toggle_theme(),
+            Message::PageChanged(page) => self.handle_page_changed(page),
         }
     }
 
@@ -116,50 +119,28 @@ impl PlayerApp {
 
     /// 创建应用程序视图
     pub fn view(&self) -> Element<Message> {
-        let left_panel = column![
-            /*title_view(),*/
-            file_info_view(self.audio_info.as_ref(), &self.file_path),
-            file_controls_view(),
-            spacer(),
-        ].spacing(10)
-         .width(Length::Fixed(MAIN_PANEL_WIDTH))
-         .height(Length::Fill);
-
-        // 右侧面板根据当前视图类型显示不同内容
-        let right_panel_content = if self.view_animation.is_active() {
-            // 动画期间同时显示两个视图，通过宽度比例实现滑动
-            self.create_sliding_animation_view()
-        } else {
-            // 正常状态显示对应内容
-            match self.current_view {
-                ViewType::Playlist => playlist_view(&self.playlist, self.playlist_loaded, self.is_playing),
-                ViewType::Lyrics => lyrics_view(&self.file_path, self.is_playing, self.playback_state.current_time, &self.current_lyrics, self.window_size.1),
-            }
+        // 左侧导航栏
+        let navigation = navigation_sidebar(&self.current_page);
+        
+        // 主内容区域根据当前页面显示不同内容
+        let main_content = match self.current_page {
+            PageType::Home => self.create_home_page(),
+            PageType::Settings => settings_page(&self.current_theme),
         };
 
-        let right_panel = column![
-            row![
-                view_toggle_button(&self.current_view),
-                theme_toggle_button(&self.current_theme),
-            ].spacing(10),
-            right_panel_content,
-        ].spacing(10).width(Length::Fill);
-
-        let main_content = row![left_panel, right_panel].spacing(10);
-        
-        // 底部区域：控制按钮 + 进度条
-        let bottom_section = row![
-            container(control_buttons_view(self.is_playing))
-                .width(Length::Fixed(MAIN_PANEL_WIDTH))
-                .height(Length::Shrink),
-            column![progress_view(&self.playback_state)]
+        // 整体布局：导航栏 + 主内容
+        row![
+            container(navigation)
+                .style(AppTheme::card_container())
+                .width(Length::Shrink)
+                .height(Length::Fill),
+            container(main_content)
                 .width(Length::Fill)
-        ].spacing(10).align_y(Vertical::Center);
-
-        column![main_content, bottom_section]
-            .spacing(10)
-            .padding(10)
-            .into()
+                .height(Length::Fill)
+                .padding(10)
+        ]
+        .spacing(0)
+        .into()
     }
 
     /// 创建应用程序订阅
@@ -492,6 +473,11 @@ impl PlayerApp {
         Task::none()
     }
 
+    fn handle_page_changed(&mut self, page: PageType) -> Task<Message> {
+        self.current_page = page;
+        Task::none()
+    }
+
     // 辅助方法
 
     fn load_audio_file(&mut self, file_path: &str) {
@@ -570,6 +556,51 @@ impl PlayerApp {
         }
         
         Task::none()
+    }
+
+    /// 创建主页面内容
+    fn create_home_page(&self) -> Element<Message> {
+        let left_panel = column![
+            file_info_view(self.audio_info.as_ref(), &self.file_path),
+            file_controls_view(),
+            spacer(),
+        ].spacing(10)
+         .width(Length::Fixed(MAIN_PANEL_WIDTH))
+         .height(Length::Fill);
+
+        // 右侧面板根据当前视图类型显示不同内容
+        let right_panel_content = if self.view_animation.is_active() {
+            // 动画期间同时显示两个视图，通过宽度比例实现滑动
+            self.create_sliding_animation_view()
+        } else {
+            // 正常状态显示对应内容
+            match self.current_view {
+                ViewType::Playlist => playlist_view(&self.playlist, self.playlist_loaded, self.is_playing),
+                ViewType::Lyrics => lyrics_view(&self.file_path, self.is_playing, self.playback_state.current_time, &self.current_lyrics, self.window_size.1),
+            }
+        };
+
+        let right_panel = column![
+            row![
+                view_toggle_button(&self.current_view),
+            ].spacing(10),
+            right_panel_content,
+        ].spacing(10).width(Length::Fill);
+
+        let main_content = row![left_panel, right_panel].spacing(10);
+        
+        // 底部区域：控制按钮 + 进度条
+        let bottom_section = row![
+            container(control_buttons_view(self.is_playing))
+                .width(Length::Fixed(MAIN_PANEL_WIDTH))
+                .height(Length::Shrink),
+            column![progress_view(&self.playback_state)]
+                .width(Length::Fill)
+        ].spacing(10).align_y(Vertical::Center);
+
+        column![main_content, bottom_section]
+            .spacing(10)
+            .into()
     }
 
     fn create_sliding_animation_view(&self) -> Element<Message> {

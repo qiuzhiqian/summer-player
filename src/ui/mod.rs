@@ -11,5 +11,5 @@ pub mod theme;
 // 重新导出主要类型
 pub use app::PlayerApp;
 pub use messages::Message;
-pub use components::ViewType;
+pub use components::{ViewType, PageType};
 pub use theme::{AppThemeVariant, AppTheme}; 

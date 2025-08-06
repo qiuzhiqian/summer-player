@@ -6,7 +6,6 @@ use iced::{
     widget::{button, column, row, text, slider, scrollable, Space, container, image},
     Element, Length, Border, Shadow, Background, Color,
     alignment::{Horizontal, Vertical, Alignment},
-    theme::Theme,
     border::Radius,
 };
 use iced::advanced::text::Shaping;
@@ -19,7 +18,17 @@ use super::Message;
 use super::theme::{AppTheme, AppThemeVariant};
 use rust_i18n::t;
 
-/// 视图类型枚举
+/// 页面类型枚举 - 用于主导航
+#[derive(Debug, Clone, PartialEq, Default)]
+pub enum PageType {
+    /// 主页面（播放器功能）
+    #[default]
+    Home,
+    /// 设置页面
+    Settings,
+}
+
+/// 视图类型枚举 - 用于主页面内部视图切换
 #[derive(Debug, Clone, PartialEq, Default)]
 pub enum ViewType {
     /// 播放列表视图
@@ -29,7 +38,170 @@ pub enum ViewType {
     Lyrics,
 }
 
+/// 创建导航栏组件
+/// 
+/// # 参数
+/// * `current_page` - 当前选中的页面
+/// 
+/// # 返回
+/// 导航栏UI元素
+pub fn navigation_sidebar(current_page: &PageType) -> Element<'static, Message> {
+    let nav_button = |icon: String, label: String, page: PageType, is_active: bool| {
+        let style = if is_active {
+            AppTheme::control_button()
+        } else {
+            AppTheme::file_button()
+        };
+        
+        button(
+            column![
+                text(icon).size(24).shaping(Shaping::Advanced),
+                text(label).size(12).shaping(Shaping::Advanced)
+            ]
+            .align_x(Horizontal::Center)
+            .spacing(4)
+        )
+        .style(style)
+        .padding([12, 16])
+        .width(Length::Shrink)
+        .on_press(Message::PageChanged(page))
+    };
 
+    column![
+        nav_button("🏠".to_string(), t!("Home").to_string(), PageType::Home, *current_page == PageType::Home),
+        nav_button("⚙️".to_string(), t!("Settings").to_string(), PageType::Settings, *current_page == PageType::Settings),
+        
+        // 底部空间
+        Space::with_height(Length::Fill),
+    ]
+    .width(Length::Shrink)
+    .height(Length::Fill)
+    .spacing(8)
+    .padding(12)
+    .into()
+}
+
+/// 创建设置页面组件
+/// 
+/// # 参数
+/// * `current_theme` - 当前主题
+/// 
+/// # 返回
+/// 设置页面UI元素
+pub fn settings_page(current_theme: &AppThemeVariant) -> Element<'static, Message> {
+    column![
+        // 页面标题
+        container(
+            text(t!("Settings")).size(24).style(AppTheme::emphasis_text())
+        )
+        .padding(16),
+        
+        // 主题设置
+        setting_section(
+            t!("Appearance").to_string(),
+            column![
+                setting_row(
+                    t!("Theme").to_string(),
+                    row![
+                        text(match current_theme {
+                            AppThemeVariant::Light => "Light",
+                            AppThemeVariant::Dark => "Dark",
+                        }).size(14),
+                        Space::with_width(Length::Fill),
+                        button(text(t!("Toggle")))
+                            .on_press(Message::ToggleTheme)
+                            .style(AppTheme::file_button())
+                            .padding(8)
+                    ]
+                    .align_y(Vertical::Center)
+                )
+            ].into()
+        ),
+        
+        // 音频设置
+        setting_section(
+            t!("Audio").to_string(),
+            column![
+                setting_row(
+                    t!("Output Device").to_string(),
+                    row![
+                        text(t!("Default")).size(14),
+                        Space::with_width(Length::Fill),
+                        button(text(t!("Change")))
+                            .style(AppTheme::file_button())
+                            .padding(8)
+                    ]
+                    .align_y(Vertical::Center)
+                ),
+                setting_row(
+                    t!("Volume").to_string(),
+                    slider(0.0..=100.0, 75.0, |_| Message::Tick) // 临时消息，后续可以添加音量控制
+                        .width(Length::Fixed(200.0))
+                        .style(AppTheme::progress_slider())
+                )
+            ].into()
+        ),
+        
+        // 语言设置
+        setting_section(
+            t!("Language").to_string(),
+            column![
+                setting_row(
+                    t!("Interface Language").to_string(),
+                    row![
+                        text(t!("Chinese")).size(14),
+                        Space::with_width(Length::Fill),
+                        button(text(t!("Change")))
+                            .style(AppTheme::file_button())
+                            .padding(8)
+                    ]
+                    .align_y(Vertical::Center)
+                )
+            ].into()
+        ),
+        
+        // 版本信息
+        Space::with_height(Length::Fill),
+        container(
+            column![
+                text(format!("{} v{}", t!("Summer Player"), env!("CARGO_PKG_VERSION"))).size(12).style(AppTheme::subtitle_text()),
+                text(format!("© 2025 {}", t!("xml"))).size(10).style(AppTheme::hint_text()),
+            ]
+            .align_x(Horizontal::Center)
+            .spacing(2)
+        )
+        .center_x(Length::Fill)
+        .padding(16)
+    ]
+    .spacing(16)
+    .padding(24)
+    .into()
+}
+
+/// 创建设置区块
+fn setting_section(title: String, content: Element<'static, Message>) -> Element<'static, Message> {
+    column![
+        text(title).size(16).style(AppTheme::subtitle_text()),
+        container(content)
+            .style(AppTheme::card_container())
+            .padding(16)
+            .width(Length::Fill)
+    ]
+    .spacing(8)
+    .into()
+}
+
+/// 创建设置行
+fn setting_row(label: String, control: impl Into<Element<'static, Message>>) -> Element<'static, Message> {
+    row![
+        text(label).size(14).width(Length::Fixed(150.0)),
+        control.into()
+    ]
+    .align_y(Vertical::Center)
+    .spacing(16)
+    .padding(8)
+    .into()
+}
 
 /// 创建文件信息显示组件
 /// 
@@ -120,7 +292,7 @@ pub fn file_info_view(audio_info: Option<&AudioInfo>, file_path: &str) -> Elemen
                 // 显示标题（优先使用元数据中的标题）
                 text(display_title)
                     .size(16)
-                    .style(|theme: &Theme| {
+                    .style(|theme: &iced::Theme| {
                         let palette = theme.extended_palette();
                         text::Style {
                             color: Some(palette.primary.base.color),
@@ -137,7 +309,7 @@ pub fn file_info_view(audio_info: Option<&AudioInfo>, file_path: &str) -> Elemen
                             .width(Length::Shrink)
                             .height(Length::Shrink)
                     )
-                    .style(|theme: &Theme| {
+                    .style(|theme: &iced::Theme| {
                         let palette = theme.extended_palette();
                         container::Style {
                             background: Some(Background::Color(palette.background.weak.color)),
@@ -159,7 +331,7 @@ pub fn file_info_view(audio_info: Option<&AudioInfo>, file_path: &str) -> Elemen
                 // 音频信息部分
                 text(t!("Audio Info"))
                     .size(14)
-                    .style(|theme: &Theme| {
+                    .style(|theme: &iced::Theme| {
                         let palette = theme.extended_palette();
                         text::Style {
                             color: Some(Color {
@@ -179,7 +351,7 @@ pub fn file_info_view(audio_info: Option<&AudioInfo>, file_path: &str) -> Elemen
                     column![
                         text(t!("Metadata"))
                             .size(14)
-                            .style(|theme: &Theme| {
+                            .style(|theme: &iced::Theme| {
                                 let palette = theme.extended_palette();
                                 text::Style {
                                     color: Some(Color {
@@ -204,7 +376,7 @@ pub fn file_info_view(audio_info: Option<&AudioInfo>, file_path: &str) -> Elemen
             text(t!("File not selected"))
                 .size(14)
                 .align_x(Horizontal::Center)
-                .style(|theme: &Theme| {
+                .style(|theme: &iced::Theme| {
                     let palette = theme.extended_palette();
                     text::Style {
                         color: Some(Color {
@@ -229,7 +401,7 @@ fn info_row(icon: &'static str, label: &str, value: &str) -> Element<'static, Me
         text(icon).size(14).shaping(Shaping::Advanced),
         text(format!("{}: {}", label, value))
             .size(12)
-            .style(|theme: &Theme| {
+            .style(|theme: &iced::Theme| {
                 let palette = theme.extended_palette();
                 text::Style {
                     color: Some(Color {
@@ -312,7 +484,7 @@ pub fn file_controls_view() -> Element<'static, Message> {
         button(
             row![
                 container(text("📁").size(16).shaping(Shaping::Advanced))
-                    .style(|theme: &Theme| {
+                    .style(|theme: &iced::Theme| {
                         let palette = theme.extended_palette();
                         container::Style {
                             background: Some(Background::Color(Color {
@@ -360,7 +532,7 @@ pub fn view_toggle_button(current_view: &ViewType) -> Element<'static, Message> 
         button(
             row![
                 container(text(icon).size(18).shaping(Shaping::Advanced))
-                    .style(move |theme: &Theme| {
+                    .style(move |theme: &iced::Theme| {
                         let palette = theme.extended_palette();
                         let color = if is_playlist {
                             palette.success.base.color
@@ -385,7 +557,7 @@ pub fn view_toggle_button(current_view: &ViewType) -> Element<'static, Message> 
                 column![
                     text(text_content)
                         .size(14)
-                        .style(|theme: &Theme| {
+                        .style(|theme: &iced::Theme| {
                             let palette = theme.extended_palette();
                             text::Style {
                                 color: Some(palette.background.base.text),
@@ -393,7 +565,7 @@ pub fn view_toggle_button(current_view: &ViewType) -> Element<'static, Message> 
                         }),
                     text(subtitle)
                     .size(11)
-                    .style(|theme: &Theme| {
+                    .style(|theme: &iced::Theme| {
                         let palette = theme.extended_palette();
                         text::Style {
                             color: Some(Color {
@@ -481,7 +653,7 @@ pub fn progress_view(playback_state: &PlaybackState) -> Element<'static, Message
                     .step(0.001)
                     .style(AppTheme::progress_slider())
             )
-            .style(|theme: &Theme| {
+            .style(|theme: &iced::Theme| {
                 let palette = theme.extended_palette();
                 container::Style {
                     background: Some(Background::Color(Color {
@@ -549,7 +721,7 @@ pub fn playlist_view(
                     text(song_name)
                         .shaping(Shaping::Advanced)
                         .width(Length::FillPortion(4))
-                        .style(move |theme: &Theme| {
+                        .style(move |theme: &iced::Theme| {
                             let palette = theme.extended_palette();
                             text::Style {
                                 color: Some(if is_current {
@@ -563,7 +735,7 @@ pub fn playlist_view(
                         .width(Length::FillPortion(1))
                         .size(12)
                         .align_x(Horizontal::Right)
-                        .style(|theme: &Theme| {
+                        .style(|theme: &iced::Theme| {
                             let palette = theme.extended_palette();
                             text::Style {
                                 color: Some(Color {
@@ -593,7 +765,7 @@ pub fn playlist_view(
                     //text(format!("Playlist ({} songs)", playlist.len()))
                     text(t!("messages.Playlist", count = format!("{}", playlist.len())))
                         .size(16)
-                        .style(|theme: &Theme| {
+                        .style(|theme: &iced::Theme| {
                             let palette = theme.extended_palette();
                             text::Style {
                                 color: Some(palette.primary.base.color),
@@ -652,7 +824,7 @@ pub fn lyrics_view(file_path: &str, is_playing: bool, current_time: f64, lyrics:
                 text(t!("Lyrics Display"))
                     .size(20)
                     .align_x(Horizontal::Center)
-                    .style(|theme: &Theme| {
+                    .style(|theme: &iced::Theme| {
                         let palette = theme.extended_palette();
                         text::Style {
                             color: Some(palette.primary.base.color),
@@ -661,7 +833,7 @@ pub fn lyrics_view(file_path: &str, is_playing: bool, current_time: f64, lyrics:
                 text(t!("Please select an audio file"))
                     .size(14)
                     .align_x(Horizontal::Center)
-                    .style(|theme: &Theme| {
+                    .style(|theme: &iced::Theme| {
                         let palette = theme.extended_palette();
                         text::Style {
                             color: Some(Color {
@@ -699,7 +871,7 @@ pub fn lyrics_view(file_path: &str, is_playing: bool, current_time: f64, lyrics:
             text(title)
                 .size(20)
                 .align_x(Horizontal::Center)
-                .style(|theme: &Theme| {
+                .style(|theme: &iced::Theme| {
                     let palette = theme.extended_palette();
                     text::Style {
                         color: Some(palette.primary.base.color),
@@ -714,7 +886,7 @@ pub fn lyrics_view(file_path: &str, is_playing: bool, current_time: f64, lyrics:
                     .size(14)
                     .align_x(Horizontal::Center)
                     .shaping(Shaping::Advanced)
-                    .style(|theme: &Theme| {
+                    .style(|theme: &iced::Theme| {
                         let palette = theme.extended_palette();
                         text::Style {
                             color: Some(Color {
@@ -734,7 +906,7 @@ pub fn lyrics_view(file_path: &str, is_playing: bool, current_time: f64, lyrics:
                 .size(18)
                 .align_x(Horizontal::Center)
                 .shaping(Shaping::Advanced)
-                .style(|theme: &Theme| {
+                .style(|theme: &iced::Theme| {
                     let palette = theme.extended_palette();
                     text::Style {
                         color: Some(palette.primary.base.color),
@@ -829,14 +1001,14 @@ pub fn lyrics_view(file_path: &str, is_playing: bool, current_time: f64, lyrics:
                                 .size(18)
                                 .align_x(Horizontal::Center)
                                 .shaping(Shaping::Advanced)
-                                .style(|theme: &Theme| {
+                                .style(|theme: &iced::Theme| {
                                     let palette = theme.extended_palette();
                                     text::Style {
                                         color: Some(palette.primary.strong.color),
                                     }
                                 })
                         )
-                        .style(|theme: &Theme| {
+                        .style(|theme: &iced::Theme| {
                             let palette = theme.extended_palette();
                             container::Style {
                                 background: Some(Background::Color(Color {
@@ -861,7 +1033,7 @@ pub fn lyrics_view(file_path: &str, is_playing: bool, current_time: f64, lyrics:
                             .size(16)
                             .align_x(Horizontal::Center)
                             .shaping(Shaping::Advanced)
-                            .style(|theme: &Theme| {
+                            .style(|theme: &iced::Theme| {
                                 let palette = theme.extended_palette();
                                 text::Style {
                                     color: Some(palette.secondary.base.color),
@@ -874,7 +1046,7 @@ pub fn lyrics_view(file_path: &str, is_playing: bool, current_time: f64, lyrics:
                             .size(14)
                             .align_x(Horizontal::Center)
                             .shaping(Shaping::Advanced)
-                            .style(|theme: &Theme| {
+                            .style(|theme: &iced::Theme| {
                                 let palette = theme.extended_palette();
                                 text::Style {
                                     color: Some(Color {
@@ -890,7 +1062,7 @@ pub fn lyrics_view(file_path: &str, is_playing: bool, current_time: f64, lyrics:
                             .size(14)
                             .align_x(Horizontal::Center)
                             .shaping(Shaping::Advanced)
-                            .style(|theme: &Theme| {
+                            .style(|theme: &iced::Theme| {
                                 let palette = theme.extended_palette();
                                 text::Style {
                                     color: Some(Color {
@@ -924,7 +1096,7 @@ pub fn lyrics_view(file_path: &str, is_playing: bool, current_time: f64, lyrics:
                         .size(14)
                         .align_x(Horizontal::Center)
                         .shaping(Shaping::Advanced)
-                        .style(|theme: &Theme| {
+                        .style(|theme: &iced::Theme| {
                             let palette = theme.extended_palette();
                             text::Style {
                                 color: Some(palette.primary.base.color),
@@ -940,7 +1112,7 @@ pub fn lyrics_view(file_path: &str, is_playing: bool, current_time: f64, lyrics:
                 text("⚠️ 歌词文件已加载，但没有找到歌词内容")
                     .align_x(Horizontal::Center)
                     .shaping(Shaping::Advanced)
-                    .style(|theme: &Theme| {
+                    .style(|theme: &iced::Theme| {
                         let palette = theme.extended_palette();
                         text::Style {
                             color: Some(Color {
@@ -960,7 +1132,7 @@ pub fn lyrics_view(file_path: &str, is_playing: bool, current_time: f64, lyrics:
                     .size(18)
                     .align_x(Horizontal::Center)
                     .shaping(Shaping::Advanced)
-                    .style(|theme: &Theme| {
+                    .style(|theme: &iced::Theme| {
                         let palette = theme.extended_palette();
                         text::Style {
                             color: Some(palette.primary.base.color),
@@ -973,7 +1145,7 @@ pub fn lyrics_view(file_path: &str, is_playing: bool, current_time: f64, lyrics:
                 text("🎵 暂无歌词文件")
                     .align_x(Horizontal::Center)
                     .shaping(Shaping::Advanced)
-                    .style(|theme: &Theme| {
+                    .style(|theme: &iced::Theme| {
                         let palette = theme.extended_palette();
                         text::Style {
                             color: Some(Color {
@@ -990,7 +1162,7 @@ pub fn lyrics_view(file_path: &str, is_playing: bool, current_time: f64, lyrics:
                     .size(12)
                     .align_x(Horizontal::Center)
                     .shaping(Shaping::Advanced)
-                    .style(|theme: &Theme| {
+                    .style(|theme: &iced::Theme| {
                         let palette = theme.extended_palette();
                         text::Style {
                             color: Some(Color {
@@ -1007,7 +1179,7 @@ pub fn lyrics_view(file_path: &str, is_playing: bool, current_time: f64, lyrics:
                     .size(18)
                     .align_x(Horizontal::Center)
                     .shaping(Shaping::Advanced)
-                    .style(|theme: &Theme| {
+                    .style(|theme: &iced::Theme| {
                         let palette = theme.extended_palette();
                         text::Style {
                             color: Some(palette.primary.base.color),
@@ -1020,7 +1192,7 @@ pub fn lyrics_view(file_path: &str, is_playing: bool, current_time: f64, lyrics:
                 text("⏸️ 暂停播放中")
                     .align_x(Horizontal::Center)
                     .shaping(Shaping::Advanced)
-                    .style(|theme: &Theme| {
+                    .style(|theme: &iced::Theme| {
                         let palette = theme.extended_palette();
                         text::Style {
                             color: Some(Color {
@@ -1040,7 +1212,7 @@ pub fn lyrics_view(file_path: &str, is_playing: bool, current_time: f64, lyrics:
                     text("💡 使用提示")
                         .size(14)
                         .shaping(Shaping::Advanced)
-                        .style(|theme: &Theme| {
+                        .style(|theme: &iced::Theme| {
                             let palette = theme.extended_palette();
                             text::Style {
                                 color: Some(palette.primary.base.color),
@@ -1051,7 +1223,7 @@ pub fn lyrics_view(file_path: &str, is_playing: bool, current_time: f64, lyrics:
                     text("🕐 支持时间同步的LRC格式歌词").size(11).shaping(Shaping::Advanced),
                 ].spacing(6)
             )
-            .style(|theme: &Theme| {
+            .style(|theme: &iced::Theme| {
                 let palette = theme.extended_palette();
                 container::Style {
                     background: Some(Background::Color(Color {
@@ -1102,7 +1274,7 @@ pub fn title_view() -> Element<'static, Message> {
             text("🎵").size(24).shaping(Shaping::Advanced),
             text(t!("summer audio player"))
                 .size(20)
-                .style(|theme: &Theme| {
+                .style(|theme: &iced::Theme| {
                     let palette = theme.extended_palette();
                     text::Style {
                         color: Some(palette.primary.base.color),

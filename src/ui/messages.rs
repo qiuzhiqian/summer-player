@@ -6,6 +6,7 @@ use iced::event::Event;
 use tokio::sync::mpsc;
 
 use crate::audio::{PlaybackCommand, PlaybackState};
+use super::components::PageType;
 
 /// 应用程序消息类型
 #[derive(Debug, Clone)]
@@ -40,4 +41,6 @@ pub enum Message {
     ProgressChanged(f32),
     /// 切换主题
     ToggleTheme,
+    /// 页面切换
+    PageChanged(PageType),
 } 
