@@ -72,6 +72,24 @@ impl AppColors {
         }
     }
 
+    /// 获取主色调渐变起始色
+    pub fn primary_gradient_start(theme: &Theme) -> Color {
+        if Self::is_dark_theme(theme) {
+            Color::from_rgb(0.04, 0.52, 1.0)      // #0A84FF
+        } else {
+            Color::from_rgb(0.0, 0.48, 1.0)       // #007AFF
+        }
+    }
+
+    /// 获取主色调渐变结束色
+    pub fn primary_gradient_end(theme: &Theme) -> Color {
+        if Self::is_dark_theme(theme) {
+            Color::from_rgb(0.20, 0.34, 0.96)     // #3456F5
+        } else {
+            Color::from_rgb(0.35, 0.34, 0.84)     // #5856D6
+        }
+    }
+
     /// 获取次要色调
     pub fn secondary(theme: &Theme) -> Color {
         if Self::is_dark_theme(theme) {
@@ -81,39 +99,84 @@ impl AppColors {
         }
     }
 
+    /// 获取成功色
+    pub fn success(theme: &Theme) -> Color {
+        if Self::is_dark_theme(theme) {
+            Color::from_rgb(0.20, 0.78, 0.35)     // #34C759
+        } else {
+            Color::from_rgb(0.13, 0.70, 0.29)     // #22B348
+        }
+    }
+
     /// 获取背景色
     pub fn background(theme: &Theme) -> Color {
         if Self::is_dark_theme(theme) {
-            Color::from_rgb(0.09, 0.09, 0.11)     // #171719
+            Color::from_rgb(0.06, 0.06, 0.08)     // #0F0F14 - 更深的背景
+        } else {
+            Color::from_rgb(0.97, 0.97, 0.99)     // #F7F7FC - 更柔和的背景
+        }
+    }
+
+    /// 获取渐变背景起始色
+    pub fn background_gradient_start(theme: &Theme) -> Color {
+        if Self::is_dark_theme(theme) {
+            Color::from_rgb(0.06, 0.06, 0.08)     // #0F0F14
         } else {
             Color::from_rgb(0.98, 0.98, 1.0)      // #FAFAFF
+        }
+    }
+
+    /// 获取渐变背景结束色
+    pub fn background_gradient_end(theme: &Theme) -> Color {
+        if Self::is_dark_theme(theme) {
+            Color::from_rgb(0.09, 0.09, 0.11)     // #171719
+        } else {
+            Color::from_rgb(0.95, 0.96, 0.98)     // #F2F4FA
         }
     }
 
     /// 获取卡片背景色
     pub fn card_background(theme: &Theme) -> Color {
         if Self::is_dark_theme(theme) {
-            Color::from_rgb(0.13, 0.13, 0.15)     // #212123
+            Color::from_rgb(0.11, 0.11, 0.13)     // #1C1C21 - 更柔和的卡片背景
         } else {
-            Color::WHITE                           // #FFFFFF
+            Color::from_rgba(1.0, 1.0, 1.0, 0.95) // 半透明白色
+        }
+    }
+
+    /// 获取卡片背景色（带透明度）
+    pub fn card_background_translucent(theme: &Theme) -> Color {
+        if Self::is_dark_theme(theme) {
+            Color::from_rgba(0.13, 0.13, 0.15, 0.8) // 半透明深色
+        } else {
+            Color::from_rgba(1.0, 1.0, 1.0, 0.7)    // 半透明白色
         }
     }
 
     /// 获取表面色（稍微突出的背景）
     pub fn surface(theme: &Theme) -> Color {
         if Self::is_dark_theme(theme) {
-            Color::from_rgb(0.17, 0.17, 0.19)     // #2C2C2E
+            Color::from_rgb(0.15, 0.15, 0.17)     // #262629
         } else {
-            Color::from_rgb(0.95, 0.95, 0.97)     // #F2F2F7
+            Color::from_rgb(0.93, 0.94, 0.96)     // #EDF0F4
         }
     }
 
     /// 获取边框色
     pub fn border(theme: &Theme) -> Color {
         if Self::is_dark_theme(theme) {
-            Color::from_rgb(0.23, 0.23, 0.25)     // #3A3A3C
+            Color::from_rgb(0.20, 0.20, 0.22)     // #333338
         } else {
-            Color::from_rgb(0.90, 0.90, 0.92)     // #E5E5EA
+            Color::from_rgb(0.88, 0.89, 0.91)     // #E1E3E7
+        }
+    }
+
+    /// 获取分隔线颜色
+    pub fn divider(theme: &Theme) -> Color {
+        if Self::is_dark_theme(theme) {
+            Color::from_rgba(0.44, 0.44, 0.46, 0.3) // 半透明分隔线
+        } else {
+            Color::from_rgba(0.68, 0.68, 0.70, 0.3)
         }
     }
 
@@ -182,15 +245,71 @@ impl AppTheme {
             container::Style {
                 background: Some(Background::Color(AppColors::card_background(theme))),
                 border: Border {
-                    radius: Radius::from(12.0),
+                    radius: Radius::from(16.0), // 增加圆角
                     width: 1.0,
                     color: AppColors::border(theme),
                 },
                 shadow: Shadow {
                     color: AppColors::shadow(theme),
-                    offset: iced::Vector::new(0.0, 2.0),
-                    blur_radius: 8.0,
+                    offset: iced::Vector::new(0.0, 4.0), // 增加阴影深度
+                    blur_radius: 16.0, // 增加模糊半径
                 },
+                text_color: Some(AppColors::text_primary(theme)),
+            }
+        }
+    }
+
+    /// 创建毛玻璃效果卡片容器样式
+    pub fn glass_card_container() -> fn(&Theme) -> container::Style {
+        |theme: &Theme| {
+            container::Style {
+                background: Some(Background::Color(AppColors::card_background_translucent(theme))),
+                border: Border {
+                    radius: Radius::from(20.0),
+                    width: 1.0,
+                    color: AppColors::divider(theme),
+                },
+                shadow: Shadow {
+                    color: AppColors::shadow_strong(theme),
+                    offset: iced::Vector::new(0.0, 8.0),
+                    blur_radius: 24.0,
+                },
+                text_color: Some(AppColors::text_primary(theme)),
+            }
+        }
+    }
+
+    /// 创建主要功能区域容器样式
+    pub fn main_section_container() -> fn(&Theme) -> container::Style {
+        |theme: &Theme| {
+            container::Style {
+                background: Some(Background::Color(AppColors::card_background(theme))),
+                border: Border {
+                    radius: Radius::from(20.0),
+                    width: 1.0,
+                    color: AppColors::border(theme),
+                },
+                shadow: Shadow {
+                    color: AppColors::shadow(theme),
+                    offset: iced::Vector::new(0.0, 6.0),
+                    blur_radius: 20.0,
+                },
+                text_color: Some(AppColors::text_primary(theme)),
+            }
+        }
+    }
+
+    /// 创建背景容器样式
+    pub fn background_container() -> fn(&Theme) -> container::Style {
+        |theme: &Theme| {
+            container::Style {
+                background: Some(Background::Color(AppColors::background_gradient_start(theme))),
+                border: Border {
+                    radius: Radius::from(0.0),
+                    width: 0.0,
+                    color: Color::TRANSPARENT,
+                },
+                shadow: Shadow::default(),
                 text_color: Some(AppColors::text_primary(theme)),
             }
         }
@@ -227,66 +346,69 @@ impl AppTheme {
     pub fn play_button() -> fn(&Theme, button::Status) -> button::Style {
         |theme: &Theme, status| {
             let primary = AppColors::primary(theme);
+            let _gradient_start = AppColors::primary_gradient_start(theme);
+            let _gradient_end = AppColors::primary_gradient_end(theme);
+            
             match status {
                 button::Status::Active => button::Style {
-                    background: Some(Background::Color(primary)),
+                    background: Some(Background::Color(primary)), // 实际使用渐变时可以改进
                     text_color: Color::WHITE,
                     border: Border {
                         radius: Radius::from(26.0),
-                        width: 2.0,
+                        width: 3.0, // 增加边框宽度
                         color: Color {
-                            a: 0.3,
+                            a: 0.2,
                             ..Color::WHITE
                         },
                     },
                     shadow: Shadow {
-                        color: AppColors::shadow_strong(theme),
-                        offset: iced::Vector::new(0.0, 3.0),
-                        blur_radius: 8.0,
+                        color: Color::from_rgba(primary.r, primary.g, primary.b, 0.4), // 使用主色调阴影
+                        offset: iced::Vector::new(0.0, 6.0),
+                        blur_radius: 16.0,
                     },
                 },
                 button::Status::Hovered => button::Style {
                     background: Some(Background::Color(Color {
-                        r: (primary.r * 1.1).min(1.0),
-                        g: (primary.g * 1.1).min(1.0),
-                        b: (primary.b * 1.1).min(1.0),
+                        r: (primary.r * 1.15).min(1.0),
+                        g: (primary.g * 1.15).min(1.0),
+                        b: (primary.b * 1.15).min(1.0),
                         a: 1.0,
                     })),
                     text_color: Color::WHITE,
                     border: Border {
                         radius: Radius::from(26.0),
-                        width: 2.0,
+                        width: 3.0,
                         color: Color {
-                            a: 0.5,
+                            a: 0.4,
                             ..Color::WHITE
                         },
                     },
                     shadow: Shadow {
-                        color: AppColors::shadow_strong(theme),
-                        offset: iced::Vector::new(0.0, 5.0),
-                        blur_radius: 12.0,
+                        color: Color::from_rgba(primary.r, primary.g, primary.b, 0.6),
+                        offset: iced::Vector::new(0.0, 8.0),
+                        blur_radius: 20.0,
                     },
                 },
                 button::Status::Pressed => button::Style {
                     background: Some(Background::Color(Color {
-                        r: primary.r * 0.9,
-                        g: primary.g * 0.9,
-                        b: primary.b * 0.9,
+                        r: primary.r * 0.85,
+                        g: primary.g * 0.85,
+                        b: primary.b * 0.85,
                         a: 1.0,
                     })),
                     text_color: Color::WHITE,
                     border: Border {
                         radius: Radius::from(26.0),
-                        width: 2.0,
+                        width: 3.0,
                         color: Color {
-                            a: 0.7,
+                            a: 0.6,
                             ..Color::WHITE
                         },
                     },
                     shadow: Shadow {
-                        color: AppColors::shadow(theme),
-                        offset: iced::Vector::new(0.0, 2.0),
-                        blur_radius: 4.0,
+                        color: Color::from_rgba(primary.r, primary.g, primary.b, 0.3),
+                        offset: iced::Vector::new(0.0, 3.0),
+                        blur_radius: 8.0,
                     },
                 },
                 button::Status::Disabled => button::Style {
@@ -310,19 +432,22 @@ impl AppTheme {
             match status {
                 button::Status::Active => button::Style {
                     background: Some(Background::Color(Color {
-                        a: 0.8,
+                        a: 0.85,
                         ..secondary
                     })),
                     text_color: Color::WHITE,
                     border: Border {
                         radius: Radius::from(20.0),
-                        width: 0.0,
-                        color: Color::TRANSPARENT,
+                        width: 1.0,
+                        color: Color {
+                            a: 0.3,
+                            ..Color::WHITE
+                        },
                     },
                     shadow: Shadow {
-                        color: AppColors::shadow(theme),
-                        offset: iced::Vector::new(0.0, 2.0),
-                        blur_radius: 4.0,
+                        color: Color::from_rgba(secondary.r, secondary.g, secondary.b, 0.3),
+                        offset: iced::Vector::new(0.0, 4.0),
+                        blur_radius: 12.0,
                     },
                 },
                 button::Status::Hovered => button::Style {
@@ -330,32 +455,38 @@ impl AppTheme {
                     text_color: Color::WHITE,
                     border: Border {
                         radius: Radius::from(20.0),
-                        width: 0.0,
-                        color: Color::TRANSPARENT,
+                        width: 1.0,
+                        color: Color {
+                            a: 0.5,
+                            ..Color::WHITE
+                        },
                     },
                     shadow: Shadow {
-                        color: AppColors::shadow_strong(theme),
-                        offset: iced::Vector::new(0.0, 4.0),
-                        blur_radius: 8.0,
+                        color: Color::from_rgba(secondary.r, secondary.g, secondary.b, 0.4),
+                        offset: iced::Vector::new(0.0, 6.0),
+                        blur_radius: 16.0,
                     },
                 },
                 button::Status::Pressed => button::Style {
                     background: Some(Background::Color(Color {
-                        r: secondary.r * 0.9,
-                        g: secondary.g * 0.9,
-                        b: secondary.b * 0.9,
+                        r: secondary.r * 0.85,
+                        g: secondary.g * 0.85,
+                        b: secondary.b * 0.85,
                         a: 1.0,
                     })),
                     text_color: Color::WHITE,
                     border: Border {
                         radius: Radius::from(20.0),
-                        width: 0.0,
-                        color: Color::TRANSPARENT,
+                        width: 1.0,
+                        color: Color {
+                            a: 0.4,
+                            ..Color::WHITE
+                        },
                     },
                     shadow: Shadow {
-                        color: AppColors::shadow(theme),
-                        offset: iced::Vector::new(0.0, 1.0),
-                        blur_radius: 2.0,
+                        color: Color::from_rgba(secondary.r, secondary.g, secondary.b, 0.2),
+                        offset: iced::Vector::new(0.0, 2.0),
+                        blur_radius: 6.0,
                     },
                 },
                 button::Status::Disabled => button::Style {
@@ -379,63 +510,69 @@ impl AppTheme {
             match status {
                 button::Status::Active => button::Style {
                     background: Some(Background::Color(Color {
-                        a: 0.08,
+                        a: 0.1,
                         ..primary
                     })),
                     text_color: primary,
                     border: Border {
-                        radius: Radius::from(12.0),
-                        width: 1.0,
+                        radius: Radius::from(16.0), // 增加圆角
+                        width: 1.5,
                         color: Color {
-                            a: 0.3,
+                            a: 0.35,
                             ..primary
                         },
                     },
                     shadow: Shadow {
-                        color: AppColors::shadow(theme),
-                        offset: iced::Vector::new(0.0, 2.0),
-                        blur_radius: 4.0,
+                        color: Color::from_rgba(primary.r, primary.g, primary.b, 0.15),
+                        offset: iced::Vector::new(0.0, 4.0),
+                        blur_radius: 12.0,
                     },
                 },
                 button::Status::Hovered => button::Style {
                     background: Some(Background::Color(Color {
-                        a: 0.12,
+                        a: 0.15,
                         ..primary
                     })),
                     text_color: primary,
                     border: Border {
-                        radius: Radius::from(12.0),
-                        width: 1.0,
-                        color: primary,
+                        radius: Radius::from(16.0),
+                        width: 1.5,
+                        color: Color {
+                            a: 0.55,
+                            ..primary
+                        },
                     },
                     shadow: Shadow {
-                        color: AppColors::shadow_strong(theme),
-                        offset: iced::Vector::new(0.0, 4.0),
-                        blur_radius: 8.0,
+                        color: Color::from_rgba(primary.r, primary.g, primary.b, 0.25),
+                        offset: iced::Vector::new(0.0, 6.0),
+                        blur_radius: 16.0,
                     },
                 },
                 button::Status::Pressed => button::Style {
                     background: Some(Background::Color(Color {
-                        a: 0.16,
+                        a: 0.2,
                         ..primary
                     })),
                     text_color: primary,
                     border: Border {
-                        radius: Radius::from(12.0),
-                        width: 1.0,
-                        color: primary,
+                        radius: Radius::from(16.0),
+                        width: 1.5,
+                        color: Color {
+                            a: 0.7,
+                            ..primary
+                        },
                     },
                     shadow: Shadow {
-                        color: AppColors::shadow(theme),
-                        offset: iced::Vector::new(0.0, 1.0),
-                        blur_radius: 2.0,
+                        color: Color::from_rgba(primary.r, primary.g, primary.b, 0.15),
+                        offset: iced::Vector::new(0.0, 2.0),
+                        blur_radius: 8.0,
                     },
                 },
                 button::Status::Disabled => button::Style {
                     background: Some(Background::Color(AppColors::surface(theme))),
                     text_color: AppColors::text_hint(theme),
                     border: Border {
-                        radius: Radius::from(12.0),
+                        radius: Radius::from(16.0),
                         width: 1.0,
                         color: AppColors::border(theme),
                     },
@@ -839,21 +976,7 @@ impl AppTheme {
         }
     }
 
-    /// 创建背景容器样式
-    pub fn background_container() -> fn(&Theme) -> container::Style {
-        |theme: &Theme| {
-            container::Style {
-                background: Some(Background::Color(AppColors::background(theme))),
-                border: Border {
-                    radius: Radius::from(0.0),
-                    width: 0.0,
-                    color: Color::TRANSPARENT,
-                },
-                shadow: Shadow::default(),
-                text_color: Some(AppColors::text_primary(theme)),
-            }
-        }
-    }
+
 
     /// 创建透明容器样式
     pub fn transparent_container() -> fn(&Theme) -> container::Style {

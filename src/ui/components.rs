@@ -55,14 +55,14 @@ pub fn navigation_sidebar(current_page: &PageType) -> Element<'static, Message> 
         
         button(
             column![
-                text(icon).size(24).shaping(Shaping::Advanced),
-                text(label).size(12).shaping(Shaping::Advanced)
+                text(icon).size(28).shaping(Shaping::Advanced), // 增大图标
+                text(label).size(13).shaping(Shaping::Advanced) // 略微增大文字
             ]
             .align_x(Horizontal::Center)
-            .spacing(4)
+            .spacing(6) // 增加间距
         )
         .style(style)
-        .padding([12, 16])
+        .padding([16, 20]) // 增加内边距
         .width(Length::Shrink)
         .on_press(Message::PageChanged(page))
     };
@@ -73,11 +73,32 @@ pub fn navigation_sidebar(current_page: &PageType) -> Element<'static, Message> 
         
         // 底部空间
         Space::with_height(Length::Fill),
+        
+        // 应用信息
+        container(
+            column![
+                text("🎵").size(20).shaping(Shaping::Advanced),
+                text("Summer").size(10).style(|theme: &iced::Theme| {
+                    let palette = theme.extended_palette();
+                    text::Style {
+                        color: Some(Color {
+                            a: 0.7,
+                            ..palette.background.base.text
+                        }),
+                    }
+                }),
+            ]
+            .align_x(Horizontal::Center)
+            .spacing(4)
+        )
+        .width(Length::Fill)
+        .align_x(Horizontal::Center)
+        .padding(8),
     ]
     .width(Length::Shrink)
     .height(Length::Fill)
-    .spacing(8)
-    .padding(12)
+    .spacing(12) // 增加间距
+    .padding(16) // 增加内边距
     .into()
 }
 
@@ -389,8 +410,8 @@ pub fn file_info_view(audio_info: Option<&AudioInfo>, file_path: &str) -> Elemen
     };
 
     container(content)
-        .style(AppTheme::card_container())
-        .padding(16)
+        .style(AppTheme::main_section_container())
+        .padding(20) // 增加内边距
         .width(Length::Fill)
         .into()
 }
@@ -428,48 +449,48 @@ pub fn control_buttons_view(is_playing: bool) -> Element<'static, Message> {
         row![
             // 上一首
             button(
-                container(text("⏮").size(14).shaping(Shaping::Advanced))
+                container(text("⏮").size(16).shaping(Shaping::Advanced)) // 增大图标
                     .width(Length::Fill)
                     .height(Length::Fill)
                     .align_x(Horizontal::Center)
                     .align_y(Vertical::Center)
             )
             .style(AppTheme::control_button())
-            .width(Length::Fixed(40.0))
-            .height(Length::Fixed(40.0))
+            .width(Length::Fixed(48.0)) // 增大按钮
+            .height(Length::Fixed(48.0))
             .on_press(Message::PreviousTrack),
             
             // 播放/暂停 - 主要按钮，更大更突出
             button(
-                container(text(if is_playing { "⏸️" } else { "▶️" }).size(18).shaping(Shaping::Advanced))
+                container(text(if is_playing { "⏸️" } else { "▶️" }).size(20).shaping(Shaping::Advanced)) // 增大图标
                     .width(Length::Fill)
                     .height(Length::Fill)
                     .align_x(Horizontal::Center)
                     .align_y(Vertical::Center)
             )
             .style(AppTheme::play_button())
-            .width(Length::Fixed(52.0))
-            .height(Length::Fixed(52.0))
+            .width(Length::Fixed(60.0)) // 增大主按钮
+            .height(Length::Fixed(60.0))
             .on_press(Message::PlayPause),
             
             // 下一首
             button(
-                container(text("⏭").size(14).shaping(Shaping::Advanced))
+                container(text("⏭").size(16).shaping(Shaping::Advanced)) // 增大图标
                     .width(Length::Fill)
                     .height(Length::Fill)
                     .align_x(Horizontal::Center)
                     .align_y(Vertical::Center)
             )
             .style(AppTheme::control_button())
-            .width(Length::Fixed(40.0))
-            .height(Length::Fixed(40.0))
+            .width(Length::Fixed(48.0)) // 增大按钮
+            .height(Length::Fixed(48.0))
             .on_press(Message::NextTrack),
         ]
-        .spacing(12)
+        .spacing(16) // 增加间距
         .align_y(Vertical::Center)
     )
-    .style(AppTheme::card_container())
-    .padding(12)
+    .style(AppTheme::main_section_container()) // 使用更好的容器样式
+    .padding(16) // 增加内边距
     .width(Length::Fill)
     .align_x(Horizontal::Center)
     .into()
@@ -639,13 +660,14 @@ pub fn progress_view(playback_state: &PlaybackState) -> Element<'static, Message
             // 时间显示
             row![
                 text(current_time_text)
-                    .size(12)
+                    .size(14) // 增大字体
                     .style(AppTheme::current_time_text()),
                 Space::new(Length::Fill, Length::Shrink),
                 text(total_time_text)
-                    .size(12)
+                    .size(14) // 增大字体
                     .style(AppTheme::total_time_text()),
-            ],
+            ]
+            .padding(4), // 添加内边距
             
             // 进度滑块
             container(
@@ -657,27 +679,27 @@ pub fn progress_view(playback_state: &PlaybackState) -> Element<'static, Message
                 let palette = theme.extended_palette();
                 container::Style {
                     background: Some(Background::Color(Color {
-                        a: 0.05,
+                        a: 0.08, // 增加透明度
                         ..palette.primary.base.color
                     })),
                     border: Border {
-                        radius: Radius::from(6.0),
+                        radius: Radius::from(10.0), // 增加圆角
                         width: 0.0,
                         color: Color::TRANSPARENT,
                     },
                     shadow: Shadow {
-                        color: Color::from_rgba(0.0, 0.0, 0.0, 0.05),
-                        offset: iced::Vector::new(0.0, 1.0),
-                        blur_radius: 2.0,
+                        color: Color::from_rgba(0.0, 0.0, 0.0, 0.08),
+                        offset: iced::Vector::new(0.0, 2.0),
+                        blur_radius: 4.0,
                     },
                     text_color: None,
                 }
             })
-            .padding(2),
-        ].spacing(8)
+            .padding(4), // 增加内边距
+        ].spacing(12) // 增加间距
     )
-    .style(AppTheme::card_container())
-    .padding(16)
+    .style(AppTheme::glass_card_container()) // 使用毛玻璃效果
+    .padding(20) // 增加内边距
     .width(Length::Fill)
     .into()
 }
@@ -760,27 +782,30 @@ pub fn playlist_view(
         container(
             column![
                 // 播放列表标题
-                row![
-                    text("📋").size(18).shaping(Shaping::Advanced),
-                    //text(format!("Playlist ({} songs)", playlist.len()))
-                    text(t!("messages.Playlist", count = format!("{}", playlist.len())))
-                        .size(16)
-                        .style(|theme: &iced::Theme| {
-                            let palette = theme.extended_palette();
-                            text::Style {
-                                color: Some(palette.primary.base.color),
-                            }
-                        }),
-                ].spacing(8).align_y(Vertical::Center),
+                container(
+                    row![
+                        text("📋").size(20).shaping(Shaping::Advanced), // 增大图标
+                        //text(format!("Playlist ({} songs)", playlist.len()))
+                        text(t!("messages.Playlist", count = format!("{}", playlist.len())))
+                            .size(18) // 增大标题字体
+                            .style(|theme: &iced::Theme| {
+                                let palette = theme.extended_palette();
+                                text::Style {
+                                    color: Some(palette.primary.base.color),
+                                }
+                            }),
+                    ].spacing(12).align_y(Vertical::Center) // 增加间距
+                )
+                .padding(8), // 底部间距
                 
                 // 播放列表项目
                 scrollable(
-                    column(playlist_items).spacing(4).padding([8, 0])
+                    column(playlist_items).spacing(6).padding([12, 8]) // 增加间距和内边距
                 ).height(Length::Fill).width(Length::Fill),
-            ].spacing(16)
+            ].spacing(20) // 增加间距
         )
-        .style(AppTheme::card_container())
-        .padding(16)
+        .style(AppTheme::main_section_container()) // 使用更好的容器样式
+        .padding(20) // 增加内边距
         .width(Length::Fill)
         .height(Length::Fill)
         .into()
@@ -1253,12 +1278,12 @@ pub fn lyrics_view(file_path: &str, is_playing: bool, current_time: f64, lyrics:
     // 创建高度自适应的歌词显示区域，不使用滚动条
     container(
         column(lyrics_elements)
-            .spacing(16)  // 增加行间距使视觉更舒适
+            .spacing(20)  // 进一步增加行间距
             .width(Length::Fill)
             .align_x(Horizontal::Center)
     )
-    .style(AppTheme::card_container())
-    .padding(24)  // 增加内边距
+    .style(AppTheme::main_section_container()) // 使用更好的容器样式
+    .padding(28)  // 增加内边距
     .width(Length::Fill)
     .height(Length::Fill)
     .into()

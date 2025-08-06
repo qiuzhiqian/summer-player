@@ -26,25 +26,37 @@ pub mod fonts {
 /// UI常量
 pub mod ui {
     /// 主面板宽度
-    pub const MAIN_PANEL_WIDTH: f32 = 200.0;
+    pub const MAIN_PANEL_WIDTH: f32 = 220.0; // 增加宽度以适应新设计
     
     /// 播放列表面板高度
-    pub const PLAYLIST_HEIGHT: f32 = 300.0;
+    pub const PLAYLIST_HEIGHT: f32 = 320.0; // 略微增加高度
     
     /// 窗口最小宽度
-    pub const MIN_WINDOW_WIDTH: f32 = 800.0;
+    pub const MIN_WINDOW_WIDTH: f32 = 900.0; // 增加最小宽度
     
     /// 窗口最小高度
-    pub const MIN_WINDOW_HEIGHT: f32 = 600.0;
+    pub const MIN_WINDOW_HEIGHT: f32 = 650.0; // 增加最小高度
     
     /// 默认窗口宽度
-    pub const DEFAULT_WINDOW_WIDTH: f32 = 1000.0;
+    pub const DEFAULT_WINDOW_WIDTH: f32 = 1200.0; // 增加默认宽度以展示更好的视觉效果
     
     /// 默认窗口高度
-    pub const DEFAULT_WINDOW_HEIGHT: f32 = 700.0;
+    pub const DEFAULT_WINDOW_HEIGHT: f32 = 800.0; // 增加默认高度
     
     /// 进度更新间隔（毫秒）
     pub const PROGRESS_UPDATE_INTERVAL: u64 = 100;
+    
+    /// 标准间距
+    pub const STANDARD_SPACING: f32 = 16.0;
+    
+    /// 大间距
+    pub const LARGE_SPACING: f32 = 24.0;
+    
+    /// 标准内边距
+    pub const STANDARD_PADDING: f32 = 16.0;
+    
+    /// 大内边距
+    pub const LARGE_PADDING: f32 = 24.0;
 }
 
 /// 音频配置

@@ -131,15 +131,17 @@ impl PlayerApp {
         // 整体布局：导航栏 + 主内容
         row![
             container(navigation)
-                .style(AppTheme::card_container())
+                .style(AppTheme::main_section_container())
                 .width(Length::Shrink)
                 .height(Length::Fill),
             container(main_content)
+                .style(AppTheme::background_container())
                 .width(Length::Fill)
                 .height(Length::Fill)
-                .padding(10)
+                .padding(16) // 增加内边距
         ]
-        .spacing(0)
+        .spacing(12) // 增加间距
+        .padding(8) // 整体外边距
         .into()
     }
 
@@ -564,8 +566,8 @@ impl PlayerApp {
             file_info_view(self.audio_info.as_ref(), &self.file_path),
             file_controls_view(),
             spacer(),
-        ].spacing(10)
-         .width(Length::Fixed(MAIN_PANEL_WIDTH))
+        ].spacing(16) // 增加间距
+         .width(Length::Fixed(MAIN_PANEL_WIDTH + 20.0)) // 稍微增加宽度
          .height(Length::Fill);
 
         // 右侧面板根据当前视图类型显示不同内容
@@ -581,26 +583,35 @@ impl PlayerApp {
         };
 
         let right_panel = column![
-            row![
-                view_toggle_button(&self.current_view),
-            ].spacing(10),
+            container(
+                row![
+                    view_toggle_button(&self.current_view),
+                ].spacing(12)
+            ).padding(4),
             right_panel_content,
-        ].spacing(10).width(Length::Fill);
+        ].spacing(16).width(Length::Fill); // 增加间距
 
-        let main_content = row![left_panel, right_panel].spacing(10);
+        let main_content = row![left_panel, right_panel].spacing(20); // 增加左右面板间距
         
         // 底部区域：控制按钮 + 进度条
-        let bottom_section = row![
-            container(control_buttons_view(self.is_playing))
-                .width(Length::Fixed(MAIN_PANEL_WIDTH))
-                .height(Length::Shrink),
-            column![progress_view(&self.playback_state)]
-                .width(Length::Fill)
-        ].spacing(10).align_y(Vertical::Center);
+        let bottom_section = container(
+            row![
+                container(control_buttons_view(self.is_playing))
+                    .width(Length::Fixed(MAIN_PANEL_WIDTH + 20.0))
+                    .height(Length::Shrink),
+                column![progress_view(&self.playback_state)]
+                    .width(Length::Fill)
+            ].spacing(20).align_y(Vertical::Center)
+        )
+        .style(AppTheme::glass_card_container()) // 使用毛玻璃效果
+        .padding(16);
 
-        column![main_content, bottom_section]
-            .spacing(10)
-            .into()
+        column![
+            main_content, 
+            bottom_section
+        ]
+        .spacing(20) // 增加主内容和底部的间距
+        .into()
     }
 
     fn create_sliding_animation_view(&self) -> Element<Message> {
