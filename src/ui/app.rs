@@ -57,13 +57,16 @@ pub struct PlayerApp {
     window_size: (f32, f32), // (width, height)
     /// 当前主题
     current_theme: AppThemeVariant,
+    /// 当前语言
+    current_language: String,
 }
 
 impl PlayerApp {
     /// 创建新的应用程序实例
-    pub fn new(initial_file: Option<String>) -> (Self, Task<Message>) {
+    pub fn new(initial_file: Option<String>, current_language: String) -> (Self, Task<Message>) {
         let mut app = Self {
             window_size: (1000.0, 700.0), // 初始窗口大小
+            current_language,
             ..Self::default()
         };
         
@@ -125,7 +128,7 @@ impl PlayerApp {
         // 主内容区域根据当前页面显示不同内容
         let main_content = match self.current_page {
             PageType::Home => self.create_home_page(),
-            PageType::Settings => settings_page(&self.current_theme),
+            PageType::Settings => settings_page(&self.current_theme, &self.current_language),
         };
 
         // 整体布局：导航栏 + 主内容

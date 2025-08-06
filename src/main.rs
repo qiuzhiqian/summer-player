@@ -27,15 +27,48 @@ struct Cli {
     #[arg(short, long, help = "Show audio file information and duration without playing")]
     info: bool,
 
+    #[arg(short = 'L', long, help = "Set interface language (en, zh-CN)")]
+    language: Option<String>,
+
     #[arg(help = "Path to audio file")]
     file: Option<String>,
 }
 
 fn main() {
-    let current_locale = get_locale().unwrap_or_else(|| String::from("en-US"));
-    rust_i18n::set_locale(&current_locale);
-
     let args = Cli::parse();
+    
+    // 设置语言环境
+    let locale = if let Some(lang) = &args.language {
+        // 验证用户指定的语言是否支持
+        let supported_languages = ["en", "zh-CN"];
+        if supported_languages.contains(&lang.as_str()) {
+            println!("Language set to: {}", lang);
+            lang.clone()
+        } else {
+            eprintln!("Error: Unsupported language '{}'. Supported languages: {}", 
+                     lang, supported_languages.join(", "));
+            eprintln!("Falling back to system locale detection.");
+            // 回退到系统语言检测
+            let detected_locale = get_locale().unwrap_or_else(|| String::from("en-US"));
+            let mapped_locale = match detected_locale.as_str() {
+                s if s.starts_with("zh") => "zh-CN",
+                _ => "en",
+            };
+            println!("Detected locale: {}, using: {}", detected_locale, mapped_locale);
+            mapped_locale.to_string()
+        }
+    } else {
+        // 自动检测系统语言
+        let detected_locale = get_locale().unwrap_or_else(|| String::from("en-US"));
+        let mapped_locale = match detected_locale.as_str() {
+            s if s.starts_with("zh") => "zh-CN",
+            _ => "en",
+        };
+        println!("Detected locale: {}, using: {}", detected_locale, mapped_locale);
+        mapped_locale.to_string()
+    };
+    
+    rust_i18n::set_locale(&locale);
     
     if args.list_devices {
         list_audio_devices();
@@ -61,7 +94,7 @@ fn main() {
     } else {
         None
     };
-    let (app, initial_task) = PlayerApp::new(initial_file);
+    let (app, initial_task) = PlayerApp::new(initial_file, locale.clone());
     
     iced::application("Summer Audio Player", PlayerApp::update, PlayerApp::view)
         .subscription(PlayerApp::subscription)

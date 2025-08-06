@@ -18,6 +18,16 @@ use super::Message;
 use super::theme::{AppTheme, AppThemeVariant};
 use rust_i18n::t;
 
+/// 获取当前语言的显示名称
+fn get_current_language_display(current_language: &str) -> String {
+    // 返回本地化的语言显示名称
+    match current_language {
+        "zh-CN" => t!("Chinese").to_string(),
+        "en" => "English".to_string(),
+        _ => "English".to_string(), // 默认显示英语
+    }
+}
+
 /// 页面类型枚举 - 用于主导航
 #[derive(Debug, Clone, PartialEq, Default)]
 pub enum PageType {
@@ -106,10 +116,11 @@ pub fn navigation_sidebar(current_page: &PageType) -> Element<'static, Message> 
 /// 
 /// # 参数
 /// * `current_theme` - 当前主题
+/// * `current_language` - 当前语言
 /// 
 /// # 返回
 /// 设置页面UI元素
-pub fn settings_page(current_theme: &AppThemeVariant) -> Element<'static, Message> {
+pub fn settings_page(current_theme: &AppThemeVariant, current_language: &str) -> Element<'static, Message> {
     column![
         // 页面标题
         container(
@@ -170,7 +181,7 @@ pub fn settings_page(current_theme: &AppThemeVariant) -> Element<'static, Messag
                 setting_row(
                     t!("Interface Language").to_string(),
                     row![
-                        text(t!("Chinese")).size(14),
+                        text(get_current_language_display(current_language)).size(14),
                         Space::with_width(Length::Fill),
                         button(text(t!("Change")))
                             .style(AppTheme::file_button())
