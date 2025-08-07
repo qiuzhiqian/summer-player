@@ -796,235 +796,6 @@ pub fn control_buttons_view(is_playing: bool) -> Element<'static, Message> {
     .into()
 }
 
-/// 创建文件操作按钮组
-/// 
-/// # 返回
-/// 文件操作按钮UI元素
-pub fn file_controls_view() -> Element<'static, Message> {
-    container(
-        button(
-            row![
-                container(text("📁").size(16).shaping(Shaping::Advanced))
-                    .style(|theme: &iced::Theme| {
-                        let palette = theme.extended_palette();
-                        container::Style {
-                            background: Some(Background::Color(Color {
-                                a: 0.1,
-                                ..palette.primary.base.color
-                            })),
-                            border: Border {
-                                radius: Radius::from(6.0),
-                                width: 0.0,
-                                color: Color::TRANSPARENT,
-                            },
-                            shadow: Shadow::default(),
-                            text_color: Some(palette.primary.base.color),
-                        }
-                    })
-                    .padding(8),
-                text(t!("Open File")).size(14).style(AppTheme::emphasis_text())
-            ].spacing(12).align_y(Vertical::Center)
-        )
-        .style(AppTheme::file_button())
-        .padding([16, 20])
-        .width(Length::Fill)
-        .on_press(Message::OpenFile)
-    )
-    .width(Length::Fill)
-    .into()
-}
-
-/// 创建视图切换按钮
-/// 
-/// # 参数
-/// * `current_view` - 当前视图类型
-/// 
-/// # 返回
-/// 视图切换按钮UI元素
-pub fn view_toggle_button(current_view: ViewType) -> Element<'static, Message> {
-    let (icon, text_content, subtitle) = match current_view {
-        ViewType::Playlist => ("🎵", t!("Switch to Lyrics").to_string(), t!("View Lyrics Synchronization").to_string()),
-        ViewType::Lyrics => ("📋", t!("Switch to Playlist").to_string(), t!("Browse Music Library").to_string()),
-    };
-    
-    container(
-        tooltip(
-            button(
-                container(text(icon).size(20).shaping(Shaping::Advanced))
-                    .style(move |theme: &iced::Theme| {
-                        let palette = theme.extended_palette();
-                                        let color = match current_view {
-                    ViewType::Playlist => palette.success.base.color,
-                    ViewType::Lyrics => palette.secondary.base.color,
-                };
-                        container::Style {
-                            background: Some(Background::Color(Color {
-                                a: 0.15,
-                                ..color
-                            })),
-                            border: Border {
-                                radius: Radius::from(8.0),
-                                width: 0.0,
-                                color: Color::TRANSPARENT,
-                            },
-                            shadow: Shadow::default(),
-                            text_color: Some(color),
-                        }
-                    })
-                    .padding(12)
-                    .width(Length::Fill)
-                    .height(Length::Fill)
-                    .align_x(Horizontal::Center)
-                    .align_y(Vertical::Center)
-            )
-            .style(AppTheme::view_toggle_button())
-            .width(Length::Fixed(60.0))
-            .height(Length::Fixed(60.0))
-            .on_press(Message::ToggleView),
-            column![
-                text(text_content).size(12),
-                text(subtitle).size(10)
-                    .style(|theme: &iced::Theme| {
-                        let palette = theme.extended_palette();
-                        text::Style {
-                            color: Some(Color {
-                                a: 0.7,
-                                ..palette.background.base.text
-                            }),
-                        }
-                    })
-            ].spacing(2),
-            tooltip::Position::Top
-        )
-        .style(|theme: &iced::Theme| {
-            let palette = theme.extended_palette();
-            container::Style {
-                background: Some(Background::Color(palette.background.strong.color)),
-                text_color: Some(palette.background.strong.text),
-                border: Border {
-                    radius: Radius::from(6.0),
-                    width: 1.0,
-                    color: palette.background.weak.color,
-                },
-                shadow: Shadow {
-                    color: Color::from_rgba(0.0, 0.0, 0.0, 0.2),
-                    offset: iced::Vector::new(0.0, 2.0),
-                    blur_radius: 8.0,
-                },
-            }
-        })
-        .padding(8)
-    )
-    .width(Length::Fill)
-    .align_x(Horizontal::Center)
-    .into()
-}
-
-/// 创建主题切换按钮
-/// 
-/// # 参数
-/// * `current_theme` - 当前主题
-/// 
-/// # 返回
-/// 主题切换按钮UI元素
-pub fn theme_toggle_button(current_theme: &AppThemeVariant) -> Element<'static, Message> {
-    let (icon, text_content) = match current_theme {
-        AppThemeVariant::Light => ("🌙", t!("Dark Mode")),
-        AppThemeVariant::Dark => ("☀️", t!("Light Mode")),
-    };
-    
-    container(
-        button(
-            row![
-                container(text(icon).size(16).shaping(Shaping::Advanced))
-                    .style(AppTheme::transparent_container())
-                    .padding(8),
-                text(text_content)
-                    .size(14)
-                    .style(AppTheme::emphasis_text())
-            ].spacing(8).align_y(Vertical::Center)
-        )
-        .style(AppTheme::theme_toggle_button())
-        .padding([12, 16])
-        .on_press(Message::ToggleTheme)
-    )
-    .into()
-}
-
-/// 创建播放模式切换按钮
-/// 
-/// # 参数
-/// * `current_mode` - 当前播放模式
-/// 
-/// # 返回
-/// 播放模式切换按钮UI元素
-pub fn play_mode_toggle_button(current_mode: PlayMode) -> Element<'static, Message> {
-    let icon = current_mode.svg_icon();
-    let text_content = current_mode.display_name();
-    let subtitle = match current_mode {
-        PlayMode::ListLoop => t!("Play all songs in order and repeat").to_string(),
-        PlayMode::SingleLoop => t!("Repeat current song").to_string(),
-        PlayMode::Random => t!("Play songs in random order").to_string(),
-    };
-    
-    container(
-        button(
-            row![
-                container(text(icon).size(18).shaping(Shaping::Advanced))
-                    .style(move |theme: &iced::Theme| {
-                        let palette = theme.extended_palette();
-                        let color = match current_mode {
-                            PlayMode::ListLoop => palette.primary.base.color,
-                            PlayMode::SingleLoop => palette.success.base.color,
-                            PlayMode::Random => palette.secondary.base.color,
-                        };
-                        container::Style {
-                            background: Some(Background::Color(Color {
-                                a: 0.15,
-                                ..color
-                            })),
-                            border: Border {
-                                radius: Radius::from(8.0),
-                                width: 0.0,
-                                color: Color::TRANSPARENT,
-                            },
-                            shadow: Shadow::default(),
-                            text_color: Some(color),
-                        }
-                    })
-                    .padding(10),
-                column![
-                    text(text_content)
-                        .size(14)
-                        .style(|theme: &iced::Theme| {
-                            let palette = theme.extended_palette();
-                            text::Style {
-                                color: Some(palette.background.base.text),
-                            }
-                        }),
-                    text(subtitle)
-                        .size(11)
-                        .style(|theme: &iced::Theme| {
-                            let palette = theme.extended_palette();
-                            text::Style {
-                                color: Some(Color {
-                                    a: 0.6,
-                                    ..palette.background.base.text
-                                }),
-                            }
-                        }),
-                ].spacing(2)
-            ].spacing(12).align_y(Vertical::Center)
-        )
-        .style(AppTheme::file_button())
-        .padding([16, 20])
-        .width(Length::Fill)
-        .on_press(Message::TogglePlayMode)
-    )
-    .width(Length::Fill)
-    .into()
-}
-
 /// 创建紧凑的播放模式切换按钮（用于底部工具栏）
 /// 
 /// # 参数
@@ -1070,7 +841,7 @@ pub fn compact_play_mode_button(current_mode: PlayMode) -> Element<'static, Mess
                     text_color: None,
                 }
             })
-            .padding(8)
+            .padding(2)
             .width(Length::Fill)
             .height(Length::Fill)
             .align_x(Horizontal::Center)
@@ -1148,7 +919,7 @@ pub fn compact_file_button() -> Element<'static, Message> {
                     text_color: None,
                 }
             })
-            .padding(8)
+            .padding(2)
             .width(Length::Fill)
             .height(Length::Fill)
             .align_x(Horizontal::Center)
@@ -1224,7 +995,7 @@ pub fn compact_view_toggle_button(current_view: ViewType) -> Element<'static, Me
                     text_color: None,
                 }
             })
-            .padding(8)
+            .padding(2)
             .width(Length::Fill)
             .height(Length::Fill)
             .align_x(Horizontal::Center)
@@ -1335,8 +1106,6 @@ pub fn progress_view(playback_state: &PlaybackState) -> Element<'static, Message
     .width(Length::Fill)
     .into()
 }
-
-
 
 /// 创建播放列表视图组件
 /// 
@@ -1936,30 +1705,6 @@ pub fn lyrics_view(file_path: &str, is_playing: bool, current_time: f64, lyrics:
     .padding(28)  // 增加内边距
     .width(Length::Fill)
     .height(Length::Fill)
-    .into()
-}
-
-/// 创建应用程序标题
-/// 
-/// # 返回
-/// 标题UI元素
-pub fn title_view() -> Element<'static, Message> {
-    container(
-        row![
-            text("🎵").size(24).shaping(Shaping::Advanced),
-            text(t!("summer audio player"))
-                .size(20)
-                .style(|theme: &iced::Theme| {
-                    let palette = theme.extended_palette();
-                    text::Style {
-                        color: Some(palette.primary.base.color),
-                    }
-                })
-        ].spacing(8).align_y(Vertical::Center)
-    )
-    .style(AppTheme::card_container())
-    .padding(16)
-    .width(Length::Fill)
     .into()
 }
 
