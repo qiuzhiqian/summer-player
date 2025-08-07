@@ -602,8 +602,6 @@ impl PlayerApp {
     fn create_home_page(&self) -> Element<Message> {
         let left_panel = column![
             file_info_view(self.audio_info.as_ref(), &self.file_path),
-            file_controls_view(),
-            play_mode_toggle_button(self.play_mode.clone()),
             spacer(),
         ].spacing(16) // 增加间距
          .width(Length::Fixed(MAIN_PANEL_WIDTH + 20.0)) // 稍微增加宽度
@@ -622,24 +620,25 @@ impl PlayerApp {
         };
 
         let right_panel = column![
-            container(
-                row![
-                    view_toggle_button(&self.current_view),
-                ].spacing(12)
-            ).padding(4),
             right_panel_content,
         ].spacing(16).width(Length::Fill); // 增加间距
 
         let main_content = row![left_panel, right_panel].spacing(20); // 增加左右面板间距
         
-        // 底部区域：控制按钮 + 进度条
+        // 底部区域：控制按钮 + 进度条 + 功能按钮
         let bottom_section = container(
             row![
                 container(control_buttons_view(self.is_playing))
                     .width(Length::Fixed(MAIN_PANEL_WIDTH + 20.0))
                     .height(Length::Shrink),
                 column![progress_view(&self.playback_state)]
-                    .width(Length::Fill)
+                    .width(Length::Fill),
+                // 右侧功能按钮组
+                row![
+                    compact_file_button(),
+                    compact_play_mode_button(self.play_mode.clone()),
+                    compact_view_toggle_button(self.current_view.clone()),
+                ].spacing(8).align_y(Vertical::Center)
             ].spacing(20).align_y(Vertical::Center)
         )
         .style(AppTheme::glass_card_container()) // 使用毛玻璃效果

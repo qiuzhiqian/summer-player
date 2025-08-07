@@ -3,7 +3,7 @@
 //! 包含可重用的UI组件。
 
 use iced::{
-    widget::{button, column, row, text, slider, scrollable, Space, container, image},
+    widget::{button, column, row, text, slider, scrollable, Space, container, image, tooltip, svg},
     Element, Length, Border, Shadow, Background, Color,
     alignment::{Horizontal, Vertical, Alignment},
     border::Radius,
@@ -25,6 +25,125 @@ fn get_current_language_display(current_language: &str) -> String {
         "zh-CN" => t!("Chinese").to_string(),
         "en" => "English".to_string(),
         _ => "English".to_string(), // 默认显示英语
+    }
+}
+
+/// SVG 图标常量
+mod svg_icons {
+    pub const FILE_FOLDER: &str = r#"
+    <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <path d="M3 6.2c0-1.12 0-1.68.218-2.108a2 2 0 0 1 .874-.874C4.52 3 5.08 3 6.2 3h1.2c.56 0 .84 0 1.054.109a1 1 0 0 1 .437.437C9 3.76 9 4.04 9 4.6V5h8.8c1.12 0 1.68 0 2.108.218a2 2 0 0 1 .874.874C21 6.52 21 7.08 21 8.2v9.6c0 1.12 0 1.68-.218 2.108a2 2 0 0 1-.874.874C19.48 21 18.92 21 17.8 21H6.2c-1.12 0-1.68 0-2.108-.218a2 2 0 0 1-.874-.874C3 19.48 3 18.92 3 17.8V6.2Z" stroke="currentColor" stroke-width="1.5"/>
+    </svg>"#;
+
+    pub const LIST_LOOP: &str = r#"
+    <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <path d="M17 8.5V6a2 2 0 0 0-2-2H4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+        <path d="m20 8.5-3-2.5v5l3-2.5Z" fill="currentColor"/>
+        <path d="M7 15.5V18a2 2 0 0 0 2 2h11" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+        <path d="m4 15.5 3 2.5v-5l-3 2.5Z" fill="currentColor"/>
+    </svg>"#;
+
+    pub const SINGLE_LOOP: &str = r#"
+    <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <path d="M17 8.5V6a2 2 0 0 0-2-2H4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+        <path d="m20 8.5-3-2.5v5l3-2.5Z" fill="currentColor"/>
+        <path d="M7 15.5V18a2 2 0 0 0 2 2h11" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+        <path d="m4 15.5 3 2.5v-5l-3 2.5Z" fill="currentColor"/>
+        <circle cx="12" cy="12" r="2" stroke="currentColor" stroke-width="1.5"/>
+        <text x="12" y="12" text-anchor="middle" dominant-baseline="central" font-size="6" font-weight="bold" fill="currentColor">1</text>
+    </svg>"#;
+
+    pub const RANDOM_PLAY: &str = r#"
+    <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <path d="m3 17 6-4-6-4v8Z" fill="currentColor"/>
+        <path d="M14 6h5v5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+        <path d="M19 6 9 16" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+        <path d="M14 18h5v-5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+        <path d="M19 18 9 8" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+    </svg>"#;
+
+    pub const MUSIC_NOTE: &str = r#"
+    <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <circle cx="7" cy="17" r="3" stroke="currentColor" stroke-width="1.5"/>
+        <circle cx="17" cy="15" r="3" stroke="currentColor" stroke-width="1.5"/>
+        <path d="M10 17V5l10-2v12" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+        <path d="M10 9l10-2" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+    </svg>"#;
+
+    pub const LIST_VIEW: &str = r#"
+    <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <path d="M3 6h18M3 12h18M3 18h18" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+    </svg>"#;
+ }
+
+/// 创建SVG图标组件
+fn create_svg_icon(svg_content: String, size: f32, color: Color) -> Element<'static, Message> {
+    svg(svg::Handle::from_memory(svg_content.as_bytes().to_vec()))
+        .width(Length::Fixed(size))
+        .height(Length::Fixed(size))
+        .style(move |_theme: &iced::Theme, _status| svg::Style {
+            color: Some(color),
+        })
+        .into()
+}
+
+/// 创建带tooltip的文本组件
+/// 
+/// # 参数
+/// * `full_text` - 完整文本内容
+/// * `max_length` - 最大显示长度
+/// * `text_size` - 文本大小
+/// * `text_style` - 文本样式函数
+/// 
+/// # 返回
+/// 带tooltip的文本元素
+fn create_text_with_tooltip<'a, F>(
+    full_text: String,
+    max_length: usize,
+    text_size: u16,
+    text_style: F,
+) -> Element<'a, Message> 
+where
+    F: Fn(&iced::Theme) -> iced::widget::text::Style + 'a + Copy,
+{
+    let display_text = if full_text.chars().count() > max_length {
+        format!("{}...", full_text.chars().take(max_length).collect::<String>())
+    } else {
+        full_text.clone()
+    };
+    
+    let text_element = text(display_text)
+        .size(text_size)
+        .style(text_style)
+        .shaping(Shaping::Advanced);
+    
+    if full_text.chars().count() > max_length {
+        tooltip(
+            text_element,
+            text(full_text).size(12),
+            tooltip::Position::Top
+        )
+        .style(|theme: &iced::Theme| {
+            let palette = theme.extended_palette();
+            container::Style {
+                background: Some(Background::Color(palette.background.strong.color)),
+                text_color: Some(palette.background.strong.text),
+                border: Border {
+                    radius: Radius::from(6.0),
+                    width: 1.0,
+                    color: palette.background.weak.color,
+                },
+                shadow: Shadow {
+                    color: Color::from_rgba(0.0, 0.0, 0.0, 0.2),
+                    offset: iced::Vector::new(0.0, 2.0),
+                    blur_radius: 8.0,
+                },
+            }
+        })
+        .padding(8)
+        .into()
+    } else {
+        text_element.into()
     }
 }
 
@@ -61,12 +180,12 @@ pub enum PlayMode {
 }
 
 impl PlayMode {
-    /// 获取播放模式的图标
-    pub fn icon(&self) -> &'static str {
+    /// 获取播放模式的SVG图标
+    pub fn svg_icon(&self) -> &'static str {
         match self {
-            PlayMode::ListLoop => "🔁",
-            PlayMode::SingleLoop => "🔂", 
-            PlayMode::Random => "🔀",
+            PlayMode::ListLoop => svg_icons::LIST_LOOP,
+            PlayMode::SingleLoop => svg_icons::SINGLE_LOOP, 
+            PlayMode::Random => svg_icons::RANDOM_PLAY,
         }
     }
     
@@ -104,18 +223,36 @@ pub fn navigation_sidebar(current_page: &PageType) -> Element<'static, Message> 
             AppTheme::file_button()
         };
         
-        button(
-            column![
-                text(icon).size(28).shaping(Shaping::Advanced), // 增大图标
-                text(label).size(13).shaping(Shaping::Advanced) // 略微增大文字
-            ]
-            .align_x(Horizontal::Center)
-            .spacing(6) // 增加间距
+        tooltip(
+            button(
+                text(icon).size(28).shaping(Shaping::Advanced) // 增大图标，移除文字
+            )
+            .style(style)
+            .padding(16) // 调整内边距
+            .width(Length::Fixed(60.0))
+            .height(Length::Fixed(60.0))
+            .on_press(Message::PageChanged(page)),
+            text(label).size(12),
+            tooltip::Position::Right
         )
-        .style(style)
-        .padding([16, 20]) // 增加内边距
-        .width(Length::Shrink)
-        .on_press(Message::PageChanged(page))
+        .style(|theme: &iced::Theme| {
+            let palette = theme.extended_palette();
+            container::Style {
+                background: Some(Background::Color(palette.background.strong.color)),
+                text_color: Some(palette.background.strong.text),
+                border: Border {
+                    radius: Radius::from(6.0),
+                    width: 1.0,
+                    color: palette.background.weak.color,
+                },
+                shadow: Shadow {
+                    color: Color::from_rgba(0.0, 0.0, 0.0, 0.2),
+                    offset: iced::Vector::new(0.0, 2.0),
+                    blur_radius: 8.0,
+                },
+            }
+        })
+        .padding(8)
     };
 
     column![
@@ -316,19 +453,19 @@ pub fn file_info_view(audio_info: Option<&AudioInfo>, file_path: &str) -> Elemen
         // 添加元数据信息
         if let Some(title) = &info.metadata.title {
             metadata_column = metadata_column.push(
-                info_row("🎤", t!("Title").as_ref(), &title.clone())
+                info_row_with_tooltip("🎤", t!("Title").as_ref(), &title.clone(), 25)
             );
         }
         
         if let Some(artist) = &info.metadata.artist {
             metadata_column = metadata_column.push(
-                info_row("🎨", t!("Artist").as_ref(), &artist.clone())
+                info_row_with_tooltip("🎨", t!("Artist").as_ref(), &artist.clone(), 25)
             );
         }
         
         if let Some(album) = &info.metadata.album {
             metadata_column = metadata_column.push(
-                info_row("💿", t!("Album").as_ref(), &album.clone())
+                info_row_with_tooltip("💿", t!("Album").as_ref(), &album.clone(), 25)
             );
         }
         
@@ -363,15 +500,20 @@ pub fn file_info_view(audio_info: Option<&AudioInfo>, file_path: &str) -> Elemen
         {
             let mut main_column = column![
                 // 显示标题（优先使用元数据中的标题）
-                text(display_title)
-                    .shaping(Shaping::Advanced)
-                    .size(16)
-                    .style(|theme: &iced::Theme| {
-                        let palette = theme.extended_palette();
-                        text::Style {
-                            color: Some(palette.primary.base.color),
+                container(
+                    create_text_with_tooltip(
+                        display_title,
+                        30, // 最大显示30个字符
+                        16,
+                        |theme: &iced::Theme| {
+                            let palette = theme.extended_palette();
+                            iced::widget::text::Style {
+                                color: Some(palette.primary.base.color),
+                            }
                         }
-                    }),
+                    )
+                )
+                .width(Length::Fill),
             ].spacing(12);
             
             // 如果有封面图片，显示封面
@@ -491,6 +633,44 @@ fn info_row(icon: &'static str, label: &str, value: &str) -> Element<'static, Me
     .into()
 }
 
+/// 创建带tooltip的信息行
+fn info_row_with_tooltip(icon: &'static str, label: &str, value: &str, max_length: usize) -> Element<'static, Message> {
+    let value_element = create_text_with_tooltip(
+        value.to_string(),
+        max_length,
+        12,
+        |theme: &iced::Theme| {
+            let palette = theme.extended_palette();
+            iced::widget::text::Style {
+                color: Some(Color {
+                    a: 0.8,
+                    ..palette.background.base.text
+                }),
+            }
+        }
+    );
+    
+    row![
+        text(icon).size(14).shaping(Shaping::Advanced),
+        text(format!("{}: ", label))
+            .shaping(Shaping::Advanced)
+            .size(12)
+            .style(|theme: &iced::Theme| {
+                let palette = theme.extended_palette();
+                text::Style {
+                    color: Some(Color {
+                        a: 0.8,
+                        ..palette.background.base.text
+                    }),
+                }
+            }),
+        value_element,
+    ]
+    .spacing(8)
+    .align_y(Alignment::Center)
+    .into()
+}
+
 /// 创建播放控制按钮组
 /// 
 /// # 参数
@@ -502,43 +682,109 @@ pub fn control_buttons_view(is_playing: bool) -> Element<'static, Message> {
     container(
         row![
             // 上一首
-            button(
-                container(text("⏮").size(16).shaping(Shaping::Advanced)) // 增大图标
-                    .width(Length::Fill)
-                    .height(Length::Fill)
-                    .align_x(Horizontal::Center)
-                    .align_y(Vertical::Center)
+            tooltip(
+                button(
+                    container(text("⏮").size(16).shaping(Shaping::Advanced)) // 增大图标
+                        .width(Length::Fill)
+                        .height(Length::Fill)
+                        .align_x(Horizontal::Center)
+                        .align_y(Vertical::Center)
+                )
+                .style(AppTheme::control_button())
+                .width(Length::Fixed(48.0)) // 增大按钮
+                .height(Length::Fixed(48.0))
+                .on_press(Message::PreviousTrack),
+                text(t!("Previous Track")).size(12),
+                tooltip::Position::Top
             )
-            .style(AppTheme::control_button())
-            .width(Length::Fixed(48.0)) // 增大按钮
-            .height(Length::Fixed(48.0))
-            .on_press(Message::PreviousTrack),
+            .style(|theme: &iced::Theme| {
+                let palette = theme.extended_palette();
+                container::Style {
+                    background: Some(Background::Color(palette.background.strong.color)),
+                    text_color: Some(palette.background.strong.text),
+                    border: Border {
+                        radius: Radius::from(6.0),
+                        width: 1.0,
+                        color: palette.background.weak.color,
+                    },
+                    shadow: Shadow {
+                        color: Color::from_rgba(0.0, 0.0, 0.0, 0.2),
+                        offset: iced::Vector::new(0.0, 2.0),
+                        blur_radius: 8.0,
+                    },
+                }
+            })
+            .padding(8),
             
             // 播放/暂停 - 主要按钮，更大更突出
-            button(
-                container(text(if is_playing { "⏸️" } else { "▶️" }).size(20).shaping(Shaping::Advanced)) // 增大图标
-                    .width(Length::Fill)
-                    .height(Length::Fill)
-                    .align_x(Horizontal::Center)
-                    .align_y(Vertical::Center)
+            tooltip(
+                button(
+                    container(text(if is_playing { "⏸️" } else { "▶️" }).size(20).shaping(Shaping::Advanced)) // 增大图标
+                        .width(Length::Fill)
+                        .height(Length::Fill)
+                        .align_x(Horizontal::Center)
+                        .align_y(Vertical::Center)
+                )
+                .style(AppTheme::play_button())
+                .width(Length::Fixed(60.0)) // 增大主按钮
+                .height(Length::Fixed(60.0))
+                .on_press(Message::PlayPause),
+                text(if is_playing { t!("Pause") } else { t!("Play") }).size(12),
+                tooltip::Position::Top
             )
-            .style(AppTheme::play_button())
-            .width(Length::Fixed(60.0)) // 增大主按钮
-            .height(Length::Fixed(60.0))
-            .on_press(Message::PlayPause),
+            .style(|theme: &iced::Theme| {
+                let palette = theme.extended_palette();
+                container::Style {
+                    background: Some(Background::Color(palette.background.strong.color)),
+                    text_color: Some(palette.background.strong.text),
+                    border: Border {
+                        radius: Radius::from(6.0),
+                        width: 1.0,
+                        color: palette.background.weak.color,
+                    },
+                    shadow: Shadow {
+                        color: Color::from_rgba(0.0, 0.0, 0.0, 0.2),
+                        offset: iced::Vector::new(0.0, 2.0),
+                        blur_radius: 8.0,
+                    },
+                }
+            })
+            .padding(8),
             
             // 下一首
-            button(
-                container(text("⏭").size(16).shaping(Shaping::Advanced)) // 增大图标
-                    .width(Length::Fill)
-                    .height(Length::Fill)
-                    .align_x(Horizontal::Center)
-                    .align_y(Vertical::Center)
+            tooltip(
+                button(
+                    container(text("⏭").size(16).shaping(Shaping::Advanced)) // 增大图标
+                        .width(Length::Fill)
+                        .height(Length::Fill)
+                        .align_x(Horizontal::Center)
+                        .align_y(Vertical::Center)
+                )
+                .style(AppTheme::control_button())
+                .width(Length::Fixed(48.0)) // 增大按钮
+                .height(Length::Fixed(48.0))
+                .on_press(Message::NextTrack),
+                text(t!("Next Track")).size(12),
+                tooltip::Position::Top
             )
-            .style(AppTheme::control_button())
-            .width(Length::Fixed(48.0)) // 增大按钮
-            .height(Length::Fixed(48.0))
-            .on_press(Message::NextTrack),
+            .style(|theme: &iced::Theme| {
+                let palette = theme.extended_palette();
+                container::Style {
+                    background: Some(Background::Color(palette.background.strong.color)),
+                    text_color: Some(palette.background.strong.text),
+                    border: Border {
+                        radius: Radius::from(6.0),
+                        width: 1.0,
+                        color: palette.background.weak.color,
+                    },
+                    shadow: Shadow {
+                        color: Color::from_rgba(0.0, 0.0, 0.0, 0.2),
+                        offset: iced::Vector::new(0.0, 2.0),
+                        blur_radius: 8.0,
+                    },
+                }
+            })
+            .padding(8),
         ]
         .spacing(16) // 增加间距
         .align_y(Vertical::Center)
@@ -595,25 +841,22 @@ pub fn file_controls_view() -> Element<'static, Message> {
 /// 
 /// # 返回
 /// 视图切换按钮UI元素
-pub fn view_toggle_button(current_view: &ViewType) -> Element<'static, Message> {
+pub fn view_toggle_button(current_view: ViewType) -> Element<'static, Message> {
     let (icon, text_content, subtitle) = match current_view {
         ViewType::Playlist => ("🎵", t!("Switch to Lyrics").to_string(), t!("View Lyrics Synchronization").to_string()),
         ViewType::Lyrics => ("📋", t!("Switch to Playlist").to_string(), t!("Browse Music Library").to_string()),
     };
     
-    let is_playlist = matches!(current_view, ViewType::Playlist);
-    
     container(
-        button(
-            row![
-                container(text(icon).size(18).shaping(Shaping::Advanced))
+        tooltip(
+            button(
+                container(text(icon).size(20).shaping(Shaping::Advanced))
                     .style(move |theme: &iced::Theme| {
                         let palette = theme.extended_palette();
-                        let color = if is_playlist {
-                            palette.success.base.color
-                        } else {
-                            palette.secondary.base.color
-                        };
+                                        let color = match current_view {
+                    ViewType::Playlist => palette.success.base.color,
+                    ViewType::Lyrics => palette.secondary.base.color,
+                };
                         container::Style {
                             background: Some(Background::Color(Color {
                                 a: 0.15,
@@ -628,36 +871,52 @@ pub fn view_toggle_button(current_view: &ViewType) -> Element<'static, Message> 
                             text_color: Some(color),
                         }
                     })
-                    .padding(10),
-                column![
-                    text(text_content)
-                        .size(14)
-                        .style(|theme: &iced::Theme| {
-                            let palette = theme.extended_palette();
-                            text::Style {
-                                color: Some(palette.background.base.text),
-                            }
-                        }),
-                    text(subtitle)
-                    .size(11)
+                    .padding(12)
+                    .width(Length::Fill)
+                    .height(Length::Fill)
+                    .align_x(Horizontal::Center)
+                    .align_y(Vertical::Center)
+            )
+            .style(AppTheme::view_toggle_button())
+            .width(Length::Fixed(60.0))
+            .height(Length::Fixed(60.0))
+            .on_press(Message::ToggleView),
+            column![
+                text(text_content).size(12),
+                text(subtitle).size(10)
                     .style(|theme: &iced::Theme| {
                         let palette = theme.extended_palette();
                         text::Style {
                             color: Some(Color {
-                                a: 0.6,
+                                a: 0.7,
                                 ..palette.background.base.text
                             }),
                         }
-                    }),
-                ].spacing(2)
-            ].spacing(12).align_y(Vertical::Center)
+                    })
+            ].spacing(2),
+            tooltip::Position::Top
         )
-        .style(AppTheme::view_toggle_button())
-        .padding([16, 20])
-        .width(Length::Fill)
-        .on_press(Message::ToggleView)
+        .style(|theme: &iced::Theme| {
+            let palette = theme.extended_palette();
+            container::Style {
+                background: Some(Background::Color(palette.background.strong.color)),
+                text_color: Some(palette.background.strong.text),
+                border: Border {
+                    radius: Radius::from(6.0),
+                    width: 1.0,
+                    color: palette.background.weak.color,
+                },
+                shadow: Shadow {
+                    color: Color::from_rgba(0.0, 0.0, 0.0, 0.2),
+                    offset: iced::Vector::new(0.0, 2.0),
+                    blur_radius: 8.0,
+                },
+            }
+        })
+        .padding(8)
     )
     .width(Length::Fill)
+    .align_x(Horizontal::Center)
     .into()
 }
 
@@ -700,7 +959,7 @@ pub fn theme_toggle_button(current_theme: &AppThemeVariant) -> Element<'static, 
 /// # 返回
 /// 播放模式切换按钮UI元素
 pub fn play_mode_toggle_button(current_mode: PlayMode) -> Element<'static, Message> {
-    let icon = current_mode.icon();
+    let icon = current_mode.svg_icon();
     let text_content = current_mode.display_name();
     let subtitle = match current_mode {
         PlayMode::ListLoop => t!("Play all songs in order and repeat").to_string(),
@@ -763,6 +1022,251 @@ pub fn play_mode_toggle_button(current_mode: PlayMode) -> Element<'static, Messa
         .on_press(Message::TogglePlayMode)
     )
     .width(Length::Fill)
+    .into()
+}
+
+/// 创建紧凑的播放模式切换按钮（用于底部工具栏）
+/// 
+/// # 参数
+/// * `current_mode` - 当前播放模式
+/// 
+/// # 返回
+/// 紧凑播放模式切换按钮UI元素
+pub fn compact_play_mode_button(current_mode: PlayMode) -> Element<'static, Message> {
+    let svg_content = current_mode.svg_icon();
+    let text_content = current_mode.display_name();
+    let subtitle = match current_mode {
+        PlayMode::ListLoop => t!("Play all songs in order and repeat").to_string(),
+        PlayMode::SingleLoop => t!("Repeat current song").to_string(),
+        PlayMode::Random => t!("Play songs in random order").to_string(),
+    };
+    
+    // 统一使用主题色
+    let icon_color = Color {
+        r: 0.4,
+        g: 0.4,
+        b: 0.4,
+        a: 0.8,
+    };
+    
+    tooltip(
+        button(
+            container(
+                create_svg_icon(svg_content.to_string(), 24.0, icon_color)
+            )
+            .style(|theme: &iced::Theme| {
+                let palette = theme.extended_palette();
+                container::Style {
+                    background: Some(Background::Color(Color {
+                        a: 0.05,
+                        ..palette.background.weak.color
+                    })),
+                    border: Border {
+                        radius: Radius::from(8.0),
+                        width: 0.0,
+                        color: Color::TRANSPARENT,
+                    },
+                    shadow: Shadow::default(),
+                    text_color: None,
+                }
+            })
+            .padding(8)
+            .width(Length::Fill)
+            .height(Length::Fill)
+            .align_x(Horizontal::Center)
+            .align_y(Vertical::Center)
+        )
+        .style(AppTheme::file_button())
+        .width(Length::Fixed(48.0))
+        .height(Length::Fixed(48.0))
+        .on_press(Message::TogglePlayMode),
+        column![
+            text(text_content).size(12),
+            text(subtitle).size(10)
+                .style(|theme: &iced::Theme| {
+                    let palette = theme.extended_palette();
+                    text::Style {
+                        color: Some(Color {
+                            a: 0.7,
+                            ..palette.background.base.text
+                        }),
+                    }
+                })
+        ].spacing(2),
+        tooltip::Position::Top
+    )
+    .style(|theme: &iced::Theme| {
+        let palette = theme.extended_palette();
+        container::Style {
+            background: Some(Background::Color(palette.background.strong.color)),
+            text_color: Some(palette.background.strong.text),
+            border: Border {
+                radius: Radius::from(6.0),
+                width: 1.0,
+                color: palette.background.weak.color,
+            },
+            shadow: Shadow {
+                color: Color::from_rgba(0.0, 0.0, 0.0, 0.2),
+                offset: iced::Vector::new(0.0, 2.0),
+                blur_radius: 8.0,
+            },
+        }
+    })
+    .padding(8)
+    .into()
+}
+
+/// 创建紧凑的打开文件按钮（用于底部工具栏）
+/// 
+/// # 返回
+/// 紧凑打开文件按钮UI元素
+pub fn compact_file_button() -> Element<'static, Message> {
+    tooltip(
+        button(
+            container({
+                let icon_color = Color {
+                    r: 0.4,
+                    g: 0.4,
+                    b: 0.4,
+                    a: 0.8,
+                };
+                create_svg_icon(svg_icons::FILE_FOLDER.to_string(), 24.0, icon_color)
+            })
+            .style(|theme: &iced::Theme| {
+                let palette = theme.extended_palette();
+                container::Style {
+                    background: Some(Background::Color(Color {
+                        a: 0.05,
+                        ..palette.background.weak.color
+                    })),
+                    border: Border {
+                        radius: Radius::from(8.0),
+                        width: 0.0,
+                        color: Color::TRANSPARENT,
+                    },
+                    shadow: Shadow::default(),
+                    text_color: None,
+                }
+            })
+            .padding(8)
+            .width(Length::Fill)
+            .height(Length::Fill)
+            .align_x(Horizontal::Center)
+            .align_y(Vertical::Center)
+        )
+        .style(AppTheme::file_button())
+        .width(Length::Fixed(48.0))
+        .height(Length::Fixed(48.0))
+        .on_press(Message::OpenFile),
+        text(t!("Open File")).size(12),
+        tooltip::Position::Top
+    )
+    .style(|theme: &iced::Theme| {
+        let palette = theme.extended_palette();
+        container::Style {
+            background: Some(Background::Color(palette.background.strong.color)),
+            text_color: Some(palette.background.strong.text),
+            border: Border {
+                radius: Radius::from(6.0),
+                width: 1.0,
+                color: palette.background.weak.color,
+            },
+            shadow: Shadow {
+                color: Color::from_rgba(0.0, 0.0, 0.0, 0.2),
+                offset: iced::Vector::new(0.0, 2.0),
+                blur_radius: 8.0,
+            },
+        }
+    })
+    .padding(8)
+    .into()
+}
+
+/// 创建紧凑的视图切换按钮（用于底部工具栏）
+/// 
+/// # 参数
+/// * `current_view` - 当前视图类型
+/// 
+/// # 返回
+/// 紧凑视图切换按钮UI元素
+pub fn compact_view_toggle_button(current_view: ViewType) -> Element<'static, Message> {
+    let (svg_content, text_content, subtitle) = match current_view {
+        ViewType::Playlist => (svg_icons::MUSIC_NOTE, t!("Switch to Lyrics").to_string(), t!("View Lyrics Synchronization").to_string()),
+        ViewType::Lyrics => (svg_icons::LIST_VIEW, t!("Switch to Playlist").to_string(), t!("Browse Music Library").to_string()),
+    };
+    
+    // 统一使用主题色
+    let icon_color = Color {
+        r: 0.4,
+        g: 0.4,
+        b: 0.4,
+        a: 0.8,
+    };
+    
+    tooltip(
+        button(
+            container(
+                create_svg_icon(svg_content.to_string(), 24.0, icon_color)
+            )
+            .style(|theme: &iced::Theme| {
+                let palette = theme.extended_palette();
+                container::Style {
+                    background: Some(Background::Color(Color {
+                        a: 0.05,
+                        ..palette.background.weak.color
+                    })),
+                    border: Border {
+                        radius: Radius::from(8.0),
+                        width: 0.0,
+                        color: Color::TRANSPARENT,
+                    },
+                    shadow: Shadow::default(),
+                    text_color: None,
+                }
+            })
+            .padding(8)
+            .width(Length::Fill)
+            .height(Length::Fill)
+            .align_x(Horizontal::Center)
+            .align_y(Vertical::Center)
+        )
+        .style(AppTheme::file_button())
+        .width(Length::Fixed(48.0))
+        .height(Length::Fixed(48.0))
+        .on_press(Message::ToggleView),
+        column![
+            text(text_content).size(12),
+            text(subtitle).size(10)
+                .style(|theme: &iced::Theme| {
+                    let palette = theme.extended_palette();
+                    text::Style {
+                        color: Some(Color {
+                            a: 0.7,
+                            ..palette.background.base.text
+                        }),
+                    }
+                })
+        ].spacing(2),
+        tooltip::Position::Top
+    )
+    .style(|theme: &iced::Theme| {
+        let palette = theme.extended_palette();
+        container::Style {
+            background: Some(Background::Color(palette.background.strong.color)),
+            text_color: Some(palette.background.strong.text),
+            border: Border {
+                radius: Radius::from(6.0),
+                width: 1.0,
+                color: palette.background.weak.color,
+            },
+            shadow: Shadow {
+                color: Color::from_rgba(0.0, 0.0, 0.0, 0.2),
+                offset: iced::Vector::new(0.0, 2.0),
+                blur_radius: 8.0,
+            },
+        }
+    })
+    .padding(8)
     .into()
 }
 
@@ -865,22 +1369,29 @@ pub fn playlist_view(
             
             let duration_text = item.duration.map_or("--:--".to_string(), |d| format_duration(d));
             
+            let song_name_with_tooltip = container(
+                create_text_with_tooltip(
+                    song_name.clone(),
+                    30, // 最大显示30个字符
+                    14,
+                    move |theme: &iced::Theme| {
+                        let palette = theme.extended_palette();
+                        iced::widget::text::Style {
+                            color: Some(if is_current {
+                                palette.primary.base.color
+                            } else {
+                                palette.background.base.text
+                            }),
+                        }
+                    }
+                )
+            )
+            .width(Length::FillPortion(4));
+            
             let content = container(
                 row![
                     text(icon).size(14).shaping(Shaping::Advanced),
-                    text(song_name)
-                        .shaping(Shaping::Advanced)
-                        .width(Length::FillPortion(4))
-                        .style(move |theme: &iced::Theme| {
-                            let palette = theme.extended_palette();
-                            text::Style {
-                                color: Some(if is_current {
-                                    palette.primary.base.color
-                                } else {
-                                    palette.background.base.text
-                                }),
-                            }
-                        }),
+                    song_name_with_tooltip,
                     text(duration_text)
                         .width(Length::FillPortion(1))
                         .size(12)
@@ -1021,34 +1532,45 @@ pub fn lyrics_view(file_path: &str, is_playing: bool, current_time: f64, lyrics:
         };
         
         lyrics_elements.push(
-            text(title)
-                .size(20)
-                .align_x(Horizontal::Center)
-                .style(|theme: &iced::Theme| {
-                    let palette = theme.extended_palette();
-                    text::Style {
-                        color: Some(palette.primary.base.color),
+            container(
+                create_text_with_tooltip(
+                    title,
+                    40, // 最大显示40个字符
+                    20,
+                    |theme: &iced::Theme| {
+                        let palette = theme.extended_palette();
+                        iced::widget::text::Style {
+                            color: Some(palette.primary.base.color),
+                        }
                     }
-                })
-                .into()
+                )
+            )
+            .width(Length::Fill)
+            .align_x(Horizontal::Center)
+            .into()
         );
         
         if let Some(ref artist) = lyrics_data.metadata.artist {
             lyrics_elements.push(
-                text(format!("🎤 {}", artist))
-                    .size(14)
-                    .align_x(Horizontal::Center)
-                    .shaping(Shaping::Advanced)
-                    .style(|theme: &iced::Theme| {
-                        let palette = theme.extended_palette();
-                        text::Style {
-                            color: Some(Color {
-                                a: 0.8,
-                                ..palette.background.base.text
-                            }),
+                container(
+                    create_text_with_tooltip(
+                        format!("🎤 {}", artist),
+                        35, // 最大显示35个字符
+                        14,
+                        |theme: &iced::Theme| {
+                            let palette = theme.extended_palette();
+                            iced::widget::text::Style {
+                                color: Some(Color {
+                                    a: 0.8,
+                                    ..palette.background.base.text
+                                }),
+                            }
                         }
-                    })
-                    .into()
+                    )
+                )
+                .width(Length::Fill)
+                .align_x(Horizontal::Center)
+                .into()
             );
         }
         

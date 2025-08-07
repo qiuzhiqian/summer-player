@@ -143,3 +143,15 @@ Click "Open File" to start:
 messages.Playlist:
   en: Playlist (%{count} songs)
   zh-CN: 播放列表 (%{count} 首歌曲)
+Play:
+  en: Play
+  zh-CN: 播放
+Pause:
+  en: Pause
+  zh-CN: 暂停
+Previous Track:
+  en: Previous Track
+  zh-CN: 上一曲
+Next Track:
+  en: Next Track
+  zh-CN: 下一曲
