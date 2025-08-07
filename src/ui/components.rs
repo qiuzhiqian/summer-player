@@ -74,6 +74,42 @@ mod svg_icons {
     <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
         <path d="M3 6h18M3 12h18M3 18h18" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
     </svg>"#;
+
+    pub const PREVIOUS: &str = r#"
+    <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <path d="M6 12l10-7v14L6 12Z" fill="currentColor"/>
+        <rect x="18" y="5" width="2" height="14" rx="1" fill="currentColor"/>
+    </svg>"#;
+
+    pub const NEXT: &str = r#"
+    <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <rect x="4" y="5" width="2" height="14" rx="1" fill="currentColor"/>
+        <path d="M18 12L8 5v14l10-7Z" fill="currentColor"/>
+    </svg>"#;
+
+    pub const PLAY: &str = r#"
+    <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <path d="M8 5v14l11-7L8 5Z" fill="currentColor"/>
+    </svg>"#;
+
+    pub const PAUSE: &str = r#"
+    <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <rect x="6" y="4" width="4" height="16" rx="2" fill="currentColor"/>
+        <rect x="14" y="4" width="4" height="16" rx="2" fill="currentColor"/>
+    </svg>"#;
+
+    pub const HOME: &str = r#"
+    <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <path d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m0 0V11a1 1 0 011-1h2a1 1 0 011 1v10m0 0h3a1 1 0 001-1V10" 
+              stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+    </svg>"#;
+
+    pub const SETTINGS: &str = r#"
+    <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <path d="M12 15a3 3 0 100-6 3 3 0 000 6z" stroke="currentColor" stroke-width="1.5"/>
+        <path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-2 2 2 2 0 01-2-2v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83 0 2 2 0 010-2.83l.06-.06a1.65 1.65 0 00.33-1.82 1.65 1.65 0 00-1.51-1H3a2 2 0 01-2-2 2 2 0 012-2h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 010-2.83 2 2 0 012.83 0l.06.06a1.65 1.65 0 001.82.33H9a1.65 1.65 0 001-1.51V3a2 2 0 012-2 2 2 0 012 2v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 0 2 2 0 010 2.83l-.06.06a1.65 1.65 0 00-.33 1.82V9a1.65 1.65 0 001.51 1H21a2 2 0 012 2 2 2 0 01-2 2h-.09a1.65 1.65 0 00-1.51 1z" 
+              stroke="currentColor" stroke-width="1.5"/>
+    </svg>"#;
  }
 
 /// 创建SVG图标组件
@@ -216,21 +252,35 @@ impl PlayMode {
 /// # 返回
 /// 导航栏UI元素
 pub fn navigation_sidebar(current_page: &PageType) -> Element<'static, Message> {
-    let nav_button = |icon: String, label: String, page: PageType, is_active: bool| {
+    let nav_button = |svg_icon: &'static str, label: String, page: PageType, is_active: bool| {
         let style = if is_active {
             AppTheme::control_button()
         } else {
             AppTheme::file_button()
         };
         
+        // 定义图标颜色
+        let icon_color = Color {
+            r: 0.4,
+            g: 0.4,
+            b: 0.4,
+            a: 0.9,
+        };
+        
         tooltip(
             button(
-                text(icon).size(28).shaping(Shaping::Advanced) // 增大图标，移除文字
+                container(
+                    create_svg_icon(svg_icon.to_string(), 22.0, icon_color)
+                )
+                .width(Length::Fill)
+                .height(Length::Fill)
+                .align_x(Horizontal::Center)
+                .align_y(Vertical::Center)
             )
             .style(style)
-            .padding(16) // 调整内边距
-            .width(Length::Fixed(60.0))
-            .height(Length::Fixed(60.0))
+            .padding(4) // 调整内边距
+            .width(Length::Fixed(40.0))
+            .height(Length::Fixed(40.0))
             .on_press(Message::PageChanged(page)),
             text(label).size(12),
             tooltip::Position::Right
@@ -256,8 +306,8 @@ pub fn navigation_sidebar(current_page: &PageType) -> Element<'static, Message> 
     };
 
     column![
-        nav_button("🏠".to_string(), t!("Home").to_string(), PageType::Home, *current_page == PageType::Home),
-        nav_button("⚙️".to_string(), t!("Settings").to_string(), PageType::Settings, *current_page == PageType::Settings),
+        nav_button(svg_icons::HOME, t!("Home").to_string(), PageType::Home, *current_page == PageType::Home),
+        nav_button(svg_icons::SETTINGS, t!("Settings").to_string(), PageType::Settings, *current_page == PageType::Settings),
         
         // 底部空间
         Space::with_height(Length::Fill),
@@ -285,7 +335,7 @@ pub fn navigation_sidebar(current_page: &PageType) -> Element<'static, Message> 
     ]
     .width(Length::Shrink)
     .height(Length::Fill)
-    .spacing(12) // 增加间距
+    .spacing(16) // 增加间距
     .padding(16) // 增加内边距
     .into()
 }
@@ -679,16 +729,26 @@ fn info_row_with_tooltip(icon: &'static str, label: &str, value: &str, max_lengt
 /// # 返回
 /// 控制按钮UI元素
 pub fn control_buttons_view(is_playing: bool) -> Element<'static, Message> {
+    // 定义图标颜色
+    let icon_color = Color {
+        r: 0.4,
+        g: 0.4,
+        b: 0.4,
+        a: 0.9,
+    };
+    
     container(
         row![
             // 上一首
             tooltip(
                 button(
-                    container(text("⏮").size(16).shaping(Shaping::Advanced)) // 增大图标
-                        .width(Length::Fill)
-                        .height(Length::Fill)
-                        .align_x(Horizontal::Center)
-                        .align_y(Vertical::Center)
+                    container(
+                        create_svg_icon(svg_icons::PREVIOUS.to_string(), 30.0, icon_color)
+                    )
+                    .width(Length::Fill)
+                    .height(Length::Fill)
+                    .align_x(Horizontal::Center)
+                    .align_y(Vertical::Center)
                 )
                 .style(AppTheme::control_button())
                 .width(Length::Fixed(48.0)) // 增大按钮
@@ -719,11 +779,21 @@ pub fn control_buttons_view(is_playing: bool) -> Element<'static, Message> {
             // 播放/暂停 - 主要按钮，更大更突出
             tooltip(
                 button(
-                    container(text(if is_playing { "⏸️" } else { "▶️" }).size(20).shaping(Shaping::Advanced)) // 增大图标
-                        .width(Length::Fill)
-                        .height(Length::Fill)
-                        .align_x(Horizontal::Center)
-                        .align_y(Vertical::Center)
+                    container(
+                        create_svg_icon(
+                            if is_playing { 
+                                svg_icons::PAUSE.to_string() 
+                            } else { 
+                                svg_icons::PLAY.to_string() 
+                            }, 
+                            35.0, 
+                            icon_color
+                        )
+                    )
+                    .width(Length::Fill)
+                    .height(Length::Fill)
+                    .align_x(Horizontal::Center)
+                    .align_y(Vertical::Center)
                 )
                 .style(AppTheme::play_button())
                 .width(Length::Fixed(60.0)) // 增大主按钮
@@ -754,11 +824,13 @@ pub fn control_buttons_view(is_playing: bool) -> Element<'static, Message> {
             // 下一首
             tooltip(
                 button(
-                    container(text("⏭").size(16).shaping(Shaping::Advanced)) // 增大图标
-                        .width(Length::Fill)
-                        .height(Length::Fill)
-                        .align_x(Horizontal::Center)
-                        .align_y(Vertical::Center)
+                    container(
+                        create_svg_icon(svg_icons::NEXT.to_string(), 30.0, icon_color)
+                    )
+                    .width(Length::Fill)
+                    .height(Length::Fill)
+                    .align_x(Horizontal::Center)
+                    .align_y(Vertical::Center)
                 )
                 .style(AppTheme::control_button())
                 .width(Length::Fixed(48.0)) // 增大按钮
