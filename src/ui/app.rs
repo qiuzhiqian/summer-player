@@ -615,7 +615,7 @@ impl PlayerApp {
             // 正常状态显示对应内容
             match self.current_view {
                 ViewType::Playlist => playlist_view(&self.playlist, self.playlist_loaded, self.is_playing),
-                ViewType::Lyrics => lyrics_view(&self.file_path, self.is_playing, self.playback_state.current_time, &self.current_lyrics, self.window_size.1),
+                ViewType::Lyrics => lyrics_view(&self.file_path, self.is_playing, self.playback_state.current_time, self.current_lyrics.clone(), self.window_size.1),
             }
         };
 
@@ -659,19 +659,19 @@ impl PlayerApp {
         // 获取当前视图和目标视图
         let current_view_content = match self.current_view {
             ViewType::Playlist => playlist_view(&self.playlist, self.playlist_loaded, self.is_playing),
-            ViewType::Lyrics => lyrics_view(&self.file_path, self.is_playing, self.playback_state.current_time, &self.current_lyrics, self.window_size.1),
+            ViewType::Lyrics => lyrics_view(&self.file_path, self.is_playing, self.playback_state.current_time, self.current_lyrics.clone(), self.window_size.1),
         };
         
         let target_view_content = if let Some(target) = self.view_animation.target_view() {
             match target {
                 ViewType::Playlist => playlist_view(&self.playlist, self.playlist_loaded, self.is_playing),
-                ViewType::Lyrics => lyrics_view(&self.file_path, self.is_playing, self.playback_state.current_time, &self.current_lyrics, self.window_size.1),
+                ViewType::Lyrics => lyrics_view(&self.file_path, self.is_playing, self.playback_state.current_time, self.current_lyrics.clone(), self.window_size.1),
             }
         } else {
             // 如果没有目标视图，生成与当前视图相同的内容
             match self.current_view {
                 ViewType::Playlist => playlist_view(&self.playlist, self.playlist_loaded, self.is_playing),
-                ViewType::Lyrics => lyrics_view(&self.file_path, self.is_playing, self.playback_state.current_time, &self.current_lyrics, self.window_size.1),
+                ViewType::Lyrics => lyrics_view(&self.file_path, self.is_playing, self.playback_state.current_time, self.current_lyrics.clone(), self.window_size.1),
             }
         };
         
