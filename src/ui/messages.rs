@@ -43,4 +43,6 @@ pub enum Message {
     ToggleTheme,
     /// 页面切换
     PageChanged(PageType),
+    /// 播放模式切换
+    TogglePlayMode,
 } 

@@ -11,6 +11,7 @@ use std::{
 use crate::error::{PlayerError, Result};
 use crate::utils::{extract_filename, normalize_path};
 use crate::audio::AudioFile;
+use crate::ui::components::PlayMode;
 
 /// 播放列表项
 #[derive(Debug, Clone)]
@@ -169,6 +170,120 @@ impl Playlist {
         
         self.current_index = prev_index;
         self.current_item()
+    }
+    
+    /// 根据播放模式切换到下一首
+    /// 
+    /// # 参数
+    /// * `play_mode` - 播放模式
+    /// 
+    /// # 返回
+    /// 下一首播放项的引用和是否应该重新开始播放
+    pub fn next_item_with_mode(&mut self, play_mode: &PlayMode) -> (Option<&PlaylistItem>, bool) {
+        if self.items.is_empty() {
+            return (None, false);
+        }
+        
+        match play_mode {
+            PlayMode::SingleLoop => {
+                // 单曲循环：保持当前歌曲
+                (self.current_item(), true)
+            }
+            PlayMode::ListLoop => {
+                // 列表循环：到末尾后回到开头
+                let next_index = match self.current_index {
+                    Some(current) => {
+                        if current + 1 < self.items.len() {
+                            Some(current + 1)
+                        } else {
+                            Some(0) // 回到开头
+                        }
+                    }
+                    None => Some(0), // 开始播放
+                };
+                
+                self.current_index = next_index;
+                (self.current_item(), false)
+            }
+            PlayMode::Random => {
+                // 随机播放：随机选择一首歌曲
+                if self.items.len() == 1 {
+                    // 只有一首歌，重复播放
+                    (self.current_item(), true)
+                } else {
+                    use rand::Rng;
+                    let mut rng = rand::thread_rng();
+                    let mut next_index = rng.gen_range(0..self.items.len());
+                    
+                    // 确保不会连续播放同一首歌（如果可能的话）
+                    if let Some(current) = self.current_index {
+                        while next_index == current && self.items.len() > 1 {
+                            next_index = rng.gen_range(0..self.items.len());
+                        }
+                    }
+                    
+                    self.current_index = Some(next_index);
+                    (self.current_item(), false)
+                }
+            }
+        }
+    }
+    
+    /// 根据播放模式切换到上一首
+    /// 
+    /// # 参数
+    /// * `play_mode` - 播放模式
+    /// 
+    /// # 返回
+    /// 上一首播放项的引用和是否应该重新开始播放
+    pub fn previous_item_with_mode(&mut self, play_mode: &PlayMode) -> (Option<&PlaylistItem>, bool) {
+        if self.items.is_empty() {
+            return (None, false);
+        }
+        
+        match play_mode {
+            PlayMode::SingleLoop => {
+                // 单曲循环：保持当前歌曲
+                (self.current_item(), true)
+            }
+            PlayMode::ListLoop => {
+                // 列表循环：到开头后回到末尾
+                let prev_index = match self.current_index {
+                    Some(current) => {
+                        if current > 0 {
+                            Some(current - 1)
+                        } else {
+                            Some(self.items.len() - 1) // 回到末尾
+                        }
+                    }
+                    None => Some(0), // 开始播放
+                };
+                
+                self.current_index = prev_index;
+                (self.current_item(), false)
+            }
+            PlayMode::Random => {
+                // 随机播放：随机选择一首歌曲
+                if self.items.len() == 1 {
+                    // 只有一首歌，重复播放
+                    (self.current_item(), true)
+                } else {
+                    use rand::Rng;
+                    let mut rng = rand::thread_rng();
+                    let mut prev_index = rng.gen_range(0..self.items.len());
+                    
+                    // 确保不会连续播放同一首歌（如果可能的话）
+                    if let Some(current) = self.current_index {
+                        while prev_index == current && self.items.len() > 1 {
+                            prev_index = rng.gen_range(0..self.items.len());
+                        }
+                    }
+                    
+                    self.current_index = Some(prev_index);
+                    (self.current_item(), false)
+                }
+            }
+        }
     }
     
     /// 设置当前播放索引

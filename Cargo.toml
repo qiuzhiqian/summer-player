@@ -25,6 +25,7 @@ rfd = "0.14"
 anim = { version = "0.1", default-features = false, features = ["iced-backend"] }
 rust-i18n = "3"
 sys-locale = "0.3.2"
+rand = "0.8"
 
 [package.metadata.deb]
 maintainer = "xml <xiamengliang@gmail.com>"

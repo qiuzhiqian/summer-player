@@ -48,6 +48,47 @@ pub enum ViewType {
     Lyrics,
 }
 
+/// 播放模式枚举
+#[derive(Debug, Clone, PartialEq, Default)]
+pub enum PlayMode {
+    /// 列表循环（默认）
+    #[default]
+    ListLoop,
+    /// 单曲循环
+    SingleLoop,
+    /// 随机播放
+    Random,
+}
+
+impl PlayMode {
+    /// 获取播放模式的图标
+    pub fn icon(&self) -> &'static str {
+        match self {
+            PlayMode::ListLoop => "🔁",
+            PlayMode::SingleLoop => "🔂", 
+            PlayMode::Random => "🔀",
+        }
+    }
+    
+    /// 获取播放模式的显示名称
+    pub fn display_name(&self) -> String {
+        match self {
+            PlayMode::ListLoop => t!("List Loop").to_string(),
+            PlayMode::SingleLoop => t!("Single Loop").to_string(),
+            PlayMode::Random => t!("Random Play").to_string(),
+        }
+    }
+    
+    /// 获取下一个播放模式
+    pub fn next(&self) -> Self {
+        match self {
+            PlayMode::ListLoop => PlayMode::SingleLoop,
+            PlayMode::SingleLoop => PlayMode::Random,
+            PlayMode::Random => PlayMode::ListLoop,
+        }
+    }
+}
+
 /// 创建导航栏组件
 /// 
 /// # 参数
@@ -648,6 +689,80 @@ pub fn theme_toggle_button(current_theme: &AppThemeVariant) -> Element<'static, 
         .padding([12, 16])
         .on_press(Message::ToggleTheme)
     )
+    .into()
+}
+
+/// 创建播放模式切换按钮
+/// 
+/// # 参数
+/// * `current_mode` - 当前播放模式
+/// 
+/// # 返回
+/// 播放模式切换按钮UI元素
+pub fn play_mode_toggle_button(current_mode: PlayMode) -> Element<'static, Message> {
+    let icon = current_mode.icon();
+    let text_content = current_mode.display_name();
+    let subtitle = match current_mode {
+        PlayMode::ListLoop => t!("Play all songs in order and repeat").to_string(),
+        PlayMode::SingleLoop => t!("Repeat current song").to_string(),
+        PlayMode::Random => t!("Play songs in random order").to_string(),
+    };
+    
+    container(
+        button(
+            row![
+                container(text(icon).size(18).shaping(Shaping::Advanced))
+                    .style(move |theme: &iced::Theme| {
+                        let palette = theme.extended_palette();
+                        let color = match current_mode {
+                            PlayMode::ListLoop => palette.primary.base.color,
+                            PlayMode::SingleLoop => palette.success.base.color,
+                            PlayMode::Random => palette.secondary.base.color,
+                        };
+                        container::Style {
+                            background: Some(Background::Color(Color {
+                                a: 0.15,
+                                ..color
+                            })),
+                            border: Border {
+                                radius: Radius::from(8.0),
+                                width: 0.0,
+                                color: Color::TRANSPARENT,
+                            },
+                            shadow: Shadow::default(),
+                            text_color: Some(color),
+                        }
+                    })
+                    .padding(10),
+                column![
+                    text(text_content)
+                        .size(14)
+                        .style(|theme: &iced::Theme| {
+                            let palette = theme.extended_palette();
+                            text::Style {
+                                color: Some(palette.background.base.text),
+                            }
+                        }),
+                    text(subtitle)
+                        .size(11)
+                        .style(|theme: &iced::Theme| {
+                            let palette = theme.extended_palette();
+                            text::Style {
+                                color: Some(Color {
+                                    a: 0.6,
+                                    ..palette.background.base.text
+                                }),
+                            }
+                        }),
+                ].spacing(2)
+            ].spacing(12).align_y(Vertical::Center)
+        )
+        .style(AppTheme::file_button())
+        .padding([16, 20])
+        .width(Length::Fill)
+        .on_press(Message::TogglePlayMode)
+    )
+    .width(Length::Fill)
     .into()
 }
 

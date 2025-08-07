@@ -109,6 +109,30 @@ Volume:
 Year:
   en: Year
   zh-CN: 年份
+List Loop:
+  en: List Loop
+  zh-CN: 列表循环
+Single Loop:
+  en: Single Loop
+  zh-CN: 单曲循环
+Random Play:
+  en: Random Play
+  zh-CN: 随机播放
+Play all songs in order and repeat:
+  en: Play all songs in order and repeat
+  zh-CN: 按顺序播放所有歌曲并重复
+Repeat current song:
+  en: Repeat current song
+  zh-CN: 重复播放当前歌曲
+Play songs in random order:
+  en: Play songs in random order
+  zh-CN: 随机播放歌曲
+Dark Mode:
+  en: Dark Mode
+  zh-CN: 深色模式
+Light Mode:
+  en: Light Mode
+  zh-CN: 浅色模式
 _version: 2
 summer audio player:
   en: summer audio player

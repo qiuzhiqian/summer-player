@@ -59,6 +59,8 @@ pub struct PlayerApp {
     current_theme: AppThemeVariant,
     /// 当前语言
     current_language: String,
+    /// 当前播放模式
+    play_mode: PlayMode,
 }
 
 impl PlayerApp {
@@ -112,6 +114,7 @@ impl PlayerApp {
             Message::ProgressChanged(progress) => self.handle_progress_changed(progress),
             Message::ToggleTheme => self.handle_toggle_theme(),
             Message::PageChanged(page) => self.handle_page_changed(page),
+            Message::TogglePlayMode => self.handle_toggle_play_mode(),
         }
     }
 
@@ -341,18 +344,26 @@ impl PlayerApp {
 
     fn handle_next_track(&mut self) -> Task<Message> {
         if self.playlist_loaded {
-            if let Some(next_item) = self.playlist.next_item() {
-                let file_path = next_item.path.clone();
-                self.load_audio_file(&file_path);
+            let (next_item, should_restart) = self.playlist.next_item_with_mode(&self.play_mode);
+            if let Some(item) = next_item {
+                let file_path = item.path.clone();
                 
-                // 停止当前播放，然后立即启动下一首歌曲的播放
-                self.stop_current_playback();
-                
-                // 启动新的音频播放会话
-                return Task::perform(
-                    start_audio_playback(file_path),
-                    |(sender, _handle)| Message::AudioSessionStarted(sender)
-                );
+                if should_restart {
+                    // 单曲循环或随机播放到同一首歌 - 重新开始播放
+                    self.stop_current_playback();
+                    return Task::perform(
+                        start_audio_playback(file_path),
+                        |(sender, _handle)| Message::AudioSessionStarted(sender)
+                    );
+                } else {
+                    // 切换到不同的歌曲
+                    self.load_audio_file(&file_path);
+                    self.stop_current_playback();
+                    return Task::perform(
+                        start_audio_playback(file_path),
+                        |(sender, _handle)| Message::AudioSessionStarted(sender)
+                    );
+                }
             }
         }
         Task::none()
@@ -360,18 +371,26 @@ impl PlayerApp {
 
     fn handle_previous_track(&mut self) -> Task<Message> {
         if self.playlist_loaded {
-            if let Some(prev_item) = self.playlist.previous_item() {
-                let file_path = prev_item.path.clone();
-                self.load_audio_file(&file_path);
+            let (prev_item, should_restart) = self.playlist.previous_item_with_mode(&self.play_mode);
+            if let Some(item) = prev_item {
+                let file_path = item.path.clone();
                 
-                // 停止当前播放，然后立即启动上一首歌曲的播放
-                self.stop_current_playback();
-                
-                // 启动新的音频播放会话
-                return Task::perform(
-                    start_audio_playback(file_path),
-                    |(sender, _handle)| Message::AudioSessionStarted(sender)
-                );
+                if should_restart {
+                    // 单曲循环或随机播放到同一首歌 - 重新开始播放
+                    self.stop_current_playback();
+                    return Task::perform(
+                        start_audio_playback(file_path),
+                        |(sender, _handle)| Message::AudioSessionStarted(sender)
+                    );
+                } else {
+                    // 切换到不同的歌曲
+                    self.load_audio_file(&file_path);
+                    self.stop_current_playback();
+                    return Task::perform(
+                        start_audio_playback(file_path),
+                        |(sender, _handle)| Message::AudioSessionStarted(sender)
+                    );
+                }
             }
         }
         Task::none()
@@ -483,6 +502,11 @@ impl PlayerApp {
         Task::none()
     }
 
+    fn handle_toggle_play_mode(&mut self) -> Task<Message> {
+        self.play_mode = self.play_mode.next();
+        Task::none()
+    }
+
     // 辅助方法
 
     fn load_audio_file(&mut self, file_path: &str) {
@@ -550,13 +574,24 @@ impl PlayerApp {
         self.cleanup_playback_state();
         
         if self.playlist_loaded {
-            if let Some(next_item) = self.playlist.next_item() {
-                let file_path = next_item.path.clone();
-                self.load_audio_file(&file_path);
-                return Task::perform(
-                    start_audio_playback(file_path),
-                    |(sender, _handle)| Message::AudioSessionStarted(sender)
-                );
+            let (next_item, should_restart) = self.playlist.next_item_with_mode(&self.play_mode);
+            if let Some(item) = next_item {
+                let file_path = item.path.clone();
+                
+                if should_restart {
+                    // 单曲循环 - 重新开始播放当前歌曲
+                    return Task::perform(
+                        start_audio_playback(file_path),
+                        |(sender, _handle)| Message::AudioSessionStarted(sender)
+                    );
+                } else {
+                    // 切换到下一首歌曲
+                    self.load_audio_file(&file_path);
+                    return Task::perform(
+                        start_audio_playback(file_path),
+                        |(sender, _handle)| Message::AudioSessionStarted(sender)
+                    );
+                }
             }
         }
         
@@ -568,6 +603,7 @@ impl PlayerApp {
         let left_panel = column![
             file_info_view(self.audio_info.as_ref(), &self.file_path),
             file_controls_view(),
+            play_mode_toggle_button(self.play_mode.clone()),
             spacer(),
         ].spacing(16) // 增加间距
          .width(Length::Fixed(MAIN_PANEL_WIDTH + 20.0)) // 稍微增加宽度
