@@ -341,7 +341,7 @@ pub fn file_info_view(audio_info: Option<&AudioInfo>, file_path: &str) -> Elemen
         let mut main_col = column![
             container(
                 {
-                    let palette_color = Color { r: 0.2, g: 0.5, b: 0.8, a: 1.0 };
+                    let palette_color = Color { r: 0.0, g: 0.6, b: 1.0, a: 1.0 };
                     truncated_text(display_title, constants::TEXT_TRUNCATE_LONG, constants::TEXT_LARGE, palette_color)
                 }
             ).width(Length::Fill),
@@ -520,7 +520,7 @@ pub fn playlist_view(playlist: &Playlist, playlist_loaded: bool, is_playing: boo
                 container(
                     {
                         let text_color = if is_current { 
-                            Color { r: 0.2, g: 0.5, b: 0.8, a: 1.0 }
+                            Color { r: 0.0, g: 0.6, b: 1.0, a: 1.0 }
                         } else { 
                             Color { r: 0.4, g: 0.4, b: 0.4, a: 1.0 }
                         };
@@ -586,7 +586,7 @@ pub fn lyrics_view(file_path: &str, is_playing: bool, current_time: f64, lyrics:
         elements.push(
             container(
                 {
-                    let title_color = Color { r: 0.2, g: 0.5, b: 0.8, a: 1.0 };
+                    let title_color = Color { r: 0.0, g: 0.6, b: 1.0, a: 1.0 };
                     truncated_text(title, constants::TEXT_TRUNCATE_LONG, constants::TEXT_TITLE, title_color)
                 }
             ).width(Length::Fill).align_x(Horizontal::Center).into()

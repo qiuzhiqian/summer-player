@@ -745,7 +745,7 @@ impl AppTheme {
                 match status {
                     button::Status::Active => button::Style {
                         background: Some(Background::Color(Color {
-                            a: 0.15,
+                            a: 0.25,
                             ..primary
                         })),
                         text_color: primary,
@@ -753,7 +753,7 @@ impl AppTheme {
                             radius: Radius::from(8.0),
                             width: 1.0,
                             color: Color {
-                                a: 0.3,
+                                a: 0.4,
                                 ..primary
                             },
                         },
@@ -765,7 +765,7 @@ impl AppTheme {
                     },
                     button::Status::Hovered => button::Style {
                         background: Some(Background::Color(Color {
-                            a: 0.2,
+                            a: 0.35,
                             ..primary
                         })),
                         text_color: primary,
