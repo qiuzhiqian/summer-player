@@ -440,13 +440,13 @@ pub fn control_buttons_view(is_playing: bool) -> Element<'static, Message> {
 
     container(
         row![
-            icon_button(icons::PREVIOUS, t!("Previous Track").to_string(), Message::PreviousTrack, constants::BUTTON_SIZE_MEDIUM, constants::ICON_SIZE_LARGE, AppTheme::control_button),
-            icon_button(play_icon, play_tooltip, Message::PlayPause, constants::BUTTON_SIZE_LARGE, constants::ICON_SIZE_XLARGE, AppTheme::play_button),
-            icon_button(icons::NEXT, t!("Next Track").to_string(), Message::NextTrack, constants::BUTTON_SIZE_MEDIUM, constants::ICON_SIZE_LARGE, AppTheme::control_button),
-        ].spacing(constants::SPACING_MEDIUM).align_y(Vertical::Center)
+            icon_button(icons::PREVIOUS, t!("Previous Track").to_string(), Message::PreviousTrack, constants::BUTTON_SIZE_MEDIUM, constants::ICON_SIZE_MEDIUM, AppTheme::control_button),
+            icon_button(play_icon, play_tooltip, Message::PlayPause, constants::BUTTON_SIZE_MEDIUM + 6.0, constants::ICON_SIZE_LARGE, AppTheme::play_button),
+            icon_button(icons::NEXT, t!("Next Track").to_string(), Message::NextTrack, constants::BUTTON_SIZE_MEDIUM, constants::ICON_SIZE_MEDIUM, AppTheme::control_button),
+        ].spacing(constants::SPACING_SMALL).align_y(Vertical::Center)
     )
     .style(AppTheme::main_section_container())
-    .padding(constants::PADDING_MEDIUM)
+    .padding(constants::PADDING_SMALL)
     .width(Length::Fill)
     .align_x(Horizontal::Center)
     .into()
@@ -481,15 +481,15 @@ pub fn progress_view(playback_state: &PlaybackState) -> Element<'static, Message
                 text(format_duration(playback_state.current_time)).size(constants::TEXT_MEDIUM).style(AppTheme::current_time_text()),
                 Space::new(Length::Fill, Length::Shrink),
                 text(format_duration(playback_state.total_duration)).size(constants::TEXT_MEDIUM).style(AppTheme::total_time_text()),
-            ].padding(4),
+            ].padding(1),
             container(
                 slider(0.0..=1.0, progress, Message::ProgressChanged)
                     .step(0.001).style(AppTheme::progress_slider())
-            ).padding(4),
-        ].spacing(constants::SPACING_MEDIUM)
+            ).padding(1),
+        ].spacing(4)
     )
     .style(AppTheme::glass_card_container())
-    .padding(constants::PADDING_LARGE - 4)
+    .padding(constants::PADDING_SMALL)
     .width(Length::Fill)
     .into()
 }

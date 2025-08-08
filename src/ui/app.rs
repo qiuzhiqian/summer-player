@@ -629,7 +629,7 @@ impl PlayerApp {
         let bottom_section = container(
             row![
                 container(control_buttons_view(self.is_playing))
-                    .width(Length::Fixed(MAIN_PANEL_WIDTH + 20.0))
+                    .width(Length::Fixed(190.0))
                     .height(Length::Shrink),
                 column![progress_view(&self.playback_state)]
                     .width(Length::Fill),
@@ -638,17 +638,17 @@ impl PlayerApp {
                     compact_file_button(),
                     compact_play_mode_button(self.play_mode.clone()),
                     compact_view_toggle_button(self.current_view.clone()),
-                ].spacing(8).align_y(Vertical::Center)
-            ].spacing(20).align_y(Vertical::Center)
+                ].spacing(6).align_y(Vertical::Center)
+            ].spacing(10).align_y(Vertical::Center)
         )
         .style(AppTheme::glass_card_container()) // 使用毛玻璃效果
-        .padding(16);
+        .padding(8);
 
         column![
             main_content, 
             bottom_section
         ]
-        .spacing(20) // 增加主内容和底部的间距
+        .spacing(16) // 减少主内容和底部的间距，使布局更紧凑
         .into()
     }
 
