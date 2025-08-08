@@ -2,6 +2,7 @@ use std::fs;
 use std::path::Path;
 use std::collections::BTreeMap;
 use crate::error::Result;
+use crate::audio::file::{EmbeddedLyrics, LyricsType};
 
 /// 歌词行结构
 #[derive(Debug, Clone)]
@@ -91,6 +92,105 @@ impl Lyrics {
             .collect();
 
         Ok(lyrics)
+    }
+
+    /// 从内嵌歌词创建歌词对象
+    pub fn from_embedded_lyrics(embedded_lyrics: &[EmbeddedLyrics]) -> Result<Self> {
+        // 优先级：LRC > 同步歌词 > 非同步歌词
+        let selected_lyrics = embedded_lyrics
+            .iter()
+            .min_by_key(|lyrics| match lyrics.lyrics_type {
+                LyricsType::Lrc => 0,
+                LyricsType::Synchronized => 1,
+                LyricsType::Unsynchronized => 2,
+                LyricsType::Other(_) => 3,
+            });
+
+        if let Some(lyrics) = selected_lyrics {
+            match lyrics.lyrics_type {
+                LyricsType::Lrc => {
+                    // 使用现有的LRC解析功能
+                    Self::from_lrc_content(&lyrics.content)
+                }
+                LyricsType::Synchronized => {
+                    // TODO: 实现同步歌词解析
+                    Self::from_synchronized_lyrics(&lyrics.content)
+                }
+                LyricsType::Unsynchronized | LyricsType::Other(_) => {
+                    // 创建简单的非时间同步歌词
+                    Self::from_plain_text(&lyrics.content)
+                }
+            }
+        } else {
+            Ok(Lyrics::default())
+        }
+    }
+
+    /// 从纯文本创建歌词（非时间同步）
+    pub fn from_plain_text(content: &str) -> Result<Self> {
+        let mut lyrics = Lyrics::default();
+        
+        let lines: Vec<&str> = content.lines()
+            .map(|line| line.trim())
+            .filter(|line| !line.is_empty())
+            .collect();
+
+        // 为每行分配虚拟时间戳（每行间隔3秒）
+        lyrics.lines = lines
+            .into_iter()
+            .enumerate()
+            .map(|(index, text)| LyricLine {
+                timestamp: (index as f64) * 3.0, // 3秒间隔
+                text: text.to_string(),
+            })
+            .collect();
+
+        Ok(lyrics)
+    }
+
+    /// 从同步歌词内容解析（ID3v2 SYLT格式）
+    fn from_synchronized_lyrics(content: &str) -> Result<Self> {
+        // TODO: 实现ID3v2 SYLT格式的解析
+        // 这是一个简化的实现，实际的SYLT格式更复杂
+        // 暂时回退到纯文本处理
+        Self::from_plain_text(content)
+    }
+
+    /// 尝试从音频文件路径加载内嵌歌词
+    pub fn try_load_embedded<P: AsRef<Path>>(audio_path: P) -> Result<Option<Self>> {
+        use crate::audio::file::AudioFile;
+        
+        let audio_file = AudioFile::open(audio_path.as_ref().to_str().unwrap())?;
+        let embedded_lyrics = &audio_file.info.metadata.embedded_lyrics;
+        
+        if embedded_lyrics.is_empty() {
+            Ok(None)
+        } else {
+            let lyrics = Self::from_embedded_lyrics(embedded_lyrics)?;
+            Ok(Some(lyrics))
+        }
+    }
+
+    /// 智能歌词加载：优先外部LRC文件，回退到内嵌歌词
+    pub fn smart_load<P: AsRef<Path>>(audio_path: P) -> Result<Self> {
+        let audio_path = audio_path.as_ref();
+        
+        // 1. 尝试加载同名LRC文件
+        if let Some(lrc_path) = audio_path.with_extension("lrc").to_str() {
+            if Path::new(lrc_path).exists() {
+                if let Ok(lyrics) = Self::from_lrc_file(lrc_path) {
+                    return Ok(lyrics);
+                }
+            }
+        }
+        
+        // 2. 尝试加载内嵌歌词
+        if let Ok(Some(lyrics)) = Self::try_load_embedded(audio_path) {
+            return Ok(lyrics);
+        }
+        
+        // 3. 返回空歌词
+        Ok(Lyrics::default())
     }
 
     /// 根据当前时间获取当前歌词行索引
@@ -269,18 +369,20 @@ pub fn find_lyrics_file<P: AsRef<Path>>(audio_file_path: P) -> Option<String> {
     }
 }
 
-/// 加载音频文件对应的歌词
+/// 加载音频文件对应的歌词（智能加载：外部LRC优先，回退到内嵌歌词）
 pub fn load_lyrics_for_audio<P: AsRef<Path>>(audio_file_path: P) -> Result<Option<Lyrics>> {
-    if let Some(lrc_path) = find_lyrics_file(audio_file_path) {
-        match Lyrics::from_lrc_file(&lrc_path) {
-            Ok(lyrics) => Ok(Some(lyrics)),
-            Err(e) => {
-                eprintln!("Failed to load lyrics from {}: {}", lrc_path, e);
+    match Lyrics::smart_load(&audio_file_path) {
+        Ok(lyrics) => {
+            if lyrics.has_lyrics() {
+                Ok(Some(lyrics))
+            } else {
                 Ok(None)
             }
         }
-    } else {
-        Ok(None)
+        Err(e) => {
+            eprintln!("Failed to load lyrics for {}: {}", audio_file_path.as_ref().display(), e);
+            Ok(None)
+        }
     }
 }
 
@@ -298,16 +400,12 @@ mod tests {
 
     #[test]
     fn test_parse_lyric_line() {
-        let result = parse_lyric_line("[00:12.34]Hello World");
-        assert!(result.is_some());
-        let (timestamps, text) = result.unwrap();
+        let (timestamps, text) = parse_lyric_line("[00:12.34]Hello world").unwrap();
         assert_eq!(timestamps, vec![12340]);
-        assert_eq!(text, "Hello World");
+        assert_eq!(text, "Hello world");
 
-        let result = parse_lyric_line("[00:12.34][00:15.67]Multiple timestamps");
-        assert!(result.is_some());
-        let (timestamps, text) = result.unwrap();
-        assert_eq!(timestamps, vec![12340, 15670]);
+        let (timestamps, text) = parse_lyric_line("[00:12.34][00:56.78]Multiple timestamps").unwrap();
+        assert_eq!(timestamps, vec![12340, 56780]);
         assert_eq!(text, "Multiple timestamps");
     }
 
@@ -334,5 +432,71 @@ mod tests {
             extract_text_after_timestamps("[00:12.34][00:15.67]Multiple timestamps"),
             "Multiple timestamps"
         );
+    }
+
+    #[test]
+    fn test_from_embedded_lyrics() {
+        use crate::audio::file::{EmbeddedLyrics, LyricsType};
+        
+        // 测试LRC格式的内嵌歌词
+        let lrc_lyrics = EmbeddedLyrics {
+            content: "[00:12.34]First line\n[00:15.78]Second line".to_string(),
+            language: Some("en".to_string()),
+            description: Some("Test LRC".to_string()),
+            lyrics_type: LyricsType::Lrc,
+        };
+        
+        let lyrics = Lyrics::from_embedded_lyrics(&[lrc_lyrics]).unwrap();
+        assert_eq!(lyrics.lines.len(), 2);
+        assert_eq!(lyrics.lines[0].text, "First line");
+        assert_eq!(lyrics.lines[0].timestamp, 12.34);
+    }
+
+    #[test]
+    fn test_from_plain_text() {
+        let content = "Line 1\nLine 2\nLine 3";
+        let lyrics = Lyrics::from_plain_text(content).unwrap();
+        
+        assert_eq!(lyrics.lines.len(), 3);
+        assert_eq!(lyrics.lines[0].text, "Line 1");
+        assert_eq!(lyrics.lines[0].timestamp, 0.0);
+        assert_eq!(lyrics.lines[1].text, "Line 2");
+        assert_eq!(lyrics.lines[1].timestamp, 3.0);
+        assert_eq!(lyrics.lines[2].text, "Line 3");
+        assert_eq!(lyrics.lines[2].timestamp, 6.0);
+    }
+
+    #[test]
+    fn test_embedded_lyrics_priority() {
+        use crate::audio::file::{EmbeddedLyrics, LyricsType};
+        
+        let unsync_lyrics = EmbeddedLyrics {
+            content: "Unsync lyrics".to_string(),
+            language: None,
+            description: None,
+            lyrics_type: LyricsType::Unsynchronized,
+        };
+        
+        let lrc_lyrics = EmbeddedLyrics {
+            content: "[00:12.34]LRC lyrics".to_string(),
+            language: None,
+            description: None,
+            lyrics_type: LyricsType::Lrc,
+        };
+        
+        // LRC应该有更高优先级
+        let lyrics = Lyrics::from_embedded_lyrics(&[unsync_lyrics, lrc_lyrics]).unwrap();
+        assert_eq!(lyrics.lines.len(), 1);
+        assert_eq!(lyrics.lines[0].text, "LRC lyrics");
+    }
+
+    #[test]
+    fn test_is_lrc_content() {
+        use crate::audio::file::AudioMetadata;
+        
+        assert!(AudioMetadata::is_lrc_content("[00:12.34]Test line"));
+        assert!(AudioMetadata::is_lrc_content("[00:12.34]First\n[00:15.67]Second"));
+        assert!(!AudioMetadata::is_lrc_content("Plain text without timestamps"));
+        assert!(!AudioMetadata::is_lrc_content("Some [text] but not timestamps"));
     }
 } 

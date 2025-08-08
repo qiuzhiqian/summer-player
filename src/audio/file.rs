@@ -49,8 +49,36 @@ pub struct AudioMetadata {
     pub comment: Option<String>,
     /// 封面图片
     pub cover_art: Option<CoverArt>,
+    /// 内嵌歌词信息
+    pub embedded_lyrics: Vec<EmbeddedLyrics>,
     /// 其他标签
     pub other_tags: HashMap<String, String>,
+}
+
+/// 内嵌歌词信息
+#[derive(Debug, Clone)]
+pub struct EmbeddedLyrics {
+    /// 歌词内容
+    pub content: String,
+    /// 语言代码 (ISO 639-2)
+    pub language: Option<String>,
+    /// 歌词描述/标题
+    pub description: Option<String>,
+    /// 歌词类型
+    pub lyrics_type: LyricsType,
+}
+
+/// 歌词类型
+#[derive(Debug, Clone, PartialEq)]
+pub enum LyricsType {
+    /// 非同步歌词 (USLT)
+    Unsynchronized,
+    /// 同步歌词 (SYLT) 
+    Synchronized,
+    /// LRC格式歌词
+    Lrc,
+    /// 其他格式
+    Other(String),
 }
 
 impl AudioMetadata {
@@ -109,6 +137,12 @@ impl AudioMetadata {
                 _ => tag.value.to_string(),
             };
             
+            // 首先检查歌词相关的标签
+            if let Some(lyrics) = Self::extract_lyrics_from_tag(&tag.key, &value) {
+                audio_metadata.embedded_lyrics.push(lyrics);
+                continue;
+            }
+            
             // 使用std_key进行标准化匹配
             if let Some(std_key) = &tag.std_key {
                 use symphonia::core::meta::StandardTagKey;
@@ -136,6 +170,76 @@ impl AudioMetadata {
         }
         
         audio_metadata
+    }
+
+    /// 从标签中提取歌词信息
+    fn extract_lyrics_from_tag(key: &str, value: &str) -> Option<EmbeddedLyrics> {
+        // 转换为大写以便匹配
+        let key_upper = key.to_uppercase();
+        
+        match key_upper.as_str() {
+            // ID3v2.3/2.4 非同步歌词 (USLT)
+            "USLT" => Some(EmbeddedLyrics {
+                content: value.to_string(),
+                language: None, // TODO: 解析语言信息
+                description: None,
+                lyrics_type: LyricsType::Unsynchronized,
+            }),
+            
+            // ID3v2.3/2.4 同步歌词 (SYLT)
+            "SYLT" => Some(EmbeddedLyrics {
+                content: value.to_string(),
+                language: None,
+                description: None,
+                lyrics_type: LyricsType::Synchronized,
+            }),
+            
+            // 常见的歌词标签变体
+            "LYRIC" => Some(EmbeddedLyrics {
+                content: value.to_string(),
+                language: None,
+                description: None,
+                lyrics_type: LyricsType::Unsynchronized,
+            }),
+            
+            // iTunes/MP4 歌词标签
+            "©LYR" | "LYR" => Some(EmbeddedLyrics {
+                content: value.to_string(),
+                language: None,
+                description: Some("iTunes Lyrics".to_string()),
+                lyrics_type: LyricsType::Unsynchronized,
+            }),
+            
+            // FLAC/Vorbis 歌词标签
+            "LYRICS" | "UNSYNCEDLYRICS" => Some(EmbeddedLyrics {
+                content: value.to_string(),
+                language: None,
+                description: None,
+                lyrics_type: LyricsType::Unsynchronized,
+            }),
+            
+            // 检查是否包含LRC格式内容
+            _ if Self::is_lrc_content(value) => Some(EmbeddedLyrics {
+                content: value.to_string(),
+                language: None,
+                description: Some(format!("LRC from {}", key)),
+                lyrics_type: LyricsType::Lrc,
+            }),
+            
+            _ => None,
+        }
+    }
+    
+    /// 检查内容是否是LRC格式
+    fn is_lrc_content(content: &str) -> bool {
+        // 简单检查：是否包含LRC时间标签格式 [mm:ss.xx]
+        content.contains("[") && 
+        content.contains("]") && 
+        content.lines().any(|line| {
+            line.trim_start().starts_with("[") && 
+            line.contains(":") && 
+            line.contains("]")
+        })
     }
 }
 
