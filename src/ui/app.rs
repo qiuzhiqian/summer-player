@@ -656,71 +656,69 @@ impl PlayerApp {
         // 获取动画进度（已经通过 anim-rs 进行了缓动处理）
         let progress = self.view_animation.progress();
         
-        // 获取当前视图和目标视图
-        let current_view_content = match self.current_view {
-            ViewType::Playlist => playlist_view(&self.playlist, self.playlist_loaded, self.is_playing),
-            ViewType::Lyrics => lyrics_view(&self.file_path, self.is_playing, self.playback_state.current_time, self.current_lyrics.clone(), self.window_size.1),
-        };
+        // 获取播放列表和歌词视图内容
+        let playlist_content = playlist_view(&self.playlist, self.playlist_loaded, self.is_playing);
+        let lyrics_content = lyrics_view(&self.file_path, self.is_playing, self.playback_state.current_time, self.current_lyrics.clone(), self.window_size.1);
         
-        let target_view_content = if let Some(target) = self.view_animation.target_view() {
-            match target {
-                ViewType::Playlist => playlist_view(&self.playlist, self.playlist_loaded, self.is_playing),
-                ViewType::Lyrics => lyrics_view(&self.file_path, self.is_playing, self.playback_state.current_time, self.current_lyrics.clone(), self.window_size.1),
-            }
-        } else {
-            // 如果没有目标视图，生成与当前视图相同的内容
-            match self.current_view {
-                ViewType::Playlist => playlist_view(&self.playlist, self.playlist_loaded, self.is_playing),
-                ViewType::Lyrics => lyrics_view(&self.file_path, self.is_playing, self.playback_state.current_time, self.current_lyrics.clone(), self.window_size.1),
-            }
-        };
-        
-        // 判断滑动方向：Playlist -> Lyrics (向左滑动), Lyrics -> Playlist (向右滑动)
-        let is_slide_left = matches!(
+        // 判断滑动方向：Playlist -> Lyrics (歌词从下方向上滑动), Lyrics -> Playlist (歌词向下滑出)
+        let is_switching_to_lyrics = matches!(
             (&self.current_view, self.view_animation.target_view()),
             (ViewType::Playlist, Some(ViewType::Lyrics))
         );
         
-        // 为了防止闪烁，在动画接近结束时提前给目标视图更多空间
-        let adjusted_progress = if progress > 0.9 {
-            // 最后10%时加速完成，使切换更干脆
-            0.9 + (progress - 0.9) * 10.0
-        } else {
-            progress
-        }.clamp(0.0, 1.0);
+        // 使用线性进度，确保动画均匀变化
+        let adjusted_progress = progress.clamp(0.0, 1.0);
         
-        // 计算宽度比例，确保平滑过渡
-        let min_width = 0.02; // 最小2%宽度
-        let current_width = (1.0 - adjusted_progress).max(min_width);
-        let target_width = adjusted_progress.max(min_width);
+        // 调试：打印动画进度（可以在需要时启用）
+        // println!("Animation progress: {:.3} -> {:.3}", progress, adjusted_progress);
         
-        // 转换为整数比例，确保总和不超过100
-        let total_width = current_width + target_width;
-        let current_portion = ((current_width / total_width * 98.0) + 1.0) as u16;
-        let target_portion = ((target_width / total_width * 98.0) + 1.0) as u16;
-        
-        // 创建滑动效果
-        if is_slide_left {
-            // 向左滑动：当前视图在左，目标视图在右
-            row![
-                container(current_view_content)
-                    .width(Length::FillPortion(current_portion))
-                    .height(Length::Fill),
-                container(target_view_content)
-                    .width(Length::FillPortion(target_portion))
-                    .height(Length::Fill),
+        if is_switching_to_lyrics {
+            // 切换到歌词视图：歌词从下方向上滑入
+            let slide_in_progress = adjusted_progress; // 滑入进度从0到1
+            
+            // 使用column布局实现滑入效果
+            let visible_height_percent = slide_in_progress * 100.0;
+            let hidden_height_percent = 100.0 - visible_height_percent;
+            
+            // 调试输出
+            // println!("Slide IN: visible={:.1}%, hidden={:.1}%", visible_height_percent, hidden_height_percent);
+            
+            column![
+                // 播放列表区域，高度逐渐减少
+                container(playlist_content)
+                    .height(Length::FillPortion((hidden_height_percent + 1.0) as u16))
+                    .width(Length::Fill),
+                // 歌词区域，从底部向上增长
+                container(lyrics_content)
+                    .height(Length::FillPortion((visible_height_percent + 1.0) as u16))
+                    .width(Length::Fill),
             ]
             .spacing(0)
             .into()
         } else {
-            // 向右滑动：目标视图在左，当前视图在右
-            row![
-                container(target_view_content)
-                    .width(Length::FillPortion(target_portion))
-                    .height(Length::Fill),
-                container(current_view_content)
-                    .width(Length::FillPortion(current_portion))
-                    .height(Length::Fill),
+            // 切换到播放列表：歌词从上向下滑出视图区域
+            let slide_out_progress = adjusted_progress; // 滑出进度从0到1
+            
+            // 关键改变：使用上方空白空间来"推动"歌词向下滑出
+            let top_spacer_percent = slide_out_progress * 100.0; // 上方空白空间逐渐增加
+            let lyrics_visible_percent = (1.0 - slide_out_progress) * 100.0; // 歌词可见高度逐渐减少
+            
+            // 调试输出
+            // println!("Slide OUT: spacer={:.1}%, lyrics_visible={:.1}%", top_spacer_percent, lyrics_visible_percent);
+            
+            // 始终使用三层布局，确保动画连续性，避免突然跳转
+            column![
+                // 上方空白空间，逐渐增加，"推动"歌词向下
+                container(iced::widget::Space::new(Length::Fill, Length::FillPortion((top_spacer_percent + 1.0) as u16)))
+                    .width(Length::Fill),
+                // 歌词内容，被推向下方，逐渐减少直到完全消失
+                container(lyrics_content)
+                    .height(Length::FillPortion((lyrics_visible_percent + 1.0) as u16))
+                    .width(Length::Fill),
+                // 播放列表在底部作为背景，始终存在
+                container(playlist_content)
+                    .height(Length::Fill)
+                    .width(Length::Fill),
             ]
             .spacing(0)
             .into()

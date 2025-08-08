@@ -40,10 +40,10 @@ impl ViewTransitionAnimation {
             return;
         }
         
-        // 创建从 0.0 到 1.0 的动画，持续 280ms，使用 ease-in-out-cubic 缓动
+        // 创建从 0.0 到 1.0 的动画，持续 800ms，使用 ease-in-out-quad 缓动以获得更明显的动画效果
         let timeline = Options::new(0.0, 1.0)
-            .duration(Duration::from_millis(280))
-            .easing(easing::cubic_ease().mode(EasingMode::InOut))
+            .duration(Duration::from_millis(800))
+            .easing(easing::quad_ease().mode(EasingMode::InOut))
             .begin_animation();
             
         self.timeline = Some(timeline);

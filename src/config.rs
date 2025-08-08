@@ -13,8 +13,63 @@ pub const BUFFER_WRITE_DELAY: u64 = 10;
 
 /// 字体配置
 pub mod fonts {
-    /// 中文字体
-    pub const CHINESE_FONT: &str = "SimHei";
+    /// 获取适合当前平台的中文字体
+    pub fn get_chinese_font() -> &'static str {
+        #[cfg(target_os = "windows")]
+        {
+            // Windows系统优先使用微软雅黑，fallback到SimHei
+            "Microsoft YaHei"
+        }
+        #[cfg(target_os = "macos")]
+        {
+            // macOS系统使用PingFang SC
+            "PingFang SC"
+        }
+        #[cfg(target_os = "linux")]
+        {
+            // Linux系统使用Noto Sans CJK SC，fallback到思源黑体
+            "Noto Sans CJK SC"
+        }
+        #[cfg(not(any(target_os = "windows", target_os = "macos", target_os = "linux")))]
+        {
+            // 其他系统使用通用回退
+            "sans-serif"
+        }
+    }
+    
+    /// Windows字体回退选项
+    pub const WINDOWS_FONT_FALLBACKS: &[&str] = &[
+        "Microsoft YaHei",
+        "Microsoft YaHei UI",
+        "SimHei",
+        "SimSun",
+        "NSimSun",
+        "FangSong",
+        "KaiTi",
+        "sans-serif"
+    ];
+    
+    /// macOS字体回退选项
+    pub const MACOS_FONT_FALLBACKS: &[&str] = &[
+        "PingFang SC",
+        "Hiragino Sans GB",
+        "Heiti SC",
+        "STHeiti",
+        "sans-serif"
+    ];
+    
+    /// Linux字体回退选项
+    pub const LINUX_FONT_FALLBACKS: &[&str] = &[
+        "Noto Sans CJK SC",
+        "Source Han Sans SC",
+        "WenQuanYi Micro Hei",
+        "DejaVu Sans",
+        "Liberation Sans",
+        "sans-serif"
+    ];
+    
+    /// 中文字体（保持向后兼容）
+    pub const CHINESE_FONT: &str = "Microsoft YaHei";
     
     /// Emoji 字体文件路径
     pub const EMOJI_FONT_PATH: &str = "fonts/NotoColorEmoji.ttf";

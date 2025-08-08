@@ -7,6 +7,7 @@ use summer_player::{
     audio::{AudioFile, list_audio_devices},
     utils::format_duration,
     error::Result,
+    config::fonts,
 };
 
 
@@ -103,7 +104,7 @@ fn main() {
             icon: Some(icon),
             ..window::Settings::default()
         })
-        .default_font(Font::with_name("Noto Sans CJK SC"))
+        .default_font(Font::with_name(fonts::get_chinese_font()))
         .run_with(|| (app, initial_task))
         .unwrap();
 }
