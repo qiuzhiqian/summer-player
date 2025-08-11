@@ -701,14 +701,65 @@ pub fn lyrics_view(file_path: &str, is_playing: bool, current_time: f64, lyrics:
 // 工具函数
 // ============================================================================
 
+/// 计算歌词显示行数
+/// 
+/// 根据窗口高度和布局结构动态计算合适的歌词显示行数
 fn calculate_display_lines(total_lyrics: usize, window_height: f32) -> usize {
-    let available_height = window_height - 350.0; // 减去其他UI元素高度
-    let line_height = 28.0;
-    let calculated = (available_height / line_height) as usize;
+    // 分析当前布局的固定高度占用：
+    // 1. 整体外边距：8px (上) + 8px (下) = 16px
+    // 2. 主内容区域内边距：16px (上) + 16px (下) = 32px  
+    // 3. 主内容和底部区域间距：16px
+    // 4. 底部区域：
+    //    - 控制按钮高度：~54px (BUTTON_SIZE_MEDIUM + 6.0)
+    //    - 进度条区域高度：~40px (文本 + slider + spacing + padding)
+    //    - 功能按钮高度：~48px (BUTTON_SIZE_MEDIUM)
+    //    - 底部区域padding：8px (上) + 8px (下) = 16px
+    //    - 底部区域总高度：max(54, 40, 48) + 16 = 70px
+    // 5. 歌词视图内部padding：constants::PADDING_LARGE + 4 = 28px (上下各28px = 56px)
+    // 6. 歌词标题和艺术家信息占用：~80px (标题 + 艺术家 + spacing)
     
-    let lines = if total_lyrics <= 7 { 9 } else { calculated.min(total_lyrics + 4) };
-    let final_lines = lines.max(5).min(21);
-    if final_lines % 2 == 0 { final_lines + 1 } else { final_lines }
+    let fixed_ui_height = 16.0  // 整体外边距
+        + 32.0  // 主内容区域内边距
+        + 16.0  // 主内容和底部间距
+        + 70.0  // 底部区域
+        + 56.0  // 歌词视图内部padding
+        + 80.0; // 歌词标题区域
+        
+    let available_height = window_height - fixed_ui_height;
+    
+    // 歌词行高度：标准文本大小 + 行间距
+    // TEXT_TITLE-2 (18px) + SPACING_LARGE (20px) = 38px 用于当前行
+    // TEXT_MEDIUM (14px) + SPACING_LARGE (20px) = 34px 用于其他行
+    // 平均行高取 35px
+    let line_height = 35.0;
+    
+    // 计算基础显示行数
+    let calculated_lines = (available_height / line_height) as usize;
+    
+    // 应用智能调整策略
+    let adjusted_lines = if total_lyrics == 0 {
+        // 无歌词时，返回默认值
+        7
+    } else if total_lyrics <= 5 {
+        // 歌词很少时，稍微多显示一些行以保持视觉平衡
+        9.min(calculated_lines.max(7))
+    } else if total_lyrics <= 15 {
+        // 中等长度歌词，显示合理的行数
+        calculated_lines.max(9).min(15)
+    } else {
+        // 长歌词，允许更多行显示
+        calculated_lines.max(11).min(25)
+    };
+    
+    // 确保最小行数为5，最大行数为25
+    let final_lines = adjusted_lines.max(5).min(25);
+    
+    // 确保为奇数以保持当前行居中
+    if final_lines % 2 == 0 { 
+        final_lines + 1 
+    } else { 
+        final_lines 
+    }
 }
 
 pub fn spacer() -> Element<'static, Message> {
