@@ -3,7 +3,7 @@
 //! 包含可重用的UI组件和通用样式。
 
 use iced::{
-    widget::{button, column, row, text, slider, scrollable, Space, container, tooltip, svg, image},
+    widget::{button, column, row, text, slider, scrollable, Space, container, tooltip, svg},
     Element, Length, Border, Shadow, Background, Color,
     alignment::{Horizontal, Vertical},
     border::Radius,
@@ -374,32 +374,7 @@ pub fn file_info_view(audio_info: Option<&AudioInfo>, file_path: &str) -> Elemen
             ).width(Length::Fill),
         ].spacing(constants::SPACING_MEDIUM);
 
-        // 添加封面图片
-        if let Some(cover_art) = &info.metadata.cover_art {
-            main_col = main_col.push(
-                container(
-                    image(image::Handle::from_bytes(cover_art.data.clone()))
-                        .width(Length::Shrink)
-                        .height(Length::Shrink)
-                )
-                .style(|theme: &iced::Theme| {
-                    let palette = theme.extended_palette();
-                    container::Style {
-                        background: Some(Background::Color(palette.background.weak.color)),
-                        border: Border {
-                            radius: Radius::from(8.0),
-                            width: 1.0,
-                            color: palette.background.strong.color,
-                        },
-                        shadow: Shadow::default(),
-                        text_color: None,
-                    }
-                })
-                .padding(4)
-                .width(Length::Shrink)
-                .align_x(Horizontal::Center)
-            );
-        }
+        // 封面图片现在显示在底部栏
 
         // 音频信息
         main_col = main_col.push(
@@ -465,27 +440,23 @@ pub fn control_buttons_view(is_playing: bool) -> Element<'static, Message> {
         (icons::PLAY, t!("Play").to_string())
     };
 
-    container(
-        row![
-            icon_button(icons::PREVIOUS, t!("Previous Track").to_string(), Message::PreviousTrack, constants::BUTTON_SIZE_MEDIUM, constants::ICON_SIZE_MEDIUM, AppTheme::control_button),
-            icon_button(play_icon, play_tooltip, Message::PlayPause, constants::BUTTON_SIZE_MEDIUM + 6.0, constants::ICON_SIZE_LARGE, AppTheme::play_button),
-            icon_button(icons::NEXT, t!("Next Track").to_string(), Message::NextTrack, constants::BUTTON_SIZE_MEDIUM, constants::ICON_SIZE_MEDIUM, AppTheme::control_button),
-        ].spacing(constants::SPACING_SMALL).align_y(Vertical::Center)
-    )
-    .style(AppTheme::main_section_container())
-    .padding(constants::PADDING_SMALL)
-    .width(Length::Fill)
-    .align_x(Horizontal::Center)
+    row![
+        icon_button(icons::PREVIOUS, t!("Previous Track").to_string(), Message::PreviousTrack, constants::BUTTON_SIZE_SMALL, constants::ICON_SIZE_SMALL, AppTheme::control_button),
+        icon_button(play_icon, play_tooltip, Message::PlayPause, constants::BUTTON_SIZE_MEDIUM, constants::ICON_SIZE_MEDIUM, AppTheme::play_button),
+        icon_button(icons::NEXT, t!("Next Track").to_string(), Message::NextTrack, constants::BUTTON_SIZE_SMALL, constants::ICON_SIZE_SMALL, AppTheme::control_button),
+    ]
+    .spacing(constants::SPACING_SMALL)
+    .align_y(Vertical::Center)
     .into()
 }
 
 /// 紧凑按钮组
 pub fn compact_play_mode_button(current_mode: PlayMode) -> Element<'static, Message> {
-    icon_button(current_mode.icon(), current_mode.name(), Message::TogglePlayMode, constants::BUTTON_SIZE_MEDIUM, constants::ICON_SIZE_MEDIUM, AppTheme::file_button)
+    icon_button(current_mode.icon(), current_mode.name(), Message::TogglePlayMode, constants::BUTTON_SIZE_SMALL, constants::ICON_SIZE_SMALL, AppTheme::file_button)
 }
 
 pub fn compact_file_button() -> Element<'static, Message> {
-    icon_button(icons::FILE_FOLDER, t!("Open File").to_string(), Message::OpenFile, constants::BUTTON_SIZE_MEDIUM, constants::ICON_SIZE_MEDIUM, AppTheme::file_button)
+    icon_button(icons::FILE_FOLDER, t!("Open File").to_string(), Message::OpenFile, constants::BUTTON_SIZE_SMALL, constants::ICON_SIZE_SMALL, AppTheme::file_button)
 }
 
 pub fn compact_view_toggle_button(current_view: ViewType) -> Element<'static, Message> {
@@ -493,7 +464,7 @@ pub fn compact_view_toggle_button(current_view: ViewType) -> Element<'static, Me
         ViewType::Playlist => (icons::MUSIC_NOTE, t!("Switch to Lyrics").to_string()),
         ViewType::Lyrics => (icons::LIST_VIEW, t!("Switch to Playlist").to_string()),
     };
-    icon_button(icon, tooltip, Message::ToggleView, constants::BUTTON_SIZE_MEDIUM, constants::ICON_SIZE_MEDIUM, AppTheme::file_button)
+    icon_button(icon, tooltip, Message::ToggleView, constants::BUTTON_SIZE_SMALL, constants::ICON_SIZE_SMALL, AppTheme::file_button)
 }
 
 /// 进度条视图
@@ -502,22 +473,94 @@ pub fn progress_view(playback_state: &PlaybackState) -> Element<'static, Message
         (playback_state.current_time / playback_state.total_duration) as f32
     } else { 0.0 };
     
-    container(
-        column![
-            row![
-                text(format_duration(playback_state.current_time)).size(constants::TEXT_MEDIUM).style(AppTheme::current_time_text()),
-                Space::new(Length::Fill, Length::Shrink),
-                text(format_duration(playback_state.total_duration)).size(constants::TEXT_MEDIUM).style(AppTheme::total_time_text()),
-            ].padding(1),
-            container(
-                slider(0.0..=1.0, progress, Message::ProgressChanged)
-                    .step(0.001).style(AppTheme::progress_slider())
-            ).padding(1),
-        ].spacing(4)
-    )
-    .style(AppTheme::glass_card_container())
-    .padding(constants::PADDING_SMALL)
+    column![
+        row![
+            text(format_duration(playback_state.current_time))
+                .size(constants::TEXT_SMALL)
+                .style(AppTheme::current_time_text()),
+            Space::new(Length::Fill, Length::Shrink),
+            text(format_duration(playback_state.total_duration))
+                .size(constants::TEXT_SMALL)
+                .style(AppTheme::total_time_text()),
+        ],
+        slider(0.0..=1.0, progress, Message::ProgressChanged)
+            .step(0.001)
+            .style(AppTheme::progress_slider())
+    ]
+    .spacing(4)
     .width(Length::Fill)
+    .into()
+}
+
+/// 细进度条视图（用于底部栏）
+pub fn thin_progress_view(playback_state: &PlaybackState) -> Element<'static, Message> {
+    let progress = if playback_state.total_duration > 0.0 {
+        (playback_state.current_time / playback_state.total_duration) as f32
+    } else { 0.0 };
+    
+    column![
+        // 只显示进度条，不显示时间文本
+        slider(0.0..=1.0, progress, Message::ProgressChanged)
+            .step(0.001)
+            .style(AppTheme::progress_slider())
+            .height(4.0), // 设置更小的高度使进度条更细
+    ]
+    .width(Length::Fill)
+    .into()
+}
+
+/// 简单时间显示（用于底部栏右侧）
+pub fn simple_time_view(playback_state: &PlaybackState) -> Element<'static, Message> {
+    let current_time_str = format_duration(playback_state.current_time);
+    let total_time_str = format_duration(playback_state.total_duration);
+    
+    container(
+        row![
+            text(current_time_str)
+                .size(constants::TEXT_NORMAL)
+                .style(|theme: &iced::Theme| {
+                    let palette = theme.extended_palette();
+                    iced::widget::text::Style {
+                        color: Some(palette.primary.strong.color), // 使用主题强调色
+                    }
+                }),
+            text(" / ")
+                .size(constants::TEXT_NORMAL)
+                .style(|theme: &iced::Theme| {
+                                         let palette = theme.extended_palette();
+                    iced::widget::text::Style {
+                        color: Some(palette.background.base.text), // 使用主题文本色
+                    }
+                }),
+            text(total_time_str)
+                .size(constants::TEXT_NORMAL)
+                .style(|theme: &iced::Theme| {
+                    let palette = theme.extended_palette();
+                    iced::widget::text::Style {
+                        color: Some(Color { a: 0.9, ..palette.background.base.text }), // 稍微透明的主题文本色
+                    }
+                }),
+        ]
+        .spacing(4)
+        .align_y(Vertical::Center)
+    )
+    .style(|theme: &iced::Theme| {
+        let palette = theme.extended_palette();
+        container::Style {
+            background: Some(Background::Color(Color { a: 0.1, ..palette.background.strong.color })),
+            border: Border {
+                radius: Radius::from(4.0),
+                width: 0.0,
+                color: Color::TRANSPARENT,
+            },
+            shadow: Shadow::default(),
+            text_color: None,
+        }
+    })
+    .width(Length::Fixed(120.0))
+    .align_x(Horizontal::Center)
+    .align_y(Vertical::Center)
+    .padding(4)
     .into()
 }
 
@@ -791,6 +834,231 @@ fn calculate_display_lines(total_lyrics: usize, window_height: f32) -> usize {
 
 pub fn spacer() -> Element<'static, Message> {
     Space::new(Length::Fill, Length::Fill).into()
+}
+
+/// 紧凑的专辑封面视图（用于底部栏下层）
+pub fn compact_album_cover_view(audio_info: Option<&AudioInfo>) -> Element<'static, Message> {
+    let content = if let Some(info) = audio_info {
+        if let Some(cover_art) = &info.metadata.cover_art {
+            // 显示专辑封面（更大尺寸）
+            iced::widget::Image::new(iced::widget::image::Handle::from_bytes(cover_art.data.clone()))
+                .width(Length::Fixed(50.0))
+                .height(Length::Fixed(50.0))
+                .into()
+        } else {
+            // 没有封面时显示音乐图标
+            svg_icon(icons::MUSIC_NOTE, 28.0, constants::ICON_COLOR)
+        }
+    } else {
+        // 没有音频信息时显示音乐图标
+        svg_icon(icons::MUSIC_NOTE, 28.0, constants::ICON_COLOR)
+    };
+
+    container(content)
+        .style(|theme: &iced::Theme| {
+            let palette = theme.extended_palette();
+            container::Style {
+                background: Some(Background::Color(palette.background.weak.color)),
+                border: Border {
+                    radius: Radius::from(6.0),
+                    width: 1.0,
+                    color: palette.background.strong.color,
+                },
+                shadow: Shadow {
+                    color: Color::from_rgba(0.0, 0.0, 0.0, 0.15),
+                    offset: iced::Vector::new(0.0, 2.0),
+                    blur_radius: 4.0,
+                },
+                text_color: None,
+            }
+        })
+        .width(Length::Fixed(56.0))
+        .height(Length::Fixed(56.0))
+        .align_x(Horizontal::Center)
+        .align_y(Vertical::Center)
+        .padding(3)
+        .into()
+}
+
+/// 紧凑的歌曲信息视图（用于底部栏下层）
+pub fn compact_song_info_view(audio_info: Option<&AudioInfo>, file_path: &str) -> Element<'static, Message> {
+    if let Some(info) = audio_info {
+        let file_name = std::path::Path::new(file_path)
+            .file_stem().and_then(|s| s.to_str())
+            .unwrap_or("Unknown Track").to_string();
+        
+        let display_title = info.metadata.title.clone().unwrap_or(file_name);
+        let display_artist = info.metadata.artist.clone().unwrap_or("Unknown Artist".to_string());
+        
+        container(
+            column![
+                // 第一行：歌曲名（使用主题强调色，高对比度）
+                text(if display_title.chars().count() > 25 {
+                    format!("{}...", display_title.chars().take(22).collect::<String>())
+                } else {
+                    display_title
+                })
+                .size(constants::TEXT_MEDIUM)
+                .style(|theme: &iced::Theme| {
+                    let palette = theme.extended_palette();
+                    iced::widget::text::Style {
+                        color: Some(palette.primary.strong.color), // 使用主题强调色，高对比度
+                    }
+                }),
+                
+                // 第二行：艺术家（使用主题文本色）
+                text(if display_artist.chars().count() > 25 {
+                    format!("{}...", display_artist.chars().take(22).collect::<String>())
+                } else {
+                    display_artist
+                })
+                .size(constants::TEXT_SMALL)
+                .style(|theme: &iced::Theme| {
+                    let palette = theme.extended_palette();
+                    iced::widget::text::Style {
+                        color: Some(Color { a: 0.9, ..palette.background.base.text }), // 主题文本色，稍微透明
+                    }
+                }),
+            ]
+            .spacing(3)
+        )
+        .style(|theme: &iced::Theme| {
+            let palette = theme.extended_palette();
+            container::Style {
+                background: Some(Background::Color(Color { a: 0.05, ..palette.background.strong.color })),
+                border: Border {
+                    radius: Radius::from(4.0),
+                    width: 0.0,
+                    color: Color::TRANSPARENT,
+                },
+                shadow: Shadow::default(),
+                text_color: None,
+            }
+        })
+        .width(Length::Fixed(180.0))
+        .align_y(Vertical::Center)
+        .padding([4, 8])
+        .into()
+    } else {
+        container(
+            column![
+                text("No Track")
+                    .size(constants::TEXT_MEDIUM)
+                    .style(alpha_text_style(0.8)),
+                text("Select a file to play")
+                    .size(constants::TEXT_SMALL)
+                    .style(alpha_text_style(0.6))
+            ]
+            .spacing(2)
+        )
+        .width(Length::Fixed(180.0))
+        .align_y(Vertical::Center)
+        .padding([0, 8])
+        .into()
+    }
+}
+
+/// 当前歌曲信息视图（用于底部栏）
+pub fn current_track_info_view(audio_info: Option<&AudioInfo>, file_path: &str) -> Element<'static, Message> {
+    if let Some(info) = audio_info {
+        let file_name = std::path::Path::new(file_path)
+            .file_stem().and_then(|s| s.to_str())
+            .unwrap_or("Unknown Track").to_string();
+        
+        let display_title = info.metadata.title.clone().unwrap_or(file_name);
+        let display_artist = info.metadata.artist.clone().unwrap_or("Unknown Artist".to_string());
+        
+        // 音乐图标 (暂时简化，不显示专辑封面)
+        let cover_element = container(
+            svg_icon(icons::MUSIC_NOTE, 24.0, constants::ICON_COLOR)
+        )
+        .style(|theme: &iced::Theme| {
+            let palette = theme.extended_palette();
+            container::Style {
+                background: Some(Background::Color(palette.background.weak.color)),
+                border: Border {
+                    radius: Radius::from(6.0),
+                    width: 1.0,
+                    color: palette.background.strong.color,
+                },
+                shadow: Shadow::default(),
+                text_color: None,
+            }
+        })
+        .width(Length::Fixed(48.0))
+        .height(Length::Fixed(48.0))
+        .align_x(Horizontal::Center)
+        .align_y(Vertical::Center);
+        
+        // 歌曲信息
+        let track_info = column![
+            {
+                let title_color = Color { r: 0.9, g: 0.9, b: 0.9, a: 1.0 };
+                truncated_text(display_title, 25, constants::TEXT_MEDIUM, title_color)
+            },
+            {
+                let artist_color = Color { r: 0.6, g: 0.6, b: 0.6, a: 1.0 };
+                truncated_text(display_artist, 25, constants::TEXT_SMALL, artist_color)
+            }
+        ]
+        .spacing(2);
+        
+        container(
+            row![
+                cover_element,
+                container(track_info)
+                    .width(Length::Fill)
+                    .align_y(Vertical::Center)
+                    .padding([0, constants::PADDING_SMALL])
+            ]
+            .spacing(constants::SPACING_MEDIUM)
+            .align_y(Vertical::Center)
+        )
+        .width(Length::Fixed(220.0)) // 固定宽度以保持布局稳定
+        .height(Length::Fixed(48.0))
+        .align_y(Vertical::Center)
+        .into()
+    } else {
+        // 没有音频文件时的默认显示
+        container(
+            row![
+                container(
+                    svg_icon(icons::MUSIC_NOTE, 24.0, constants::ICON_COLOR_SUBTLE)
+                )
+                .style(|theme: &iced::Theme| {
+                    let palette = theme.extended_palette();
+                    container::Style {
+                        background: Some(Background::Color(palette.background.weak.color)),
+                        border: Border {
+                            radius: Radius::from(6.0),
+                            width: 1.0,
+                            color: palette.background.strong.color,
+                        },
+                        shadow: Shadow::default(),
+                        text_color: None,
+                    }
+                })
+                .width(Length::Fixed(48.0))
+                .height(Length::Fixed(48.0))
+                .align_x(Horizontal::Center)
+                .align_y(Vertical::Center),
+                
+                column![
+                    text("No Track").size(constants::TEXT_MEDIUM).style(alpha_text_style(0.7)),
+                    text("Select a file to play").size(constants::TEXT_SMALL).style(alpha_text_style(0.5))
+                ]
+                .spacing(2)
+                .width(Length::Fill)
+                .padding([0, constants::PADDING_SMALL])
+            ]
+            .spacing(constants::SPACING_MEDIUM)
+            .align_y(Vertical::Center)
+        )
+        .width(Length::Fixed(220.0))
+        .height(Length::Fixed(48.0))
+        .align_y(Vertical::Center)
+        .into()
+    }
 }
 
  

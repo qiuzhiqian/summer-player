@@ -12,7 +12,7 @@ use iced::{
     Subscription,
     Task,
     event::{self, Event},
-    alignment::Vertical,
+    alignment::{Horizontal, Vertical},
 };
 use tokio::sync::mpsc;
 
@@ -748,30 +748,44 @@ impl PlayerApp {
 
         let main_content = row![left_panel, right_panel].spacing(20); // 增加左右面板间距
         
-        // 底部区域：控制按钮 + 进度条 + 功能按钮
+        // 底部区域：上下两层布局
         let bottom_section = container(
-            row![
-                container(control_buttons_view(self.is_playing))
-                    .width(Length::Fixed(190.0))
-                    .height(Length::Shrink),
-                column![progress_view(&self.playback_state)]
-                    .width(Length::Fill),
-                // 右侧功能按钮组
+            column![
+                // 上层：进度条
+                thin_progress_view(&self.playback_state),
+                
+                // 下层：横向布局
                 row![
-                    compact_file_button(),
-                    compact_play_mode_button(self.play_mode.clone()),
-                    compact_view_toggle_button(self.current_view.clone()),
-                ].spacing(6).align_y(Vertical::Center)
-            ].spacing(10).align_y(Vertical::Center)
+                    // 最左边：封面图片/歌曲图标
+                    compact_album_cover_view(self.audio_info.as_ref()),
+                    
+                    // 歌曲名
+                    compact_song_info_view(self.audio_info.as_ref(), &self.file_path),
+                    
+                    // 中间：控制按钮
+                    container(control_buttons_view(self.is_playing))
+                        .width(Length::Fill)
+                        .align_x(Horizontal::Center),
+                    
+                    // 右边依次：播放时间、打开文件、播放模式、歌词按钮
+                    row![
+                        simple_time_view(&self.playback_state),
+                        compact_file_button(),
+                        compact_play_mode_button(self.play_mode.clone()),
+                        compact_view_toggle_button(self.current_view.clone()),
+                    ].spacing(8).align_y(Vertical::Center)
+                ].spacing(8).align_y(Vertical::Center)
+            ].spacing(8)
         )
         .style(AppTheme::glass_card_container()) // 使用毛玻璃效果
-        .padding(8);
+        .padding(8)
+        .height(Length::Fixed(88.0)); // 增加高度以容纳更大的封面图片
 
         column![
             main_content, 
             bottom_section
         ]
-        .spacing(16) // 减少主内容和底部的间距，使布局更紧凑
+        .spacing(8) // 减少主内容和底部的间距，使布局更紧凑
         .into()
     }
 
