@@ -20,14 +20,13 @@ use crate::audio::{AudioInfo, PlaybackState, PlaybackCommand, start_audio_playba
 use crate::playlist::{Playlist, parse_m3u_playlist, create_single_file_playlist};
 use crate::lyrics::{Lyrics, load_lyrics_for_audio};
 use crate::utils::is_m3u_playlist;
-use crate::config::ui::MAIN_PANEL_WIDTH;
+use crate::config::{ui::MAIN_PANEL_WIDTH, AppConfig};
 use super::Message;
 use super::components::*;
 use super::animation::ViewTransitionAnimation;
 use super::theme::{AppThemeVariant, AppTheme};
 
 /// 主应用程序结构
-#[derive(Default)]
 pub struct PlayerApp {
     /// 播放状态
     playback_state: PlaybackState,
@@ -61,22 +60,70 @@ pub struct PlayerApp {
     current_language: String,
     /// 当前播放模式
     play_mode: PlayMode,
+    /// 应用程序配置
+    app_config: AppConfig,
+}
+
+impl Default for PlayerApp {
+    fn default() -> Self {
+        Self {
+            playback_state: PlaybackState::default(),
+            audio_info: None,
+            file_path: String::new(),
+            is_playing: false,
+            command_sender: None,
+            audio_handle: None,
+            playlist: Playlist::new(),
+            playlist_loaded: false,
+            current_page: PageType::default(),
+            current_view: ViewType::default(),
+            view_animation: ViewTransitionAnimation::new(),
+            current_lyrics: None,
+            window_size: (1000.0, 700.0),
+            current_theme: AppThemeVariant::default(),
+            current_language: "en".to_string(),
+            play_mode: PlayMode::default(),
+            app_config: AppConfig::default(),
+        }
+    }
 }
 
 impl PlayerApp {
     /// 创建新的应用程序实例
     pub fn new(initial_file: Option<String>, current_language: String) -> (Self, Task<Message>) {
+        // 加载配置
+        let mut config = AppConfig::load();
+        
+        // 如果传入了语言参数，则覆盖配置中的语言设置
+        if !current_language.is_empty() {
+            config.ui.language = current_language;
+        }
+
+        Self::new_with_config(initial_file, config)
+    }
+
+    /// 使用指定配置创建新的应用程序实例
+    pub fn new_with_config(initial_file: Option<String>, config: AppConfig) -> (Self, Task<Message>) {
+
         let mut app = Self {
-            window_size: (1000.0, 700.0), // 初始窗口大小
-            current_language,
+            window_size: (config.window.width, config.window.height),
+            current_language: config.ui.language.clone(),
+            current_theme: config.ui.theme.clone().into(),
+            current_page: config.ui.current_page.clone().into(),
+            current_view: config.ui.current_view.clone().into(),
+            play_mode: config.player.play_mode.clone().into(),
+            app_config: config,
             ..Self::default()
         };
         
-        // 如果有初始文件，加载它并开始播放
-        if let Some(file_path) = initial_file {
+        // 如果配置中有最后播放的文件且没有传入初始文件，使用配置中的文件
+        let file_to_load = initial_file.or_else(|| app.app_config.player.last_file_path.clone());
+        
+        // 如果有文件需要加载，加载它并开始播放
+        if let Some(file_path) = file_to_load {
             if !file_path.is_empty() {
                 app.handle_initial_file_load(&file_path);
-                // 自动开始播放
+                // 自动开始播放（如果配置中启用了记住播放位置）
                 if !app.file_path.is_empty() {
                     let file_path_clone = app.file_path.clone();
                     return (app, Task::perform(
@@ -115,6 +162,9 @@ impl PlayerApp {
             Message::ToggleTheme => self.handle_toggle_theme(),
             Message::PageChanged(page) => self.handle_page_changed(page),
             Message::TogglePlayMode => self.handle_toggle_play_mode(),
+            Message::ConfigUpdate => self.handle_config_update(),
+            Message::LanguageChanged(lang) => self.handle_language_changed(lang),
+            Message::ResetConfig => self.handle_reset_config(),
         }
     }
 
@@ -457,7 +507,10 @@ impl PlayerApp {
         if self.view_animation.update() {
             // 动画完成时切换视图
             if let Some(target_view) = target_view {
-                self.current_view = target_view;
+                self.current_view = target_view.clone();
+                // 更新配置
+                self.app_config.ui.current_view = target_view.into();
+                self.app_config.save_safe();
             }
         }
         Task::none()
@@ -465,6 +518,10 @@ impl PlayerApp {
 
     fn handle_window_resized(&mut self, width: f32, height: f32) -> Task<Message> {
         self.window_size = (width, height);
+        // 更新配置
+        self.app_config.window.width = width;
+        self.app_config.window.height = height;
+        self.app_config.save_safe();
         Task::none()
     }
 
@@ -494,20 +551,82 @@ impl PlayerApp {
 
     fn handle_toggle_theme(&mut self) -> Task<Message> {
         self.current_theme = self.current_theme.toggle();
+        // 更新配置
+        self.app_config.ui.theme = self.current_theme.clone().into();
+        self.app_config.save_safe();
         Task::none()
     }
 
     fn handle_page_changed(&mut self, page: PageType) -> Task<Message> {
-        self.current_page = page;
+        self.current_page = page.clone();
+        // 更新配置
+        self.app_config.ui.current_page = page.into();
+        self.app_config.save_safe();
         Task::none()
     }
 
     fn handle_toggle_play_mode(&mut self) -> Task<Message> {
         self.play_mode = self.play_mode.next();
+        // 更新配置
+        self.app_config.player.play_mode = self.play_mode.clone().into();
+        self.app_config.save_safe();
+        Task::none()
+    }
+
+    fn handle_config_update(&mut self) -> Task<Message> {
+        // 强制保存当前配置
+        self.update_config_from_state();
+        self.app_config.save_safe();
+        Task::none()
+    }
+
+    fn handle_language_changed(&mut self, language: String) -> Task<Message> {
+        self.current_language = language.clone();
+        self.app_config.ui.language = language;
+        self.app_config.save_safe();
+        
+        // 可以在这里添加重新加载UI文本的逻辑
+        Task::none()
+    }
+
+    fn handle_reset_config(&mut self) -> Task<Message> {
+        // 重置配置为默认值
+        self.app_config = AppConfig::default();
+        
+        // 更新应用状态以匹配默认配置
+        self.current_theme = self.app_config.ui.theme.clone().into();
+        self.current_language = self.app_config.ui.language.clone();
+        self.current_page = self.app_config.ui.current_page.clone().into();
+        self.current_view = self.app_config.ui.current_view.clone().into();
+        self.play_mode = self.app_config.player.play_mode.clone().into();
+        
+        // 保存重置后的配置
+        self.app_config.save_safe();
+        
         Task::none()
     }
 
     // 辅助方法
+
+    /// 从当前应用状态更新配置
+    fn update_config_from_state(&mut self) {
+        self.app_config.window.width = self.window_size.0;
+        self.app_config.window.height = self.window_size.1;
+        self.app_config.ui.theme = self.current_theme.clone().into();
+        self.app_config.ui.language = self.current_language.clone();
+        self.app_config.ui.current_page = self.current_page.clone().into();
+        self.app_config.ui.current_view = self.current_view.clone().into();
+        self.app_config.player.play_mode = self.play_mode.clone().into();
+        
+        if !self.file_path.is_empty() {
+            self.app_config.player.last_file_path = Some(self.file_path.clone());
+        }
+        
+        // 记住播放位置
+        if self.app_config.player.remember_position {
+            self.app_config.player.last_position = self.playback_state.current_time;
+        }
+    }
 
     fn load_audio_file(&mut self, file_path: &str) {
         self.file_path = file_path.to_string();
@@ -536,6 +655,10 @@ impl PlayerApp {
                 self.current_lyrics = None;
             }
         }
+        
+        // 保存最后播放的文件到配置
+        self.app_config.player.last_file_path = Some(file_path.to_string());
+        self.app_config.save_safe();
     }
 
     fn stop_current_playback(&mut self) {

@@ -45,4 +45,10 @@ pub enum Message {
     PageChanged(PageType),
     /// 播放模式切换
     TogglePlayMode,
+    /// 配置更新
+    ConfigUpdate,
+    /// 语言切换
+    LanguageChanged(String),
+    /// 配置重置
+    ResetConfig,
 } 

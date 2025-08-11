@@ -314,6 +314,33 @@ pub fn settings_page(current_theme: &AppThemeVariant, current_language: &str) ->
                 ].align_y(Vertical::Center).spacing(constants::SPACING_MEDIUM).padding(constants::PADDING_SMALL)
             ).style(AppTheme::card_container()).padding(constants::PADDING_MEDIUM).width(Length::Fill)
         ].spacing(constants::SPACING_SMALL),
+
+        column![
+            text("Advanced Settings").size(constants::TEXT_LARGE).style(AppTheme::subtitle_text()),
+            container(
+                column![
+                    row![
+                        text("Config File").size(constants::TEXT_MEDIUM).width(Length::Fixed(150.0)),
+                        {
+                            let config_path = crate::config::AppConfig::get_config_path_string();
+                            let truncated_path = if config_path.len() > 50 {
+                                format!("...{}", &config_path[config_path.len().saturating_sub(47)..])
+                            } else {
+                                config_path
+                            };
+                            text(truncated_path).size(constants::TEXT_SMALL).style(alpha_text_style(0.7))
+                        }
+                    ].align_y(Vertical::Center).spacing(constants::SPACING_MEDIUM),
+                    row![
+                        text("Reset Settings").size(constants::TEXT_MEDIUM).width(Length::Fixed(150.0)),
+                        button(text("Reset to Default"))
+                            .on_press(Message::ResetConfig)
+                            .style(AppTheme::file_button())
+                            .padding(constants::PADDING_SMALL)
+                    ].align_y(Vertical::Center).spacing(constants::SPACING_MEDIUM),
+                ].spacing(constants::SPACING_MEDIUM).padding(constants::PADDING_SMALL)
+            ).style(AppTheme::card_container()).padding(constants::PADDING_MEDIUM).width(Length::Fill)
+        ].spacing(constants::SPACING_SMALL),
         
         Space::with_height(Length::Fill),
         container(

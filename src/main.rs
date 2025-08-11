@@ -7,7 +7,7 @@ use summer_player::{
     audio::{AudioFile, list_audio_devices},
     utils::format_duration,
     error::Result,
-    config::fonts,
+    config::{fonts, AppConfig},
 };
 
 
@@ -28,9 +28,6 @@ struct Cli {
     #[arg(short, long, help = "Show audio file information and duration without playing")]
     info: bool,
 
-    #[arg(short = 'L', long, help = "Set interface language (en, zh-CN)")]
-    language: Option<String>,
-
     #[arg(help = "Path to audio file")]
     file: Option<String>,
 }
@@ -38,34 +35,28 @@ struct Cli {
 fn main() {
     let args = Cli::parse();
     
-    // 设置语言环境
-    let locale = if let Some(lang) = &args.language {
-        // 验证用户指定的语言是否支持
-        let supported_languages = ["en", "zh-CN"];
-        if supported_languages.contains(&lang.as_str()) {
-            println!("Language set to: {}", lang);
-            lang.clone()
-        } else {
-            eprintln!("Error: Unsupported language '{}'. Supported languages: {}", 
-                     lang, supported_languages.join(", "));
-            eprintln!("Falling back to system locale detection.");
-            // 回退到系统语言检测
-            let detected_locale = get_locale().unwrap_or_else(|| String::from("en-US"));
-            let mapped_locale = match detected_locale.as_str() {
-                s if s.starts_with("zh") => "zh-CN",
-                _ => "en",
-            };
-            println!("Detected locale: {}, using: {}", detected_locale, mapped_locale);
-            mapped_locale.to_string()
-        }
+    // 加载配置文件，检测是否从实际文件加载
+    let (mut config, config_exists) = AppConfig::load_with_source();
+    
+    // 设置语言环境，优先级：配置文件 > 系统检测
+    let locale = if config_exists {
+        // 配置文件存在，使用配置文件中的语言（不管是什么语言）
+        println!("Using language from config: {}", config.ui.language);
+        config.ui.language.clone()
     } else {
-        // 自动检测系统语言
+        // 配置文件不存在，自动检测系统语言
         let detected_locale = get_locale().unwrap_or_else(|| String::from("en-US"));
         let mapped_locale = match detected_locale.as_str() {
             s if s.starts_with("zh") => "zh-CN",
             _ => "en",
         };
-        println!("Detected locale: {}, using: {}", detected_locale, mapped_locale);
+        
+        println!("No config file, detected locale: {}, using: {}", detected_locale, mapped_locale);
+        
+        // 更新配置中的语言设置
+        config.ui.language = mapped_locale.to_string();
+        // 保存包含检测到的语言的配置文件
+        config.save_safe();
         mapped_locale.to_string()
     };
     
@@ -95,15 +86,33 @@ fn main() {
     } else {
         None
     };
-    let (app, initial_task) = PlayerApp::new(initial_file, locale.clone());
+    
+    // 从配置文件创建窗口设置（在移动config之前）
+    let window_settings = window::Settings {
+        size: iced::Size::new(config.window.width, config.window.height),
+        position: if let Some((x, y)) = config.window.position {
+            window::Position::Specific(iced::Point::new(x as f32, y as f32))
+        } else {
+            window::Position::Default
+        },
+        resizable: true,
+        decorations: true,
+        transparent: false,
+        level: window::Level::Normal,
+        icon: Some(icon),
+        ..window::Settings::default()
+    };
+    
+    // 更新配置中的语言设置
+    let mut final_config = config;
+    final_config.ui.language = locale.clone();
+    
+    let (app, initial_task) = PlayerApp::new_with_config(initial_file, final_config);
     
     iced::application("Summer Audio Player", PlayerApp::update, PlayerApp::view)
         .subscription(PlayerApp::subscription)
         .theme(PlayerApp::theme)
-        .window(window::Settings {
-            icon: Some(icon),
-            ..window::Settings::default()
-        })
+        .window(window_settings)
         .default_font(Font::with_name(fonts::get_chinese_font()))
         .run_with(|| (app, initial_task))
         .unwrap();
