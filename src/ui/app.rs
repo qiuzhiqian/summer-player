@@ -17,8 +17,8 @@ use iced::{
 use tokio::sync::mpsc;
 
 use crate::audio::{AudioInfo, PlaybackState, PlaybackCommand, start_audio_playback, AudioFile};
-use crate::playlist::{Playlist, parse_m3u_playlist, create_single_file_playlist};
-use crate::lyrics::{Lyrics, load_lyrics_for_audio_with_file};
+use crate::playlist::{Playlist, PlaylistManager};
+use crate::lyrics::Lyrics;
 use crate::utils::is_m3u_playlist;
 use crate::config::AppConfig;
 use super::Message;
@@ -40,8 +40,8 @@ pub struct PlayerApp {
     command_sender: Option<mpsc::UnboundedSender<PlaybackCommand>>,
     /// 音频处理任务句柄
     audio_handle: Option<tokio::task::JoinHandle<()>>,
-    /// 播放列表
-    playlist: Playlist,
+    /// 播放列表管理器
+    playlist_manager: PlaylistManager,
     /// 播放列表是否已加载
     playlist_loaded: bool,
     /// 当前页面类型
@@ -73,7 +73,7 @@ impl Default for PlayerApp {
             is_playing: false,
             command_sender: None,
             audio_handle: None,
-            playlist: Playlist::new(),
+            playlist_manager: PlaylistManager::new(),
             playlist_loaded: false,
             current_page: PageType::default(),
             current_view: ViewType::default(),
@@ -294,34 +294,36 @@ impl PlayerApp {
         let was_playing = self.is_playing;
 
         if is_m3u_playlist(&path) {
-            match parse_m3u_playlist(&path) {
-                Ok(playlist) => {
-                    self.playlist = playlist;
+            // 使用播放列表管理器加载播放列表
+            match self.playlist_manager.set_current_playlist(&path) {
+                Ok(_) => {
                     self.playlist_loaded = true;
-                    if let Some(first_item) = self.playlist.set_current_index(0) {
-                        let file_path = first_item.path.clone();
-                        self.load_audio_file(&file_path);
-                        
-                        // 停止当前播放，然后如果之前正在播放则启动新的播放会话
-                        self.stop_current_playback();
-                        
-                        if was_playing {
-                            return Task::perform(
-                                start_audio_playback(file_path),
-                                |(sender, _handle)| Message::AudioSessionStarted(sender)
-                            );
+                    if let Some(playlist) = self.playlist_manager.current_playlist() {
+                        if let Some(first_item) = playlist.set_current_index(0) {
+                            let file_path = first_item.path.clone();
+                            self.load_audio_file(&file_path);
+                            
+                            // 停止当前播放，然后如果之前正在播放则启动新的播放会话
+                            self.stop_current_playback();
+                            
+                            if was_playing {
+                                return Task::perform(
+                                    start_audio_playback(file_path),
+                                    |(sender, _handle)| Message::AudioSessionStarted(sender)
+                                );
+                            }
                         }
                     }
                 }
                 Err(e) => {
-                    eprintln!("Failed to parse playlist: {}", e);
+                    eprintln!("Failed to load playlist: {}", e);
                 }
             }
         } else {
             self.file_path = path.clone();
-            match create_single_file_playlist(&path) {
-                Ok(playlist) => {
-                    self.playlist = playlist;
+            // 使用播放列表管理器为单个文件创建播放列表
+            match self.playlist_manager.set_current_playlist(&path) {
+                Ok(_) => {
                     self.playlist_loaded = true;
                     self.load_audio_file(&path);
                     
@@ -345,64 +347,28 @@ impl PlayerApp {
     }
 
     fn handle_initial_file_load(&mut self, file_path: &str) {
-        if is_m3u_playlist(file_path) {
-            match parse_m3u_playlist(file_path) {
-                Ok(playlist) => {
-                    self.playlist = playlist;
-                    self.playlist_loaded = true;
-                    if let Some(first_item) = self.playlist.set_current_index(0) {
+        // 使用播放列表管理器加载初始文件
+        match self.playlist_manager.set_current_playlist(file_path) {
+            Ok(_) => {
+                self.playlist_loaded = true;
+                if let Some(playlist) = self.playlist_manager.current_playlist() {
+                    if let Some(first_item) = playlist.set_current_index(0) {
                         let file_path = first_item.path.clone();
                         self.load_audio_file(&file_path);
                     }
                 }
-                Err(e) => {
-                    eprintln!("Failed to parse initial playlist: {}", e);
-                }
             }
-        } else {
-            let path = file_path.to_string();
-            match create_single_file_playlist(&path) {
-                Ok(playlist) => {
-                    self.playlist = playlist;
-                    self.playlist_loaded = true;
-                    self.load_audio_file(&path);
-                }
-                Err(e) => {
-                    eprintln!("Failed to create initial playlist: {}", e);
-                }
+            Err(e) => {
+                eprintln!("Failed to load initial file: {}", e);
             }
         }
     }
 
     fn handle_playlist_item_selected(&mut self, index: usize) -> Task<Message> {
         if self.playlist_loaded {
-            if let Some(item) = self.playlist.set_current_index(index) {
-                let file_path = item.path.clone();
-                self.load_audio_file(&file_path);
-                
-                // 停止当前播放，然后立即启动新歌曲的播放
-                self.stop_current_playback();
-                
-                // 启动新的音频播放会话
-                return Task::perform(
-                    start_audio_playback(file_path),
-                    |(sender, _handle)| Message::AudioSessionStarted(sender)
-                );
-            }
-        }
-        Task::none()
-    }
-
-    fn handle_playlist_file_selected(&mut self, playlist_path: String) -> Task<Message> {
-        // 解析并加载播放列表文件
-        match parse_m3u_playlist(&playlist_path) {
-            Ok(new_playlist) => {
-                self.playlist = new_playlist;
-                self.playlist_loaded = true;
-                
-                // 如果有播放列表项目，选择第一个开始播放
-                if let Some(first_item) = self.playlist.set_current_index(0) {
-                    let file_path = first_item.path.clone();
+            if let Some(playlist) = self.playlist_manager.current_playlist() {
+                if let Some(item) = playlist.set_current_index(index) {
+                    let file_path = item.path.clone();
                     self.load_audio_file(&file_path);
                     
                     // 停止当前播放，然后立即启动新歌曲的播放
@@ -415,6 +381,33 @@ impl PlayerApp {
                     );
                 }
             }
+        }
+        Task::none()
+    }
+
+    fn handle_playlist_file_selected(&mut self, playlist_path: String) -> Task<Message> {
+        // 使用播放列表管理器加载播放列表文件
+        match self.playlist_manager.set_current_playlist(&playlist_path) {
+            Ok(_) => {
+                self.playlist_loaded = true;
+                
+                // 如果有播放列表项目，选择第一个开始播放
+                if let Some(playlist) = self.playlist_manager.current_playlist() {
+                    if let Some(first_item) = playlist.set_current_index(0) {
+                        let file_path = first_item.path.clone();
+                        self.load_audio_file(&file_path);
+                        
+                        // 停止当前播放，然后立即启动新歌曲的播放
+                        self.stop_current_playback();
+                        
+                        // 启动新的音频播放会话
+                        return Task::perform(
+                            start_audio_playback(file_path),
+                            |(sender, _handle)| Message::AudioSessionStarted(sender)
+                        );
+                    }
+                }
+            }
             Err(e) => {
                 eprintln!("加载播放列表失败: {}", e);
             }
@@ -424,25 +417,27 @@ impl PlayerApp {
 
     fn handle_next_track(&mut self) -> Task<Message> {
         if self.playlist_loaded {
-            let (next_item, should_restart) = self.playlist.next_item_with_mode(&self.play_mode);
-            if let Some(item) = next_item {
-                let file_path = item.path.clone();
-                
-                if should_restart {
-                    // 单曲循环或随机播放到同一首歌 - 重新开始播放
-                    self.stop_current_playback();
-                    return Task::perform(
-                        start_audio_playback(file_path),
-                        |(sender, _handle)| Message::AudioSessionStarted(sender)
-                    );
-                } else {
-                    // 切换到不同的歌曲
-                    self.load_audio_file(&file_path);
-                    self.stop_current_playback();
-                    return Task::perform(
-                        start_audio_playback(file_path),
-                        |(sender, _handle)| Message::AudioSessionStarted(sender)
-                    );
+            if let Some(playlist) = self.playlist_manager.current_playlist() {
+                let (next_item, should_restart) = playlist.next_item_with_mode(&self.play_mode);
+                if let Some(item) = next_item {
+                    let file_path = item.path.clone();
+                    
+                    if should_restart {
+                        // 单曲循环或随机播放到同一首歌 - 重新开始播放
+                        self.stop_current_playback();
+                        return Task::perform(
+                            start_audio_playback(file_path),
+                            |(sender, _handle)| Message::AudioSessionStarted(sender)
+                        );
+                    } else {
+                        // 切换到不同的歌曲
+                        self.load_audio_file(&file_path);
+                        self.stop_current_playback();
+                        return Task::perform(
+                            start_audio_playback(file_path),
+                            |(sender, _handle)| Message::AudioSessionStarted(sender)
+                        );
+                    }
                 }
             }
         }
@@ -451,25 +446,27 @@ impl PlayerApp {
 
     fn handle_previous_track(&mut self) -> Task<Message> {
         if self.playlist_loaded {
-            let (prev_item, should_restart) = self.playlist.previous_item_with_mode(&self.play_mode);
-            if let Some(item) = prev_item {
-                let file_path = item.path.clone();
-                
-                if should_restart {
-                    // 单曲循环或随机播放到同一首歌 - 重新开始播放
-                    self.stop_current_playback();
-                    return Task::perform(
-                        start_audio_playback(file_path),
-                        |(sender, _handle)| Message::AudioSessionStarted(sender)
-                    );
-                } else {
-                    // 切换到不同的歌曲
-                    self.load_audio_file(&file_path);
-                    self.stop_current_playback();
-                    return Task::perform(
-                        start_audio_playback(file_path),
-                        |(sender, _handle)| Message::AudioSessionStarted(sender)
-                    );
+            if let Some(playlist) = self.playlist_manager.current_playlist() {
+                let (prev_item, should_restart) = playlist.previous_item_with_mode(&self.play_mode);
+                if let Some(item) = prev_item {
+                    let file_path = item.path.clone();
+                    
+                    if should_restart {
+                        // 单曲循环或随机播放到同一首歌 - 重新开始播放
+                        self.stop_current_playback();
+                        return Task::perform(
+                            start_audio_playback(file_path),
+                            |(sender, _handle)| Message::AudioSessionStarted(sender)
+                        );
+                    } else {
+                        // 切换到不同的歌曲
+                        self.load_audio_file(&file_path);
+                        self.stop_current_playback();
+                        return Task::perform(
+                            start_audio_playback(file_path),
+                            |(sender, _handle)| Message::AudioSessionStarted(sender)
+                        );
+                    }
                 }
             }
         }
@@ -665,28 +662,57 @@ impl PlayerApp {
         self.playback_state.current_time = 0.0;
         self.playback_state.current_samples = 0;
         
-        // 加载音频信息（只打开一次AudioFile）
-        if let Ok(audio_file) = AudioFile::open(file_path) {
-            self.audio_info = Some(audio_file.info.clone());
-            self.playback_state.total_duration = audio_file.info.duration.unwrap_or(0.0);
-            self.playback_state.sample_rate = audio_file.info.sample_rate;
-            
-            // 使用已打开的AudioFile加载歌词（避免重复解析）
-            match load_lyrics_for_audio_with_file(file_path, &audio_file) {
-                Ok(lyrics) => {
-                    self.current_lyrics = lyrics;
-                    if self.current_lyrics.is_some() {
-                        println!("歌词加载成功: {}", file_path);
+        // 使用播放列表缓存获取AudioFile（如果播放列表已加载）
+        if self.playlist_loaded {
+            if let Some(playlist) = self.playlist_manager.current_playlist() {
+                if let Ok(Some(audio_file)) = playlist.get_audio_file_by_current_path(file_path) {
+                // 从缓存中获取音频信息
+                self.audio_info = Some(audio_file.info.clone());
+                self.playback_state.total_duration = audio_file.info.duration.unwrap_or(0.0);
+                self.playback_state.sample_rate = audio_file.info.sample_rate;
+                
+                // 使用AudioFile的内置歌词加载方法
+                match audio_file.load_lyrics() {
+                    Ok(lyrics) => {
+                        self.current_lyrics = lyrics;
+                        if self.current_lyrics.is_some() {
+                            println!("歌词加载成功: {}", file_path);
+                        }
+                    }
+                    Err(e) => {
+                        eprintln!("加载歌词失败: {}", e);
+                        self.current_lyrics = None;
                     }
                 }
-                Err(e) => {
-                    eprintln!("加载歌词失败: {}", e);
+                } else {
+                    eprintln!("无法从播放列表缓存中获取音频文件: {}", file_path);
                     self.current_lyrics = None;
                 }
             }
         } else {
-            eprintln!("无法打开音频文件: {}", file_path);
-            self.current_lyrics = None;
+            // 播放列表未加载时的回退逻辑（直接打开文件）
+            if let Ok(audio_file) = AudioFile::open(file_path) {
+                self.audio_info = Some(audio_file.info.clone());
+                self.playback_state.total_duration = audio_file.info.duration.unwrap_or(0.0);
+                self.playback_state.sample_rate = audio_file.info.sample_rate;
+                
+                // 使用AudioFile的内置歌词加载方法
+                match audio_file.load_lyrics() {
+                    Ok(lyrics) => {
+                        self.current_lyrics = lyrics;
+                        if self.current_lyrics.is_some() {
+                            println!("歌词加载成功: {}", file_path);
+                        }
+                    }
+                    Err(e) => {
+                        eprintln!("加载歌词失败: {}", e);
+                        self.current_lyrics = None;
+                    }
+                }
+            } else {
+                eprintln!("无法打开音频文件: {}", file_path);
+                self.current_lyrics = None;
+            }
         }
         
         // 保存最后播放的文件到配置
@@ -730,23 +756,25 @@ impl PlayerApp {
         self.cleanup_playback_state();
         
         if self.playlist_loaded {
-            let (next_item, should_restart) = self.playlist.next_item_with_mode(&self.play_mode);
-            if let Some(item) = next_item {
-                let file_path = item.path.clone();
-                
-                if should_restart {
-                    // 单曲循环 - 重新开始播放当前歌曲
-                    return Task::perform(
-                        start_audio_playback(file_path),
-                        |(sender, _handle)| Message::AudioSessionStarted(sender)
-                    );
-                } else {
-                    // 切换到下一首歌曲
-                    self.load_audio_file(&file_path);
-                    return Task::perform(
-                        start_audio_playback(file_path),
-                        |(sender, _handle)| Message::AudioSessionStarted(sender)
-                    );
+            if let Some(playlist) = self.playlist_manager.current_playlist() {
+                let (next_item, should_restart) = playlist.next_item_with_mode(&self.play_mode);
+                if let Some(item) = next_item {
+                    let file_path = item.path.clone();
+                    
+                    if should_restart {
+                        // 单曲循环 - 重新开始播放当前歌曲
+                        return Task::perform(
+                            start_audio_playback(file_path),
+                            |(sender, _handle)| Message::AudioSessionStarted(sender)
+                        );
+                    } else {
+                        // 切换到下一首歌曲
+                        self.load_audio_file(&file_path);
+                        return Task::perform(
+                            start_audio_playback(file_path),
+                            |(sender, _handle)| Message::AudioSessionStarted(sender)
+                        );
+                    }
                 }
             }
         }
@@ -771,7 +799,15 @@ impl PlayerApp {
         } else {
             // 正常状态显示对应内容
             match self.current_view {
-                ViewType::Playlist => playlist_view(&self.playlist, self.playlist_loaded, self.is_playing),
+                ViewType::Playlist => {
+                    if let Some(playlist) = self.playlist_manager.current_playlist_ref() {
+                        playlist_view(playlist, self.playlist_loaded, self.is_playing)
+                    } else {
+                        // 如果没有当前播放列表，创建一个空的临时播放列表用于显示
+                        let empty_playlist = Playlist::new();
+                        playlist_view(&empty_playlist, false, self.is_playing)
+                    }
+                },
                 ViewType::Lyrics => lyrics_view(&self.file_path, self.is_playing, self.playback_state.current_time, self.current_lyrics.clone(), self.window_size.1),
             }
         };
@@ -828,7 +864,12 @@ impl PlayerApp {
         let progress = self.view_animation.progress();
         
         // 获取播放列表和歌词视图内容
-        let playlist_content = playlist_view(&self.playlist, self.playlist_loaded, self.is_playing);
+        let playlist_content = if let Some(playlist) = self.playlist_manager.current_playlist_ref() {
+            playlist_view(playlist, self.playlist_loaded, self.is_playing)
+        } else {
+            let empty_playlist = Playlist::new();
+            playlist_view(&empty_playlist, false, self.is_playing)
+        };
         let lyrics_content = lyrics_view(&self.file_path, self.is_playing, self.playback_state.current_time, self.current_lyrics.clone(), self.window_size.1);
         
         // 判断滑动方向：Playlist -> Lyrics (歌词从下方向上滑动), Lyrics -> Playlist (歌词向下滑出)

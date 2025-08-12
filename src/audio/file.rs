@@ -340,6 +340,8 @@ impl AudioInfo {
 
 /// 音频文件结构体
 pub struct AudioFile {
+    /// 文件路径
+    pub file_path: String,
     /// 探测结果
     pub probed: symphonia::core::probe::ProbeResult,
     /// 音频轨道
@@ -409,6 +411,7 @@ impl AudioFile {
         println!("open file: {} cost: {:?}", file_path, end_time.duration_since(start_time));
         
         Ok(Self {
+            file_path: file_path.to_string(),
             probed,
             track,
             track_id,
@@ -426,6 +429,33 @@ impl AudioFile {
     pub fn get_info(file_path: &str) -> Result<AudioInfo> {
         let audio_file = Self::open(file_path)?;
         Ok(audio_file.info)
+    }
+    
+    /// 加载当前音频文件对应的歌词
+    /// 
+    /// 先查找内嵌歌词，如果没有找到，再查找同名的外部LRC文件
+    /// 
+    /// # 返回
+    /// 成功时返回歌词Option，失败时返回错误
+    pub fn load_lyrics(&self) -> Result<Option<crate::lyrics::Lyrics>> {
+        use crate::lyrics::Lyrics;
+        
+        // 1. 优先尝试加载外部LRC文件
+        if let Some(lrc_path) = Path::new(&self.file_path).with_extension("lrc").to_str() {
+            if Path::new(lrc_path).exists() {
+                if let Ok(lyrics) = Lyrics::from_lrc_file(lrc_path) {
+                    return Ok(Some(lyrics));
+                }
+            }
+        }
+        
+        // 2. 回退到内嵌歌词
+        if let Ok(Some(lyrics)) = Lyrics::try_load_embedded_from_file(self) {
+            return Ok(Some(lyrics));
+        }
+        
+        // 3. 没有找到歌词
+        Ok(None)
     }
 }
 
