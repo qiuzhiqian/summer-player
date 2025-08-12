@@ -111,6 +111,29 @@ pub async fn start_audio_playback_with_state(
     (command_sender, handle)
 }
 
+/// 启动音频播放会话（使用已缓存的AudioFile实例）
+/// 
+/// # 参数
+/// * `audio_file` - 已打开的AudioFile实例
+/// 
+/// # 返回
+/// 返回命令发送器和播放任务句柄
+pub async fn start_audio_playback_with_file(
+    audio_file: AudioFile
+) -> (mpsc::UnboundedSender<PlaybackCommand>, tokio::task::JoinHandle<()>) {
+    let (command_sender, command_receiver) = mpsc::unbounded_channel();
+    
+    let handle = tokio::task::spawn_blocking(move || {
+        tokio::runtime::Handle::current().block_on(async move {
+            if let Err(e) = run_audio_playback_with_file_control(audio_file, None, command_receiver).await {
+                eprintln!("Audio playback error: {}", e);
+            }
+        })
+    });
+    
+    (command_sender, handle)
+}
+
 /// 音频播放控制函数
 /// 
 /// # 参数
@@ -123,7 +146,23 @@ pub async fn run_audio_playback_with_control(
     mut command_receiver: mpsc::UnboundedReceiver<PlaybackCommand>,
 ) -> Result<()> {
     let audio_file = AudioFile::open(file_path)?;
-    let decoder = create_decoder(&audio_file.track)?;
+    run_audio_playback_with_file_control(audio_file, device_index, command_receiver).await
+}
+
+/// 音频播放控制函数（使用已打开的AudioFile）
+/// 
+/// # 参数
+/// * `audio_file` - 已打开的AudioFile实例
+/// * `device_index` - 音频设备索引
+/// * `command_receiver` - 命令接收器
+pub async fn run_audio_playback_with_file_control(
+    audio_file: AudioFile,
+    device_index: Option<usize>,
+    mut command_receiver: mpsc::UnboundedReceiver<PlaybackCommand>,
+) -> Result<()> {
+    // 创建播放上下文
+    let (probed, track) = audio_file.create_playback_context()?;
+    let decoder = create_decoder(&track)?;
     let (device, config, sample_format) = setup_audio_device(
         device_index, 
         audio_file.info.sample_rate, 
@@ -153,8 +192,10 @@ pub async fn run_audio_playback_with_control(
         let is_paused = is_paused.clone();
         let seek_target_ms = seek_target_ms.clone();
         
+        let target_channels = audio_file.info.channels;
+        let sample_rate = audio_file.info.sample_rate;
         thread::spawn(move || {
-            let _ = run_playback_loop(audio_file, decoder, audio_buffer, should_stop, is_paused, seek_target_ms);
+            let _ = run_playback_loop(probed, track, decoder, audio_buffer, should_stop, is_paused, seek_target_ms, target_channels, sample_rate);
         })
     };
     
@@ -208,7 +249,8 @@ pub async fn run_audio_playback_with_control_and_state(
     state_sender: mpsc::UnboundedSender<PlaybackState>,
 ) -> Result<()> {
     let audio_file = AudioFile::open(file_path)?;
-    let decoder = create_decoder(&audio_file.track)?;
+    let (probed, track) = audio_file.create_playback_context()?;
+    let decoder = create_decoder(&track)?;
     let (device, config, sample_format) = setup_audio_device(
         device_index, 
         audio_file.info.sample_rate, 
@@ -260,9 +302,11 @@ pub async fn run_audio_playback_with_control_and_state(
         let current_samples = current_samples.clone();
         let state_sender = state_sender.clone();
         
+        let target_channels = audio_file.info.channels;
         thread::spawn(move || {
             let _ = run_playback_loop_with_state(
-                audio_file, 
+                probed,
+                track,
                 decoder, 
                 audio_buffer, 
                 should_stop, 
@@ -270,6 +314,7 @@ pub async fn run_audio_playback_with_control_and_state(
                 seek_target_ms,
                 current_samples,
                 state_sender,
+                target_channels,
                 audio_sample_rate,
                 total_duration,
             );
@@ -340,17 +385,18 @@ pub async fn run_audio_playback_with_control_and_state(
 
 /// 播放循环
 fn run_playback_loop(
-    audio_file: AudioFile,
+    probed: symphonia::core::probe::ProbeResult,
+    track: symphonia::core::formats::Track,
     mut decoder: Box<dyn symphonia::core::codecs::Decoder>,
     audio_buffer: AudioBuffer,
     should_stop: Arc<AtomicBool>,
     is_paused: Arc<AtomicBool>,
     seek_target_ms: Arc<AtomicU64>,
+    target_channels: usize,
+    sample_rate: u32,
 ) -> Result<()> {
-    let mut format = audio_file.probed.format;
-    let track_id = audio_file.track_id;
-    let target_channels = audio_file.info.channels;
-    let sample_rate = audio_file.info.sample_rate;
+    let mut format = probed.format;
+    let track_id = track.id;
     
     // 跟踪当前播放位置（以样本数计算）
     let mut _current_samples: u64 = 0;
@@ -417,7 +463,8 @@ fn run_playback_loop(
 
 /// 播放循环（带状态更新）
 fn run_playback_loop_with_state(
-    audio_file: AudioFile,
+    probed: symphonia::core::probe::ProbeResult,
+    track: symphonia::core::formats::Track,
     mut decoder: Box<dyn symphonia::core::codecs::Decoder>,
     audio_buffer: AudioBuffer,
     should_stop: Arc<AtomicBool>,
@@ -425,13 +472,12 @@ fn run_playback_loop_with_state(
     seek_target_ms: Arc<AtomicU64>,
     current_samples_atomic: Arc<AtomicU64>,
     state_sender: mpsc::UnboundedSender<PlaybackState>,
-    _sample_rate: u32,
+    target_channels: usize,
+    audio_sample_rate: u32,
     total_duration: f64,
 ) -> Result<()> {
-    let mut format = audio_file.probed.format;
-    let track_id = audio_file.track_id;
-    let target_channels = audio_file.info.channels;
-    let audio_sample_rate = audio_file.info.sample_rate;
+    let mut format = probed.format;
+    let track_id = track.id;
     
     // 跟踪当前播放位置（以样本数计算）
     let mut _current_samples: u64 = 0;

@@ -339,13 +339,10 @@ impl AudioInfo {
 }
 
 /// 音频文件结构体
+#[derive(Debug, Clone)]
 pub struct AudioFile {
     /// 文件路径
     pub file_path: String,
-    /// 探测结果
-    pub probed: symphonia::core::probe::ProbeResult,
-    /// 音频轨道
-    pub track: Track,
     /// 轨道ID
     pub track_id: u32,
     /// 音频信息
@@ -412,8 +409,6 @@ impl AudioFile {
         
         Ok(Self {
             file_path: file_path.to_string(),
-            probed,
-            track,
             track_id,
             info,
         })
@@ -431,6 +426,36 @@ impl AudioFile {
         Ok(audio_file.info)
     }
     
+    /// 创建播放所需的探测结果和轨道信息
+    /// 
+    /// # 返回
+    /// 成功时返回(ProbeResult, Track)，失败时返回错误
+    pub fn create_playback_context(&self) -> Result<(symphonia::core::probe::ProbeResult, Track)> {
+        if !Path::new(&self.file_path).exists() {
+            return Err(PlayerError::FileNotFound(self.file_path.clone()));
+        }
+
+        let file = File::open(&self.file_path)
+            .map_err(|e| PlayerError::FileNotFound(format!("{}: {}", self.file_path, e)))?;
+        
+        let mss = MediaSourceStream::new(Box::new(file), Default::default());
+        let hint = create_hint(&self.file_path);
+        
+        let probed = default::get_probe()
+            .format(&hint, mss, &FormatOptions::default(), &MetadataOptions::default())
+            .map_err(|e| PlayerError::UnsupportedFormat(format!("{}: {}", self.file_path, e)))?;
+        
+        let track = probed
+            .format
+            .tracks()
+            .iter()
+            .find(|t| t.id == self.track_id)
+            .ok_or_else(|| PlayerError::UnsupportedFormat("Track not found".to_string()))?
+            .clone();
+        
+        Ok((probed, track))
+    }
+
     /// 加载当前音频文件对应的歌词
     /// 
     /// 先查找内嵌歌词，如果没有找到，再查找同名的外部LRC文件

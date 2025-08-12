@@ -16,7 +16,7 @@ use iced::{
 };
 use tokio::sync::mpsc;
 
-use crate::audio::{AudioInfo, PlaybackState, PlaybackCommand, start_audio_playback, AudioFile};
+use crate::audio::{AudioInfo, PlaybackState, PlaybackCommand, start_audio_playback, start_audio_playback_with_file, AudioFile};
 use crate::playlist::{Playlist, PlaylistManager};
 use crate::lyrics::Lyrics;
 use crate::utils::is_m3u_playlist;
@@ -301,16 +301,13 @@ impl PlayerApp {
                     if let Some(playlist) = self.playlist_manager.current_playlist() {
                         if let Some(first_item) = playlist.set_current_index(0) {
                             let file_path = first_item.path.clone();
-                            self.load_audio_file(&file_path);
+                            self.update_ui_for_track(&file_path);
                             
                             // 停止当前播放，然后如果之前正在播放则启动新的播放会话
                             self.stop_current_playback();
                             
                             if was_playing {
-                                return Task::perform(
-                                    start_audio_playback(file_path),
-                                    |(sender, _handle)| Message::AudioSessionStarted(sender)
-                                );
+                                return self.start_audio_playback_task(file_path);
                             }
                         }
                     }
@@ -325,16 +322,13 @@ impl PlayerApp {
             match self.playlist_manager.set_current_playlist(&path) {
                 Ok(_) => {
                     self.playlist_loaded = true;
-                    self.load_audio_file(&path);
+                    self.update_ui_for_track(&path);
                     
                     // 停止当前播放，然后如果之前正在播放则启动新的播放会话
                     self.stop_current_playback();
                     
                     if was_playing {
-                        return Task::perform(
-                            start_audio_playback(path),
-                            |(sender, _handle)| Message::AudioSessionStarted(sender)
-                        );
+                        return self.start_audio_playback_task(path);
                     }
                 }
                 Err(e) => {
@@ -354,7 +348,7 @@ impl PlayerApp {
                 if let Some(playlist) = self.playlist_manager.current_playlist() {
                     if let Some(first_item) = playlist.set_current_index(0) {
                         let file_path = first_item.path.clone();
-                        self.load_audio_file(&file_path);
+                        self.update_ui_for_track(&file_path);
                     }
                 }
             }
@@ -369,16 +363,13 @@ impl PlayerApp {
             if let Some(playlist) = self.playlist_manager.current_playlist() {
                 if let Some(item) = playlist.set_current_index(index) {
                     let file_path = item.path.clone();
-                    self.load_audio_file(&file_path);
+                    self.update_ui_for_track(&file_path);
                     
                     // 停止当前播放，然后立即启动新歌曲的播放
                     self.stop_current_playback();
                     
                     // 启动新的音频播放会话
-                    return Task::perform(
-                        start_audio_playback(file_path),
-                        |(sender, _handle)| Message::AudioSessionStarted(sender)
-                    );
+                    return self.start_audio_playback_task(file_path);
                 }
             }
         }
@@ -395,16 +386,13 @@ impl PlayerApp {
                 if let Some(playlist) = self.playlist_manager.current_playlist() {
                     if let Some(first_item) = playlist.set_current_index(0) {
                         let file_path = first_item.path.clone();
-                        self.load_audio_file(&file_path);
+                        self.update_ui_for_track(&file_path);
                         
                         // 停止当前播放，然后立即启动新歌曲的播放
                         self.stop_current_playback();
                         
                         // 启动新的音频播放会话
-                        return Task::perform(
-                            start_audio_playback(file_path),
-                            |(sender, _handle)| Message::AudioSessionStarted(sender)
-                        );
+                        return self.start_audio_playback_task(file_path);
                     }
                 }
             }
@@ -425,18 +413,12 @@ impl PlayerApp {
                     if should_restart {
                         // 单曲循环或随机播放到同一首歌 - 重新开始播放
                         self.stop_current_playback();
-                        return Task::perform(
-                            start_audio_playback(file_path),
-                            |(sender, _handle)| Message::AudioSessionStarted(sender)
-                        );
+                        return self.start_audio_playback_task(file_path);
                     } else {
-                        // 切换到不同的歌曲
-                        self.load_audio_file(&file_path);
+                        // 切换到不同的歌曲 - 使用缓存的AudioFile实例
+                        self.update_ui_for_track(&file_path);
                         self.stop_current_playback();
-                        return Task::perform(
-                            start_audio_playback(file_path),
-                            |(sender, _handle)| Message::AudioSessionStarted(sender)
-                        );
+                        return self.start_audio_playback_task(file_path);
                     }
                 }
             }
@@ -454,18 +436,12 @@ impl PlayerApp {
                     if should_restart {
                         // 单曲循环或随机播放到同一首歌 - 重新开始播放
                         self.stop_current_playback();
-                        return Task::perform(
-                            start_audio_playback(file_path),
-                            |(sender, _handle)| Message::AudioSessionStarted(sender)
-                        );
+                        return self.start_audio_playback_task(file_path);
                     } else {
-                        // 切换到不同的歌曲
-                        self.load_audio_file(&file_path);
+                        // 切换到不同的歌曲 - 使用缓存的AudioFile实例
+                        self.update_ui_for_track(&file_path);
                         self.stop_current_playback();
-                        return Task::perform(
-                            start_audio_playback(file_path),
-                            |(sender, _handle)| Message::AudioSessionStarted(sender)
-                        );
+                        return self.start_audio_playback_task(file_path);
                     }
                 }
             }
@@ -655,6 +631,67 @@ impl PlayerApp {
         }
     }
 
+    /// 启动音频播放，优先使用缓存的AudioFile实例
+    fn start_audio_playback_task(&mut self, file_path: String) -> Task<Message> {
+        // 获取已缓存的AudioFile实例
+        if let Some(playlist) = self.playlist_manager.current_playlist() {
+            if let Ok(Some(audio_file)) = playlist.get_audio_file_by_current_path(&file_path) {
+                return Task::perform(
+                    start_audio_playback_with_file(audio_file.clone()),
+                    |(sender, _handle)| Message::AudioSessionStarted(sender)
+                );
+            }
+        }
+        
+        // 回退到原来的方式
+        Task::perform(
+            start_audio_playback(file_path),
+            |(sender, _handle)| Message::AudioSessionStarted(sender)
+        )
+    }
+
+    /// 仅更新UI信息，使用播放列表缓存，避免重复打开AudioFile
+    fn update_ui_for_track(&mut self, file_path: &str) {
+        self.file_path = file_path.to_string();
+        
+        // 重置播放状态
+        self.playback_state.current_time = 0.0;
+        self.playback_state.current_samples = 0;
+        
+        // 从播放列表缓存获取AudioFile信息
+        if self.playlist_loaded {
+            if let Some(playlist) = self.playlist_manager.current_playlist() {
+                if let Ok(Some(audio_file)) = playlist.get_audio_file_by_current_path(file_path) {
+                    // 从缓存中获取音频信息
+                    self.audio_info = Some(audio_file.info.clone());
+                    self.playback_state.total_duration = audio_file.info.duration.unwrap_or(0.0);
+                    self.playback_state.sample_rate = audio_file.info.sample_rate;
+                    
+                    // 使用AudioFile的内置歌词加载方法
+                    match audio_file.load_lyrics() {
+                        Ok(lyrics) => {
+                            self.current_lyrics = lyrics;
+                            if self.current_lyrics.is_some() {
+                                println!("歌词加载成功: {}", file_path);
+                            }
+                        }
+                        Err(e) => {
+                            eprintln!("加载歌词失败: {}", e);
+                            self.current_lyrics = None;
+                        }
+                    }
+                } else {
+                    eprintln!("无法从播放列表缓存中获取音频文件: {}", file_path);
+                    self.current_lyrics = None;
+                }
+            }
+        }
+        
+        // 保存最后播放的文件到配置
+        self.app_config.player.last_file_path = Some(file_path.to_string());
+        self.app_config.save_safe();
+    }
+
     fn load_audio_file(&mut self, file_path: &str) {
         self.file_path = file_path.to_string();
         
@@ -763,17 +800,11 @@ impl PlayerApp {
                     
                     if should_restart {
                         // 单曲循环 - 重新开始播放当前歌曲
-                        return Task::perform(
-                            start_audio_playback(file_path),
-                            |(sender, _handle)| Message::AudioSessionStarted(sender)
-                        );
+                        return self.start_audio_playback_task(file_path);
                     } else {
-                        // 切换到下一首歌曲
-                        self.load_audio_file(&file_path);
-                        return Task::perform(
-                            start_audio_playback(file_path),
-                            |(sender, _handle)| Message::AudioSessionStarted(sender)
-                        );
+                        // 切换到下一首歌曲 - 使用缓存的AudioFile实例
+                        self.update_ui_for_track(&file_path);
+                        return self.start_audio_playback_task(file_path);
                     }
                 }
             }
