@@ -19,6 +19,8 @@ pub enum Message {
     FileSelected(Option<String>),
     /// 播放列表项目选择
     PlaylistItemSelected(usize),
+    /// 播放列表文件选择
+    PlaylistFileSelected(String),
     /// 下一首
     NextTrack,
     /// 上一首

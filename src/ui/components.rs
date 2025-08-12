@@ -18,6 +18,8 @@ use super::Message;
 use super::theme::{AppTheme, AppThemeVariant};
 use rust_i18n::t;
 
+use dirs;
+
 // ============================================================================
 // 常量和配置
 // ============================================================================
@@ -1059,6 +1061,126 @@ pub fn current_track_info_view(audio_info: Option<&AudioInfo>, file_path: &str) 
         .align_y(Vertical::Center)
         .into()
     }
+}
+
+/// 播放列表文件展示控件
+/// 显示配置目录下的所有m3u播放列表文件
+pub fn playlist_files_view() -> Element<'static, Message> {
+    // 获取配置目录下的播放列表文件
+    let playlist_files = get_playlist_files();
+    
+    if playlist_files.is_empty() {
+        // 没有播放列表文件时的显示
+        return container(
+            column![
+                text("📁").size(48).align_x(Horizontal::Center).shaping(Shaping::Advanced),
+                text(t!("No Playlists")).size(constants::TEXT_LARGE).align_x(Horizontal::Center).style(AppTheme::subtitle_text()),
+                text(t!("No M3U playlists found in config directory")).size(constants::TEXT_NORMAL).align_x(Horizontal::Center).style(AppTheme::hint_text()),
+            ].spacing(constants::SPACING_MEDIUM).align_x(Horizontal::Center)
+        ).style(AppTheme::card_container()).padding(32).width(Length::Fill).height(Length::Fill).into();
+    }
+    
+    let items: Vec<Element<Message>> = playlist_files.iter().map(|file_path| {
+        let file_name = std::path::Path::new(file_path)
+            .file_stem()
+            .and_then(|s| s.to_str())
+            .unwrap_or("Unknown Playlist")
+            .to_string();
+        
+        let content = container(
+            row![
+                // 播放列表图标
+                container(
+                    svg_icon(icons::LIST_VIEW, 20.0, constants::ICON_COLOR)
+                )
+                .style(|theme: &iced::Theme| {
+                    let palette = theme.extended_palette();
+                    container::Style {
+                        background: Some(Background::Color(palette.background.weak.color)),
+                        border: Border {
+                            radius: Radius::from(4.0),
+                            width: 1.0,
+                            color: palette.background.strong.color,
+                        },
+                        shadow: Shadow::default(),
+                        text_color: None,
+                    }
+                })
+                .width(Length::Fixed(32.0))
+                .height(Length::Fixed(32.0))
+                .align_x(Horizontal::Center)
+                .align_y(Vertical::Center),
+                
+                // 播放列表名称
+                container(
+                    truncated_text(file_name, constants::TEXT_TRUNCATE_DEFAULT, constants::TEXT_MEDIUM, constants::ICON_COLOR)
+                ).width(Length::Fill).align_y(Vertical::Center)
+            ].spacing(constants::SPACING_MEDIUM).align_y(Vertical::Center)
+        ).padding([constants::PADDING_SMALL, constants::PADDING_MEDIUM]).width(Length::Fill);
+        
+        button(content)
+            .on_press(Message::PlaylistFileSelected(file_path.clone()))
+            .width(Length::Fill)
+            .style(AppTheme::playlist_item_button(false, false))
+            .into()
+    }).collect();
+    
+    container(
+        column![
+            // 标题
+            container(
+                row![
+                    text("📋").size(constants::TEXT_TITLE).shaping(Shaping::Advanced),
+                    text(t!("Playlists")).size(constants::TEXT_TITLE - 2).style(primary_text_style()),
+                ].spacing(constants::SPACING_MEDIUM).align_y(Vertical::Center)
+            ).padding(constants::PADDING_SMALL),
+            
+            // 播放列表文件列表
+            scrollable(
+                column(items).spacing(constants::SPACING_SMALL).padding([constants::SPACING_MEDIUM, constants::SPACING_SMALL])
+            ).height(Length::Fill).width(Length::Fill),
+        ].spacing(constants::SPACING_LARGE)
+    )
+    .style(AppTheme::main_section_container())
+    .padding(constants::SPACING_LARGE)
+    .width(Length::Fill).height(Length::Fill)
+    .into()
+}
+
+/// 获取配置目录下的所有m3u播放列表文件
+fn get_playlist_files() -> Vec<String> {
+    use std::fs;
+    
+    // 获取配置目录
+    let config_dir = match dirs::config_dir() {
+        Some(dir) => dir.join("summer-player"),
+        None => return Vec::new(),
+    };
+    
+    // 如果配置目录不存在，返回空列表
+    if !config_dir.exists() {
+        return Vec::new();
+    }
+    
+    let mut playlist_files = Vec::new();
+    
+    // 读取配置目录下的所有文件
+    if let Ok(entries) = fs::read_dir(&config_dir) {
+        for entry in entries.flatten() {
+            let path = entry.path();
+            if let Some(extension) = path.extension() {
+                if extension == "m3u" || extension == "m3u8" {
+                    if let Some(path_str) = path.to_str() {
+                        playlist_files.push(path_str.to_string());
+                    }
+                }
+            }
+        }
+    }
+    
+    // 按文件名排序
+    playlist_files.sort();
+    playlist_files
 }
 
  

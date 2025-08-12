@@ -149,6 +149,7 @@ impl PlayerApp {
             Message::OpenFile => self.handle_open_file(),
             Message::FileSelected(file_path) => self.handle_file_selected(file_path),
             Message::PlaylistItemSelected(index) => self.handle_playlist_item_selected(index),
+            Message::PlaylistFileSelected(playlist_path) => self.handle_playlist_file_selected(playlist_path),
             Message::NextTrack => self.handle_next_track(),
             Message::PreviousTrack => self.handle_previous_track(),
             Message::Tick => self.handle_tick(),
@@ -387,6 +388,35 @@ impl PlayerApp {
                     start_audio_playback(file_path),
                     |(sender, _handle)| Message::AudioSessionStarted(sender)
                 );
+            }
+        }
+        Task::none()
+    }
+
+    fn handle_playlist_file_selected(&mut self, playlist_path: String) -> Task<Message> {
+        // 解析并加载播放列表文件
+        match parse_m3u_playlist(&playlist_path) {
+            Ok(new_playlist) => {
+                self.playlist = new_playlist;
+                self.playlist_loaded = true;
+                
+                // 如果有播放列表项目，选择第一个开始播放
+                if let Some(first_item) = self.playlist.set_current_index(0) {
+                    let file_path = first_item.path.clone();
+                    self.load_audio_file(&file_path);
+                    
+                    // 停止当前播放，然后立即启动新歌曲的播放
+                    self.stop_current_playback();
+                    
+                    // 启动新的音频播放会话
+                    return Task::perform(
+                        start_audio_playback(file_path),
+                        |(sender, _handle)| Message::AudioSessionStarted(sender)
+                    );
+                }
+            }
+            Err(e) => {
+                eprintln!("加载播放列表失败: {}", e);
             }
         }
         Task::none()
@@ -723,11 +753,12 @@ impl PlayerApp {
 
     /// 创建主页面内容
     fn create_home_page(&self) -> Element<Message> {
+        // 左侧面板：播放列表展示控件
         let left_panel = column![
-            file_info_view(self.audio_info.as_ref(), &self.file_path),
+            playlist_files_view(),
             spacer(),
-        ].spacing(16) // 增加间距
-         .width(Length::Fixed(MAIN_PANEL_WIDTH + 20.0)) // 稍微增加宽度
+        ].spacing(16)
+         .width(Length::Fixed(MAIN_PANEL_WIDTH + 20.0))
          .height(Length::Fill);
 
         // 右侧面板根据当前视图类型显示不同内容
@@ -744,9 +775,9 @@ impl PlayerApp {
 
         let right_panel = column![
             right_panel_content,
-        ].spacing(16).width(Length::Fill); // 增加间距
+        ].spacing(16).width(Length::Fill);
 
-        let main_content = row![left_panel, right_panel].spacing(20); // 增加左右面板间距
+        let main_content = row![left_panel, right_panel].spacing(20);
         
         // 底部区域：上下两层布局
         let bottom_section = container(
@@ -777,15 +808,15 @@ impl PlayerApp {
                 ].spacing(8).align_y(Vertical::Center)
             ].spacing(8)
         )
-        .style(AppTheme::glass_card_container()) // 使用毛玻璃效果
+        .style(AppTheme::glass_card_container())
         .padding(8)
-        .height(Length::Fixed(88.0)); // 增加高度以容纳更大的封面图片
+        .height(Length::Fixed(88.0));
 
         column![
             main_content, 
             bottom_section
         ]
-        .spacing(8) // 减少主内容和底部的间距，使布局更紧凑
+        .spacing(8)
         .into()
     }
 
