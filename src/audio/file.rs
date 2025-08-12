@@ -362,6 +362,7 @@ impl AudioFile {
         if !Path::new(file_path).exists() {
             return Err(PlayerError::FileNotFound(file_path.to_string()));
         }
+        println!("open file: {}", file_path);
 
         let file = File::open(file_path)
             .map_err(|e| PlayerError::FileNotFound(format!("{}: {}", file_path, e)))?;
@@ -401,8 +402,11 @@ impl AudioFile {
                  }
             }
         };
-        
+        // 添加时间，来测试打开一个文件的耗时
+        let start_time = std::time::Instant::now();
         let info = AudioInfo::from_track_with_metadata(&track, file_path, metadata);
+        let end_time = std::time::Instant::now();
+        println!("open file: {} cost: {:?}", file_path, end_time.duration_since(start_time));
         
         Ok(Self {
             probed,

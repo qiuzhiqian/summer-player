@@ -10,7 +10,7 @@ use std::{
 
 use crate::error::{PlayerError, Result};
 use crate::utils::{extract_filename, normalize_path};
-use crate::audio::AudioFile;
+// use crate::audio::AudioFile; // 暂时不需要，避免重复调用
 use crate::ui::components::PlayMode;
 
 /// 播放列表项
@@ -450,12 +450,14 @@ pub fn parse_m3u_playlist(file_path: &str) -> Result<Playlist> {
             }
         }
         
-        // 如果M3U中没有时长信息，尝试从文件获取
-        if item.duration.is_none() {
-            if let Ok(audio_info) = AudioFile::get_info(&file_path) {
-                item = item.with_duration(audio_info.duration);
-            }
-        }
+        // 如果M3U中没有时长信息，暂时不获取（延迟加载）
+        // 这样可以避免在播放列表解析时重复调用AudioFile::open
+        // 时长信息将在实际播放时通过load_audio_file获取
+        // if item.duration.is_none() {
+        //     if let Ok(audio_info) = AudioFile::get_info(&file_path) {
+        //         item = item.with_duration(audio_info.duration);
+        //     }
+        // }
         
         playlist.add_item(item);
     }
@@ -476,12 +478,13 @@ pub fn parse_m3u_playlist(file_path: &str) -> Result<Playlist> {
 /// 包含单个文件的播放列表
 pub fn create_single_file_playlist(file_path: &str) -> Result<Playlist> {
     let mut playlist = Playlist::new();
-    let mut item = PlaylistItem::new(file_path.to_string());
+    let item = PlaylistItem::new(file_path.to_string());
     
-    // 尝试获取音频信息
-    if let Ok(audio_info) = AudioFile::get_info(file_path) {
-        item = item.with_duration(audio_info.duration);
-    }
+    // 延迟获取音频信息，避免重复调用AudioFile::open
+    // 时长信息将在实际播放时通过load_audio_file获取
+    // if let Ok(audio_info) = AudioFile::get_info(file_path) {
+    //     item = item.with_duration(audio_info.duration);
+    // }
     
     playlist.add_item(item);
     playlist.set_current_index(0);

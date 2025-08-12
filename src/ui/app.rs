@@ -18,7 +18,7 @@ use tokio::sync::mpsc;
 
 use crate::audio::{AudioInfo, PlaybackState, PlaybackCommand, start_audio_playback, AudioFile};
 use crate::playlist::{Playlist, parse_m3u_playlist, create_single_file_playlist};
-use crate::lyrics::{Lyrics, load_lyrics_for_audio};
+use crate::lyrics::{Lyrics, load_lyrics_for_audio_with_file};
 use crate::utils::is_m3u_playlist;
 use crate::config::AppConfig;
 use super::Message;
@@ -117,10 +117,10 @@ impl PlayerApp {
         };
         
         // 如果配置中有最后播放的文件且没有传入初始文件，使用配置中的文件
-        let file_to_load = initial_file.or_else(|| app.app_config.player.last_file_path.clone());
+        //let file_to_load = initial_file.or_else(|| app.app_config.player.last_file_path.clone());
         
         // 如果有文件需要加载，加载它并开始播放
-        if let Some(file_path) = file_to_load {
+        /*if let Some(file_path) = file_to_load {
             if !file_path.is_empty() {
                 app.handle_initial_file_load(&file_path);
                 // 自动开始播放（如果配置中启用了记住播放位置）
@@ -132,7 +132,7 @@ impl PlayerApp {
                     ));
                 }
             }
-        }
+        }*/
         
         (app, Task::none())
     }
@@ -665,25 +665,28 @@ impl PlayerApp {
         self.playback_state.current_time = 0.0;
         self.playback_state.current_samples = 0;
         
-        // 加载音频信息
+        // 加载音频信息（只打开一次AudioFile）
         if let Ok(audio_file) = AudioFile::open(file_path) {
             self.audio_info = Some(audio_file.info.clone());
             self.playback_state.total_duration = audio_file.info.duration.unwrap_or(0.0);
             self.playback_state.sample_rate = audio_file.info.sample_rate;
-        }
-        
-        // 加载歌词
-        match load_lyrics_for_audio(file_path) {
-            Ok(lyrics) => {
-                self.current_lyrics = lyrics;
-                if self.current_lyrics.is_some() {
-                    println!("歌词加载成功: {}", file_path);
+            
+            // 使用已打开的AudioFile加载歌词（避免重复解析）
+            match load_lyrics_for_audio_with_file(file_path, &audio_file) {
+                Ok(lyrics) => {
+                    self.current_lyrics = lyrics;
+                    if self.current_lyrics.is_some() {
+                        println!("歌词加载成功: {}", file_path);
+                    }
+                }
+                Err(e) => {
+                    eprintln!("加载歌词失败: {}", e);
+                    self.current_lyrics = None;
                 }
             }
-            Err(e) => {
-                eprintln!("加载歌词失败: {}", e);
-                self.current_lyrics = None;
-            }
+        } else {
+            eprintln!("无法打开音频文件: {}", file_path);
+            self.current_lyrics = None;
         }
         
         // 保存最后播放的文件到配置
