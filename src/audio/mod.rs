@@ -12,9 +12,9 @@ pub mod stream;
 pub use file::{AudioFile, AudioInfo};
 pub use device::{list_audio_devices, setup_audio_device};
 pub use playback::{
-    PlaybackState, PlaybackCommand, AudioBuffer,
-    start_audio_playback, start_audio_playback_with_state, start_audio_playback_with_file,
-    run_audio_playback_with_control, run_audio_playback_with_file_control
+    PlaybackState, PlaybackCommand, AudioBuffer, AudioSource,
+    start_audio_playback,
+    run_audio_playback_with_control, run_audio_playback_with_file_control, run_audio_playback_with_file_and_state
 };
 pub use decoder::create_decoder;
 pub use stream::{create_audio_stream, create_stream}; 

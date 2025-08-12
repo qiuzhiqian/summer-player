@@ -63,69 +63,49 @@ impl Default for PlaybackState {
 /// 音频缓冲区类型
 pub type AudioBuffer = Arc<Mutex<VecDeque<f32>>>;
 
-/// 启动音频播放会话
+/// 音频源枚举 - 支持文件路径或已加载的AudioFile
+#[derive(Debug)]
+pub enum AudioSource {
+    /// 文件路径
+    FilePath(String),
+    /// 已加载的AudioFile实例
+    AudioFile(AudioFile),
+}
+
+/// 统一的音频播放启动函数
 /// 
 /// # 参数
-/// * `file_path` - 音频文件路径
+/// * `audio_source` - 音频源（文件路径或AudioFile实例）
+/// * `state_sender` - 可选的播放状态发送器
 /// 
 /// # 返回
 /// 返回命令发送器和播放任务句柄
 pub async fn start_audio_playback(
-    file_path: String
+    audio_source: AudioSource,
+    state_sender: Option<mpsc::UnboundedSender<PlaybackState>>,
 ) -> (mpsc::UnboundedSender<PlaybackCommand>, tokio::task::JoinHandle<()>) {
     let (command_sender, command_receiver) = mpsc::unbounded_channel();
     
     let handle = tokio::task::spawn_blocking(move || {
         tokio::runtime::Handle::current().block_on(async move {
-            if let Err(e) = run_audio_playback_with_control(&file_path, None, command_receiver).await {
-                eprintln!("Audio playback error: {}", e);
-            }
-        })
-    });
-    
-    (command_sender, handle)
-}
-
-/// 启动音频播放会话（带状态更新）
-/// 
-/// # 参数
-/// * `file_path` - 音频文件路径
-/// * `state_sender` - 播放状态发送器
-/// 
-/// # 返回
-/// 返回命令发送器和播放任务句柄
-pub async fn start_audio_playback_with_state(
-    file_path: String,
-    state_sender: mpsc::UnboundedSender<PlaybackState>,
-) -> (mpsc::UnboundedSender<PlaybackCommand>, tokio::task::JoinHandle<()>) {
-    let (command_sender, command_receiver) = mpsc::unbounded_channel();
-    
-    let handle = tokio::task::spawn_blocking(move || {
-        tokio::runtime::Handle::current().block_on(async move {
-            if let Err(e) = run_audio_playback_with_control_and_state(&file_path, None, command_receiver, state_sender).await {
-                eprintln!("Audio playback error: {}", e);
-            }
-        })
-    });
-    
-    (command_sender, handle)
-}
-
-/// 启动音频播放会话（使用已缓存的AudioFile实例）
-/// 
-/// # 参数
-/// * `audio_file` - 已打开的AudioFile实例
-/// 
-/// # 返回
-/// 返回命令发送器和播放任务句柄
-pub async fn start_audio_playback_with_file(
-    audio_file: AudioFile
-) -> (mpsc::UnboundedSender<PlaybackCommand>, tokio::task::JoinHandle<()>) {
-    let (command_sender, command_receiver) = mpsc::unbounded_channel();
-    
-    let handle = tokio::task::spawn_blocking(move || {
-        tokio::runtime::Handle::current().block_on(async move {
-            if let Err(e) = run_audio_playback_with_file_control(audio_file, None, command_receiver).await {
+            let result = match audio_source {
+                AudioSource::FilePath(file_path) => {
+                    if let Some(sender) = state_sender {
+                        run_audio_playback_with_control_and_state(&file_path, None, command_receiver, sender).await
+                    } else {
+                        run_audio_playback_with_control(&file_path, None, command_receiver).await
+                    }
+                }
+                AudioSource::AudioFile(audio_file) => {
+                    if let Some(sender) = state_sender {
+                        run_audio_playback_with_file_and_state(audio_file, None, command_receiver, sender).await
+                    } else {
+                        run_audio_playback_with_file_control(audio_file, None, command_receiver).await
+                    }
+                }
+            };
+            
+            if let Err(e) = result {
                 eprintln!("Audio playback error: {}", e);
             }
         })
@@ -373,6 +353,119 @@ pub async fn run_audio_playback_with_control_and_state(
                 let target_ms = (target_time * 1000.0) as u64;
                 seek_target_ms.store(target_ms, Ordering::Relaxed);
                 println!("Seek request: {:.2}s", target_time);
+            }
+        }
+    }
+    
+    should_stop.store(true, Ordering::Relaxed);
+    playback_thread.join().unwrap();
+    
+    Ok(())
+}
+
+/// 音频播放控制函数（使用已打开的AudioFile，带状态更新）
+/// 
+/// # 参数
+/// * `audio_file` - 已打开的AudioFile实例
+/// * `device_index` - 音频设备索引
+/// * `command_receiver` - 命令接收器
+/// * `state_sender` - 播放状态发送器
+pub async fn run_audio_playback_with_file_and_state(
+    audio_file: AudioFile,
+    device_index: Option<usize>,
+    mut command_receiver: mpsc::UnboundedReceiver<PlaybackCommand>,
+    state_sender: mpsc::UnboundedSender<PlaybackState>,
+) -> Result<()> {
+    // 创建播放上下文
+    let (probed, track) = audio_file.create_playback_context()?;
+    let decoder = create_decoder(&track)?;
+    let (device, config, sample_format) = setup_audio_device(
+        device_index, 
+        audio_file.info.sample_rate, 
+        audio_file.info.channels
+    )?;
+    
+    let buffer_size = calculate_buffer_size(audio_file.info.sample_rate, audio_file.info.channels);
+    let audio_buffer: AudioBuffer = Arc::new(Mutex::new(VecDeque::with_capacity(buffer_size)));
+    
+    let stream = create_audio_stream(&device, &config, sample_format, audio_buffer.clone(), audio_file.info.channels)?;
+    
+    let _is_playing = Arc::new(AtomicBool::new(true));
+    let is_paused = Arc::new(AtomicBool::new(false));
+    let should_stop = Arc::new(AtomicBool::new(false));
+    
+    // 添加跳转目标时间的原子变量（以秒为单位，乘以1000存储为毫秒以保持精度）
+    let seek_target_ms = Arc::new(AtomicU64::new(u64::MAX)); // u64::MAX 表示没有跳转请求
+    
+    // 用于跟踪当前播放位置的原子变量
+    let current_samples = Arc::new(AtomicU64::new(0));
+    
+    // 创建音频流的暂停/恢复控制
+    let _stream_is_paused = is_paused.clone();
+    
+    stream.play().map_err(|e| PlayerError::PlaybackError(e.to_string()))?;
+    
+    // 提取播放会话所需的信息
+    let audio_sample_rate = audio_file.info.sample_rate;
+    let total_duration = audio_file.info.duration.unwrap_or(0.0);
+    
+    // 创建初始播放状态
+    let initial_state = PlaybackState {
+        is_playing: true,
+        is_paused: false,
+        current_time: 0.0,
+        total_duration,
+        current_samples: 0,
+        sample_rate: audio_sample_rate,
+    };
+    
+    // 发送初始状态
+    let _ = state_sender.send(initial_state);
+    
+    let playback_thread = {
+        let audio_buffer = audio_buffer.clone();
+        let should_stop = should_stop.clone();
+        let is_paused = is_paused.clone();
+        let seek_target_ms = seek_target_ms.clone();
+        let current_samples = current_samples.clone();
+        let state_sender = state_sender.clone();
+        
+        let target_channels = audio_file.info.channels;
+        thread::spawn(move || {
+            let _ = run_playback_loop_with_state(
+                probed,
+                track,
+                decoder, 
+                audio_buffer, 
+                should_stop, 
+                is_paused, 
+                seek_target_ms,
+                current_samples,
+                state_sender,
+                target_channels,
+                audio_sample_rate,
+                total_duration,
+            );
+        })
+    };
+    
+    // 处理播放控制命令
+    while let Some(command) = command_receiver.recv().await {
+        match command {
+            PlaybackCommand::Pause => {
+                is_paused.store(true, Ordering::Relaxed);
+            }
+            PlaybackCommand::Resume => {
+                is_paused.store(false, Ordering::Relaxed);
+            }
+            PlaybackCommand::Stop => {
+                should_stop.store(true, Ordering::Relaxed);
+                break;
+            }
+            PlaybackCommand::Seek(time_seconds) => {
+                let target_ms = (time_seconds * 1000.0) as u64;
+                seek_target_ms.store(target_ms, Ordering::Relaxed);
+                println!("Seek request: {:.2}s", time_seconds);
             }
         }
     }
