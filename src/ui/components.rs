@@ -1063,13 +1063,13 @@ pub fn current_track_info_view(audio_info: Option<&AudioInfo>, file_path: &str) 
     }
 }
 
-/// 播放列表文件展示控件
+/// 播放列表文件展示控件（网格布局）
 /// 显示配置目录下的所有m3u播放列表文件
-pub fn playlist_files_view() -> Element<'static, Message> {
-    // 获取配置目录下的播放列表文件
-    let playlist_files = get_playlist_files();
+pub fn playlist_files_grid_view() -> Element<'static, Message> {
+    // 获取配置目录下的播放列表文件信息
+    let playlist_infos = get_playlist_files_info();
     
-    if playlist_files.is_empty() {
+    if playlist_infos.is_empty() {
         // 没有播放列表文件时的显示
         return container(
             column![
@@ -1080,50 +1080,175 @@ pub fn playlist_files_view() -> Element<'static, Message> {
         ).style(AppTheme::card_container()).padding(32).width(Length::Fill).height(Length::Fill).into();
     }
     
-    let items: Vec<Element<Message>> = playlist_files.iter().map(|file_path| {
-        let file_name = std::path::Path::new(file_path)
-            .file_stem()
-            .and_then(|s| s.to_str())
-            .unwrap_or("Unknown Playlist")
-            .to_string();
-        
-        let content = container(
-            row![
-                // 播放列表图标
+    // 创建网格布局，每行显示3个播放列表
+    let mut grid_rows = Vec::<Element<Message>>::new();
+    let mut current_row = Vec::<Element<Message>>::new();
+    
+    for (index, playlist_info) in playlist_infos.iter().enumerate() {
+        // 创建网格项
+        let grid_item = container(
+            column![
+                // 播放列表图标（较大）
                 container(
-                    svg_icon(icons::LIST_VIEW, 20.0, constants::ICON_COLOR)
+                    svg_icon(icons::LIST_VIEW, 40.0, constants::ICON_COLOR)
                 )
                 .style(|theme: &iced::Theme| {
                     let palette = theme.extended_palette();
                     container::Style {
                         background: Some(Background::Color(palette.background.weak.color)),
                         border: Border {
-                            radius: Radius::from(4.0),
+                            radius: Radius::from(8.0),
                             width: 1.0,
                             color: palette.background.strong.color,
                         },
-                        shadow: Shadow::default(),
+                        shadow: Shadow {
+                            color: Color::from_rgba(0.0, 0.0, 0.0, 0.1),
+                            offset: iced::Vector::new(0.0, 2.0),
+                            blur_radius: 4.0,
+                        },
                         text_color: None,
                     }
                 })
-                .width(Length::Fixed(32.0))
-                .height(Length::Fixed(32.0))
+                .width(Length::Fixed(80.0))
+                .height(Length::Fixed(80.0))
                 .align_x(Horizontal::Center)
                 .align_y(Vertical::Center),
                 
-                // 播放列表名称
-                container(
-                    truncated_text(file_name, constants::TEXT_TRUNCATE_DEFAULT, constants::TEXT_MEDIUM, constants::ICON_COLOR)
-                ).width(Length::Fill).align_y(Vertical::Center)
-            ].spacing(constants::SPACING_MEDIUM).align_y(Vertical::Center)
-        ).padding([constants::PADDING_SMALL, constants::PADDING_MEDIUM]).width(Length::Fill);
+                // 播放列表信息（名称和歌曲数）
+                column![
+                    // 播放列表名称
+                    container(
+                        {
+                            let display_name = if playlist_info.name.chars().count() > 12 {
+                                format!("{}...", playlist_info.name.chars().take(9).collect::<String>())
+                            } else {
+                                playlist_info.name.clone()
+                            };
+                            text(display_name)
+                                .size(constants::TEXT_MEDIUM)
+                                .align_x(Horizontal::Center)
+                                .style(|theme: &iced::Theme| {
+                                    let palette = theme.extended_palette();
+                                    iced::widget::text::Style {
+                                        color: Some(palette.background.base.text),
+                                    }
+                                })
+                        }
+                    ).width(Length::Fill).align_x(Horizontal::Center),
+                    
+                    // 歌曲数信息
+                    container(
+                        text(format!("{} {}", playlist_info.song_count, if playlist_info.song_count == 1 { t!("song") } else { t!("songs") }))
+                            .size(constants::TEXT_SMALL)
+                            .align_x(Horizontal::Center)
+                            .style(|theme: &iced::Theme| {
+                                let palette = theme.extended_palette();
+                                iced::widget::text::Style {
+                                    color: Some(Color { a: 0.7, ..palette.background.base.text }),
+                                }
+                            })
+                    ).width(Length::Fill).align_x(Horizontal::Center),
+                ]
+                .spacing(2)
+                .width(Length::Fill)
+                .align_x(Horizontal::Center)
+            ]
+            .spacing(constants::SPACING_SMALL)
+            .align_x(Horizontal::Center)
+        )
+        .style(|theme: &iced::Theme| {
+            let palette = theme.extended_palette();
+            container::Style {
+                background: Some(Background::Color(Color { a: 0.03, ..palette.background.strong.color })),
+                border: Border {
+                    radius: Radius::from(8.0),
+                    width: 1.0,
+                    color: Color { a: 0.1, ..palette.background.strong.color },
+                },
+                shadow: Shadow::default(),
+                text_color: None,
+            }
+        })
+        .width(Length::Fixed(140.0)) // 稍微增加宽度以适应更多信息
+        .height(Length::Fixed(150.0)) // 增加高度以适应歌曲数信息
+        .align_x(Horizontal::Center)
+        .align_y(Vertical::Center)
+        .padding(constants::PADDING_MEDIUM);
         
-        button(content)
-            .on_press(Message::PlaylistFileSelected(file_path.clone()))
-            .width(Length::Fill)
-            .style(AppTheme::playlist_item_button(false, false))
-            .into()
-    }).collect();
+        let clickable_item = button(grid_item)
+            .on_press(Message::PlaylistFileSelected(playlist_info.path.clone()))
+            .style(|theme: &iced::Theme, status| {
+                let palette = theme.extended_palette();
+                match status {
+                    iced::widget::button::Status::Active => iced::widget::button::Style {
+                        background: Some(Background::Color(Color::TRANSPARENT)),
+                        text_color: palette.background.base.text,
+                        border: Border {
+                            radius: Radius::from(8.0),
+                            width: 0.0,
+                            color: Color::TRANSPARENT,
+                        },
+                        shadow: Shadow::default(),
+                    },
+                    iced::widget::button::Status::Hovered => iced::widget::button::Style {
+                        background: Some(Background::Color(Color { a: 0.1, ..palette.primary.base.color })),
+                        text_color: palette.primary.strong.color,
+                        border: Border {
+                            radius: Radius::from(8.0),
+                            width: 1.0,
+                            color: Color { a: 0.3, ..palette.primary.base.color },
+                        },
+                        shadow: Shadow {
+                            color: Color::from_rgba(0.0, 0.0, 0.0, 0.15),
+                            offset: iced::Vector::new(0.0, 4.0),
+                            blur_radius: 8.0,
+                        },
+                    },
+                    iced::widget::button::Status::Pressed => iced::widget::button::Style {
+                        background: Some(Background::Color(Color { a: 0.15, ..palette.primary.base.color })),
+                        text_color: palette.primary.strong.color,
+                        border: Border {
+                            radius: Radius::from(8.0),
+                            width: 1.0,
+                            color: palette.primary.base.color,
+                        },
+                        shadow: Shadow {
+                            color: Color::from_rgba(0.0, 0.0, 0.0, 0.2),
+                            offset: iced::Vector::new(0.0, 2.0),
+                            blur_radius: 4.0,
+                        },
+                    },
+                    iced::widget::button::Status::Disabled => iced::widget::button::Style {
+                        background: Some(Background::Color(Color { a: 0.05, ..palette.background.strong.color })),
+                        text_color: Color { a: 0.5, ..palette.background.base.text },
+                        border: Border {
+                            radius: Radius::from(8.0),
+                            width: 0.0,
+                            color: Color::TRANSPARENT,
+                        },
+                        shadow: Shadow::default(),
+                    },
+                }
+            })
+            .into();
+        
+        current_row.push(clickable_item);
+        
+        // 每行3个项目或到达最后一个项目时创建行
+        if current_row.len() == 3 || index == playlist_infos.len() - 1 {
+            // 填充不足3个的行
+            while current_row.len() < 3 {
+                current_row.push(Space::new(Length::Fixed(140.0), Length::Fixed(150.0)).into());
+            }
+            
+            let grid_row = row(current_row.drain(..).collect::<Vec<_>>())
+                .spacing(constants::SPACING_MEDIUM)
+                .align_y(Vertical::Center)
+                .into();
+            
+            grid_rows.push(grid_row);
+        }
+    }
     
     container(
         column![
@@ -1135,21 +1260,32 @@ pub fn playlist_files_view() -> Element<'static, Message> {
                 ].spacing(constants::SPACING_MEDIUM).align_y(Vertical::Center)
             ).padding(constants::PADDING_SMALL),
             
-            // 播放列表文件列表
+            // 网格布局的播放列表（自适应高度，滚动条）
             scrollable(
-                column(items).spacing(constants::SPACING_SMALL).padding([constants::SPACING_MEDIUM, constants::SPACING_SMALL])
-            ).height(Length::Fill).width(Length::Fill),
+                column(grid_rows)
+                    .spacing(constants::SPACING_MEDIUM)
+                    .padding([constants::SPACING_MEDIUM, constants::SPACING_SMALL])
+            ).height(Length::Fill).width(Length::Fill), // 高度填满可用空间，超出时自动滚动
         ].spacing(constants::SPACING_LARGE)
     )
     .style(AppTheme::main_section_container())
     .padding(constants::SPACING_LARGE)
-    .width(Length::Fill).height(Length::Fill)
+    .width(Length::Fill).height(Length::Fill) // 容器填满可用空间
     .into()
 }
 
-/// 获取配置目录下的所有m3u播放列表文件
-fn get_playlist_files() -> Vec<String> {
+/// 播放列表文件信息
+#[derive(Clone)]
+struct PlaylistFileInfo {
+    path: String,
+    name: String,
+    song_count: usize,
+}
+
+/// 获取配置目录下的所有m3u播放列表文件及其信息
+fn get_playlist_files_info() -> Vec<PlaylistFileInfo> {
     use std::fs;
+    use crate::playlist::parse_m3u_playlist;
     
     // 获取配置目录
     let config_dir = match dirs::config_dir() {
@@ -1162,7 +1298,7 @@ fn get_playlist_files() -> Vec<String> {
         return Vec::new();
     }
     
-    let mut playlist_files = Vec::new();
+    let mut playlist_infos = Vec::new();
     
     // 读取配置目录下的所有文件
     if let Ok(entries) = fs::read_dir(&config_dir) {
@@ -1171,7 +1307,22 @@ fn get_playlist_files() -> Vec<String> {
             if let Some(extension) = path.extension() {
                 if extension == "m3u" || extension == "m3u8" {
                     if let Some(path_str) = path.to_str() {
-                        playlist_files.push(path_str.to_string());
+                        let name = path.file_stem()
+                            .and_then(|s| s.to_str())
+                            .unwrap_or("Unknown Playlist")
+                            .to_string();
+                        
+                        // 尝试解析播放列表以获取歌曲数
+                        let song_count = match parse_m3u_playlist(path_str) {
+                            Ok(playlist) => playlist.len(),
+                            Err(_) => 0, // 解析失败时显示0
+                        };
+                        
+                        playlist_infos.push(PlaylistFileInfo {
+                            path: path_str.to_string(),
+                            name,
+                            song_count,
+                        });
                     }
                 }
             }
@@ -1179,8 +1330,10 @@ fn get_playlist_files() -> Vec<String> {
     }
     
     // 按文件名排序
-    playlist_files.sort();
-    playlist_files
+    playlist_infos.sort_by(|a, b| a.name.cmp(&b.name));
+    playlist_infos
 }
+
+
 
  

@@ -155,3 +155,18 @@ Previous Track:
 Next Track:
   en: Next Track
   zh-CN: 下一曲
+song:
+  en: song
+  zh-CN: 首歌曲
+songs:
+  en: songs
+  zh-CN: 首歌曲
+No Playlists:
+  en: No Playlists
+  zh-CN: 没有播放列表
+No M3U playlists found in config directory:
+  en: No M3U playlists found in config directory
+  zh-CN: 在配置目录中未找到M3U播放列表
+Playlists:
+  en: Playlists
+  zh-CN: 播放列表

@@ -20,7 +20,7 @@ use crate::audio::{AudioInfo, PlaybackState, PlaybackCommand, start_audio_playba
 use crate::playlist::{Playlist, parse_m3u_playlist, create_single_file_playlist};
 use crate::lyrics::{Lyrics, load_lyrics_for_audio};
 use crate::utils::is_m3u_playlist;
-use crate::config::{ui::MAIN_PANEL_WIDTH, AppConfig};
+use crate::config::AppConfig;
 use super::Message;
 use super::components::*;
 use super::animation::ViewTransitionAnimation;
@@ -753,15 +753,15 @@ impl PlayerApp {
 
     /// 创建主页面内容
     fn create_home_page(&self) -> Element<Message> {
-        // 左侧面板：播放列表展示控件
+        // 左侧面板：播放列表文件网格视图（自适应宽度）
         let left_panel = column![
-            playlist_files_view(),
+            playlist_files_grid_view(),
             spacer(),
         ].spacing(16)
-         .width(Length::Fixed(MAIN_PANEL_WIDTH + 20.0))
+         .width(Length::Fill) // 改为自适应宽度
          .height(Length::Fill);
 
-        // 右侧面板根据当前视图类型显示不同内容
+        // 右侧面板根据当前视图类型显示不同内容（固定宽度）
         let right_panel_content = if self.view_animation.is_active() {
             // 动画期间同时显示两个视图，通过宽度比例实现滑动
             self.create_sliding_animation_view()
@@ -775,7 +775,7 @@ impl PlayerApp {
 
         let right_panel = column![
             right_panel_content,
-        ].spacing(16).width(Length::Fill);
+        ].spacing(16).width(Length::Fixed(450.0)); // 设置固定宽度为450像素
 
         let main_content = row![left_panel, right_panel].spacing(20);
         
