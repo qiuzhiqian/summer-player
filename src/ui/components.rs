@@ -73,6 +73,25 @@ pub mod icons {
     pub const RANDOM_PLAY: &str = r#"<svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="m3 17 6-4-6-4v8Z" fill="currentColor"/><path d="M14 6h5v5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/><path d="M19 6 9 16" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><path d="M14 18h5v-5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/><path d="M19 18 9 8" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>"#;
     pub const MUSIC_NOTE: &str = r#"<svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="7" cy="17" r="3" stroke="currentColor" stroke-width="1.5"/><circle cx="17" cy="15" r="3" stroke="currentColor" stroke-width="1.5"/><path d="M10 17V5l10-2v12" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/><path d="M10 9l10-2" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>"#;
     pub const LIST_VIEW: &str = r#"<svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M3 6h18M3 12h18M3 18h18" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>"#;
+    pub const CD_ICON: &str = r#"<?xml version="1.0" encoding="utf-8"?>
+<!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN" "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd">
+<!-- Uploaded to: SVG Repo, www.svgrepo.com, Generator: SVG Repo Mixer Tools -->
+<svg height="800px" width="800px" version="1.1" id="_x32_" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" 
+	 viewBox="0 0 512 512"  xml:space="preserve">
+<style type="text/css">
+	.st0{fill:#000000;}
+</style>
+<g>
+	<path class="st0" d="M256,0C114.616,0,0,114.616,0,256s114.616,256,256,256s256-114.616,256-256S397.384,0,256,0z M256,362.058
+		C197.425,362.05,149.95,314.575,149.942,256C149.95,197.425,197.425,149.95,256,149.942C314.575,149.95,362.05,197.425,362.058,256
+		C362.05,314.575,314.575,362.05,256,362.058z"/>
+	<path class="st0" d="M256,179.2c-21.25,0.008-40.358,8.575-54.309,22.491C187.775,215.642,179.208,234.75,179.2,256
+		c0.008,21.25,8.575,40.358,22.491,54.309c13.95,13.916,33.059,22.483,54.309,22.491c21.25-0.008,40.358-8.575,54.309-22.491
+		c13.916-13.95,22.483-33.059,22.491-54.309c-0.008-21.25-8.575-40.358-22.491-54.309C296.358,187.775,277.25,179.208,256,179.2z
+		 M256,297.633c-22.991,0-41.633-18.642-41.633-41.633s18.642-41.633,41.633-41.633c22.991,0,41.633,18.642,41.633,41.633
+		S278.991,297.633,256,297.633z"/>
+</g>
+</svg>"#;
     pub const PREVIOUS: &str = r#"<svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M6 12l10-7v14L6 12Z" fill="currentColor"/><rect x="18" y="5" width="2" height="14" rx="1" fill="currentColor"/></svg>"#;
     pub const NEXT: &str = r#"<svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><rect x="4" y="5" width="2" height="14" rx="1" fill="currentColor"/><path d="M18 12L8 5v14l10-7Z" fill="currentColor"/></svg>"#;
     pub const PLAY: &str = r#"<svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M8 5v14l11-7L8 5Z" fill="currentColor"/></svg>"#;
@@ -1090,27 +1109,27 @@ pub fn playlist_files_grid_view(playlist_manager: &crate::playlist::PlaylistMana
             column![
                 // 播放列表图标（较大）
                 container(
-                    svg_icon(icons::LIST_VIEW, 40.0, constants::ICON_COLOR)
+                    svg_icon(icons::CD_ICON, 60.0, constants::ICON_COLOR)
                 )
                 .style(|theme: &iced::Theme| {
                     let palette = theme.extended_palette();
                     container::Style {
                         background: Some(Background::Color(palette.background.weak.color)),
                         border: Border {
-                            radius: Radius::from(8.0),
+                            radius: Radius::from(12.0),
                             width: 1.0,
                             color: palette.background.strong.color,
                         },
                         shadow: Shadow {
-                            color: Color::from_rgba(0.0, 0.0, 0.0, 0.1),
-                            offset: iced::Vector::new(0.0, 2.0),
-                            blur_radius: 4.0,
+                            color: Color::from_rgba(0.0, 0.0, 0.0, 0.15),
+                            offset: iced::Vector::new(0.0, 4.0),
+                            blur_radius: 8.0,
                         },
                         text_color: None,
                     }
                 })
-                .width(Length::Fixed(80.0))
-                .height(Length::Fixed(80.0))
+                .width(Length::Fixed(100.0))
+                .height(Length::Fixed(100.0))
                 .align_x(Horizontal::Center)
                 .align_y(Vertical::Center),
                 
@@ -1119,13 +1138,13 @@ pub fn playlist_files_grid_view(playlist_manager: &crate::playlist::PlaylistMana
                     // 播放列表名称
                     container(
                         {
-                            let display_name = if playlist_info.name.chars().count() > 12 {
-                                format!("{}...", playlist_info.name.chars().take(9).collect::<String>())
+                            let display_name = if playlist_info.name.chars().count() > 18 {
+                                format!("{}...", playlist_info.name.chars().take(15).collect::<String>())
                             } else {
                                 playlist_info.name.clone()
                             };
                             text(display_name)
-                                .size(constants::TEXT_MEDIUM)
+                                .size(constants::TEXT_LARGE)
                                 .align_x(Horizontal::Center)
                                 .style(|theme: &iced::Theme| {
                                     let palette = theme.extended_palette();
@@ -1139,7 +1158,7 @@ pub fn playlist_files_grid_view(playlist_manager: &crate::playlist::PlaylistMana
                     // 歌曲数信息
                     container(
                         text(format!("{} {}", playlist_info.song_count, if playlist_info.song_count == 1 { t!("song") } else { t!("songs") }))
-                            .size(constants::TEXT_SMALL)
+                            .size(constants::TEXT_MEDIUM)
                             .align_x(Horizontal::Center)
                             .style(|theme: &iced::Theme| {
                                 let palette = theme.extended_palette();
@@ -1161,19 +1180,23 @@ pub fn playlist_files_grid_view(playlist_manager: &crate::playlist::PlaylistMana
             container::Style {
                 background: Some(Background::Color(Color { a: 0.03, ..palette.background.strong.color })),
                 border: Border {
-                    radius: Radius::from(8.0),
+                    radius: Radius::from(12.0),
                     width: 1.0,
                     color: Color { a: 0.1, ..palette.background.strong.color },
                 },
-                shadow: Shadow::default(),
+                shadow: Shadow {
+                    color: Color::from_rgba(0.0, 0.0, 0.0, 0.15),
+                    offset: iced::Vector::new(0.0, 4.0),
+                    blur_radius: 8.0,
+                },
                 text_color: None,
             }
         })
-        .width(Length::Fixed(140.0)) // 稍微增加宽度以适应更多信息
-        .height(Length::Fixed(150.0)) // 增加高度以适应歌曲数信息
+        .width(Length::Fixed(180.0)) // 增大宽度以适应更多信息
+        .height(Length::Fixed(200.0)) // 增大高度以适应歌曲数信息
         .align_x(Horizontal::Center)
         .align_y(Vertical::Center)
-        .padding(constants::PADDING_MEDIUM);
+        .padding(constants::PADDING_LARGE);
         
         let clickable_item = button(grid_item)
             .on_press(Message::PlaylistFileSelected(playlist_info.path.clone()))
@@ -1242,7 +1265,7 @@ pub fn playlist_files_grid_view(playlist_manager: &crate::playlist::PlaylistMana
             }
             
             let grid_row = row(current_row.drain(..).collect::<Vec<_>>())
-                .spacing(constants::SPACING_MEDIUM)
+                .spacing(constants::SPACING_LARGE)
                 .align_y(Vertical::Center)
                 .into();
             
