@@ -53,4 +53,6 @@ pub enum Message {
     LanguageChanged(String),
     /// 配置重置
     ResetConfig,
+    /// AudioFile 后台加载完成（文件路径，加载是否成功）
+    AudioFileLoaded(String, bool),
 } 

@@ -26,6 +26,20 @@ use super::components::*;
 use super::animation::ViewTransitionAnimation;
 use super::theme::{AppThemeVariant, AppTheme};
 
+/// 后台加载单个AudioFile
+async fn background_load_single_audio_file(file_path: String) -> bool {
+    match AudioFile::open(&file_path) {
+        Ok(_) => {
+            println!("Successfully loaded AudioFile in background: {}", file_path);
+            true
+        }
+        Err(e) => {
+            eprintln!("Failed to load AudioFile in background: {} - {}", file_path, e);
+            false
+        }
+    }
+}
+
 /// 主应用程序结构
 pub struct PlayerApp {
     /// 播放状态
@@ -166,6 +180,7 @@ impl PlayerApp {
             Message::ConfigUpdate => self.handle_config_update(),
             Message::LanguageChanged(lang) => self.handle_language_changed(lang),
             Message::ResetConfig => self.handle_reset_config(),
+            Message::AudioFileLoaded(file_path, success) => self.handle_audio_file_loaded(file_path, success),
         }
     }
 
@@ -298,6 +313,10 @@ impl PlayerApp {
             match self.playlist_manager.set_current_playlist(&path) {
                 Ok(_) => {
                     self.playlist_loaded = true;
+                    
+                    // 启动后台AudioFile加载任务
+                    let background_task = self.start_background_audio_loading();
+                    
                     if let Some(playlist) = self.playlist_manager.current_playlist() {
                         if let Some(first_item) = playlist.set_current_index(0) {
                             let file_path = first_item.path.clone();
@@ -307,7 +326,10 @@ impl PlayerApp {
                             self.stop_current_playback();
                             
                             if was_playing {
-                                return self.start_audio_playback_task(file_path);
+                                let playback_task = self.start_audio_playback_task(file_path);
+                                return Task::batch([background_task, playback_task]);
+                            } else {
+                                return background_task;
                             }
                         }
                     }
@@ -366,6 +388,9 @@ impl PlayerApp {
             Ok(_) => {
                 self.playlist_loaded = true;
                 
+                // 启动后台AudioFile加载任务
+                let background_task = self.start_background_audio_loading();
+                
                 // 如果有播放列表项目，选择第一个开始播放
                 if let Some(playlist) = self.playlist_manager.current_playlist() {
                     if let Some(first_item) = playlist.set_current_index(0) {
@@ -376,7 +401,10 @@ impl PlayerApp {
                         self.stop_current_playback();
                         
                         // 启动新的音频播放会话
-                        return self.start_audio_playback_task(file_path);
+                        let playback_task = self.start_audio_playback_task(file_path);
+                        return Task::batch([background_task, playback_task]);
+                    } else {
+                        return background_task;
                     }
                 }
             }
@@ -593,6 +621,28 @@ impl PlayerApp {
         Task::none()
     }
 
+    fn handle_audio_file_loaded(&mut self, file_path: String, success: bool) -> Task<Message> {
+        if success {
+            println!("AudioFile loaded successfully: {}", file_path);
+            // 将AudioFile添加到当前播放列表的缓存中，并更新PlaylistItem的时长信息
+            if let Some(playlist) = self.playlist_manager.current_playlist() {
+                // 尝试通过AudioFileCache加载文件（如果还没有缓存的话）
+                if let Ok(audio_file) = playlist.get_audio_file(&file_path) {
+                    println!("AudioFile {} cached successfully", file_path);
+                    
+                    // 更新PlaylistItem的时长信息
+                    let duration = audio_file.info.duration;
+                    if playlist.update_item_duration(&file_path, duration) {
+                        println!("Updated duration for {}: {:?}", file_path, duration);
+                    }
+                }
+            }
+        } else {
+            eprintln!("Failed to load AudioFile: {}", file_path);
+        }
+        Task::none()
+    }
+
     // 辅助方法
 
     /// 从当前应用状态更新配置
@@ -632,6 +682,34 @@ impl PlayerApp {
             start_audio_playback(AudioSource::FilePath(file_path), None),
             |(sender, _handle)| Message::AudioSessionStarted(sender)
         )
+    }
+
+    /// 启动后台AudioFile加载任务
+    fn start_background_audio_loading(&mut self) -> Task<Message> {
+        if let Some(playlist) = self.playlist_manager.current_playlist_ref() {
+            let file_paths: Vec<String> = playlist.items()
+                .iter()
+                .map(|item| item.path.clone())
+                .collect();
+            
+            if file_paths.is_empty() {
+                return Task::none();
+            }
+            
+            // 创建多个并发的异步任务，每个加载一个文件
+            let tasks: Vec<Task<Message>> = file_paths.into_iter()
+                .map(|file_path| {
+                    Task::perform(
+                        background_load_single_audio_file(file_path.clone()),
+                        move |success| Message::AudioFileLoaded(file_path.clone(), success)
+                    )
+                })
+                .collect();
+            
+            Task::batch(tasks)
+        } else {
+            Task::none()
+        }
     }
 
     /// 仅更新UI信息，使用播放列表缓存，避免重复打开AudioFile

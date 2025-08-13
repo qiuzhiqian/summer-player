@@ -377,14 +377,32 @@ impl Playlist {
         self.items.len()
     }
     
-    /// 获取所有播放列表项的引用
+        /// 获取所有播放列表项的引用
     /// 
     /// # 返回
     /// 播放列表项的向量引用
     pub fn items(&self) -> &[PlaylistItem] {
         &self.items
     }
-    
+
+    /// 更新指定文件路径对应项目的时长信息
+    /// 
+    /// # 参数
+    /// * `file_path` - 文件路径
+    /// * `duration` - 新的时长（秒）
+    /// 
+    /// # 返回
+    /// 如果找到并更新成功返回true，否则返回false
+    pub fn update_item_duration(&mut self, file_path: &str, duration: Option<f64>) -> bool {
+        for item in &mut self.items {
+            if item.path == file_path {
+                item.duration = duration;
+                return true;
+            }
+        }
+        false
+    }
+
     /// 获取播放列表名称
     /// 
     /// # 返回
