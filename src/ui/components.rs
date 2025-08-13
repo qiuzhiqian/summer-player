@@ -1264,9 +1264,9 @@ pub fn playlist_files_grid_view(playlist_manager: &crate::playlist::PlaylistMana
             scrollable(
                 column(grid_rows)
                     .spacing(constants::SPACING_MEDIUM)
-                    .padding([constants::SPACING_MEDIUM, constants::SPACING_SMALL])
+                    .padding([constants::SPACING_MEDIUM, constants::PADDING_SMALL])
             ).height(Length::Fill).width(Length::Fill), // 高度填满可用空间，超出时自动滚动
-        ].spacing(constants::SPACING_LARGE)
+        ].spacing(constants::SPACING_LARGE).height(Length::Fill) // 确保列也填满高度
     )
     .style(AppTheme::main_section_container())
     .padding(constants::SPACING_LARGE)

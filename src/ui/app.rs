@@ -843,13 +843,12 @@ impl PlayerApp {
 
     /// 创建主页面内容
     fn create_home_page(&self) -> Element<Message> {
-        // 左侧面板：播放列表文件网格视图（自适应宽度）
+        // 左侧面板：播放列表文件网格视图（自适应宽度和高度）
         let left_panel = column![
             playlist_files_grid_view(&self.playlist_manager),
-            spacer(),
         ].spacing(16)
-         .width(Length::Fill) // 改为自适应宽度
-         .height(Length::Fill);
+         .width(Length::Fill)
+         .height(Length::Fill); // 确保填满可用高度
 
         // 右侧面板根据当前视图类型显示不同内容（固定宽度）
         let right_panel_content = if self.view_animation.is_active() {
@@ -875,7 +874,7 @@ impl PlayerApp {
             right_panel_content,
         ].spacing(16).width(Length::Fixed(450.0)); // 设置固定宽度为450像素
 
-        let main_content = row![left_panel, right_panel].spacing(20);
+        let main_content = row![left_panel, right_panel].spacing(20).height(Length::Fill);
         
         // 底部区域：上下两层布局
         let bottom_section = container(
@@ -915,6 +914,7 @@ impl PlayerApp {
             bottom_section
         ]
         .spacing(8)
+        .height(Length::Fill) // 确保主列填满可用高度
         .into()
     }
 
