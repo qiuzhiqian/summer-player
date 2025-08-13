@@ -130,6 +130,12 @@ impl PlayerApp {
             ..Self::default()
         };
         
+        // 自动加载配置目录下的播放列表文件
+        let loaded_count = app.playlist_manager.load_config_playlists();
+        if loaded_count > 0 {
+            println!("自动加载了 {} 个播放列表文件", loaded_count);
+        }
+        
         // 如果配置中有最后播放的文件且没有传入初始文件，使用配置中的文件
         //let file_to_load = initial_file.or_else(|| app.app_config.player.last_file_path.clone());
         
@@ -300,6 +306,17 @@ impl PlayerApp {
         Task::perform(open_file_dialog(), Message::FileSelected)
     }
 
+    /// 处理用户选择的文件
+    /// 
+    /// 当用户通过文件选择对话框选择一个文件后，此函数会被调用。
+    /// 它会根据文件类型（普通音频文件或播放列表文件）进行相应处理，
+    /// 并更新播放器状态以开始播放。
+    /// 
+    /// # 参数
+    /// * `file_path` - 用户选择的文件路径，如果用户取消选择则为None
+    /// 
+    /// # 返回
+    /// 返回一个Task，用于执行后续的异步操作
     fn handle_file_selected(&mut self, file_path: Option<String>) -> Task<Message> {
         let Some(path) = file_path else {
             return Task::none();
@@ -684,17 +701,29 @@ impl PlayerApp {
         )
     }
 
-    /// 启动后台AudioFile加载任务
+    /// 启动后台AudioFile加载任务（只加载尚未缓存的文件）
     fn start_background_audio_loading(&mut self) -> Task<Message> {
-        if let Some(playlist) = self.playlist_manager.current_playlist_ref() {
+        if let Some(playlist) = self.playlist_manager.current_playlist() {
+            // 只加载尚未缓存的文件
             let file_paths: Vec<String> = playlist.items()
                 .iter()
-                .map(|item| item.path.clone())
+                .filter_map(|item| {
+                    // 检查文件是否已缓存
+                    if !playlist.contains_audio_file(&item.path) {
+                        println!("Loading file: {}", item.path);
+                        Some(item.path.clone())
+                    } else {
+                        println!("File already cached: {}", item.path);
+                        None
+                    }
+                })
                 .collect();
             
             if file_paths.is_empty() {
                 return Task::none();
             }
+            
+            println!("启动后台加载任务，需要加载 {} 个文件", file_paths.len());
             
             // 创建多个并发的异步任务，每个加载一个文件
             let tasks: Vec<Task<Message>> = file_paths.into_iter()
@@ -816,7 +845,7 @@ impl PlayerApp {
     fn create_home_page(&self) -> Element<Message> {
         // 左侧面板：播放列表文件网格视图（自适应宽度）
         let left_panel = column![
-            playlist_files_grid_view(),
+            playlist_files_grid_view(&self.playlist_manager),
             spacer(),
         ].spacing(16)
          .width(Length::Fill) // 改为自适应宽度

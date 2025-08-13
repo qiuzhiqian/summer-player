@@ -1065,9 +1065,9 @@ pub fn current_track_info_view(audio_info: Option<&AudioInfo>, file_path: &str) 
 
 /// 播放列表文件展示控件（网格布局）
 /// 显示配置目录下的所有m3u播放列表文件
-pub fn playlist_files_grid_view() -> Element<'static, Message> {
-    // 获取配置目录下的播放列表文件信息
-    let playlist_infos = get_playlist_files_info();
+pub fn playlist_files_grid_view(playlist_manager: &crate::playlist::PlaylistManager) -> Element<'static, Message> {
+    // 从PlaylistManager获取播放列表文件信息
+    let playlist_infos = get_playlist_files_info_from_manager(playlist_manager);
     
     if playlist_infos.is_empty() {
         // 没有播放列表文件时的显示
@@ -1282,7 +1282,32 @@ struct PlaylistFileInfo {
     song_count: usize,
 }
 
-/// 获取配置目录下的所有m3u播放列表文件及其信息
+/// 从PlaylistManager获取播放列表文件信息（只包含持久播放列表，不包含临时播放列表）
+fn get_playlist_files_info_from_manager(playlist_manager: &crate::playlist::PlaylistManager) -> Vec<PlaylistFileInfo> {
+    let mut playlist_infos = Vec::new();
+    
+    // 遍历PlaylistManager中的持久播放列表
+    for (playlist_path, playlist) in playlist_manager.get_persistent_playlists_with_paths() {
+        // 只包含持久播放列表（不包含临时播放列表）
+        if !playlist.is_temporary() {
+            let name = playlist.name()
+                .unwrap_or("Unknown Playlist")
+                .to_string();
+            
+            playlist_infos.push(PlaylistFileInfo {
+                path: playlist_path.to_string(),
+                name,
+                song_count: playlist.len(),
+            });
+        }
+    }
+    
+    // 按文件名排序
+    playlist_infos.sort_by(|a, b| a.name.cmp(&b.name));
+    playlist_infos
+}
+
+/// 获取配置目录下的所有m3u播放列表文件及其信息（保留原函数作为备用）
 fn get_playlist_files_info() -> Vec<PlaylistFileInfo> {
     use std::fs;
     use crate::playlist::parse_m3u_playlist;

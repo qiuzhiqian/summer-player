@@ -125,6 +125,8 @@ pub struct Playlist {
     name: Option<String>,
     /// AudioFile缓存
     audio_cache: AudioFileCache,
+    /// 播放列表文件路径（临时播放列表为None）
+    file_path: Option<String>,
 }
 
 impl Playlist {
@@ -135,6 +137,7 @@ impl Playlist {
             current_index: None,
             name: None,
             audio_cache: AudioFileCache::new(),
+            file_path: None,
         }
     }
     
@@ -148,6 +151,7 @@ impl Playlist {
             current_index: None,
             name: Some(name),
             audio_cache: AudioFileCache::new(),
+            file_path: None,
         }
     }
     
@@ -411,6 +415,63 @@ impl Playlist {
         self.name.as_deref()
     }
     
+    /// 获取播放列表文件路径
+    /// 
+    /// # 返回
+    /// 播放列表文件路径的引用，如果是临时播放列表则返回None
+    pub fn file_path(&self) -> Option<&str> {
+        self.file_path.as_deref()
+    }
+    
+    /// 检查是否为临时播放列表
+    /// 
+    /// # 返回
+    /// 如果是临时播放列表返回true
+    pub fn is_temporary(&self) -> bool {
+        self.file_path.is_none()
+    }
+    
+    /// 创建临时播放列表（用于单个音频文件）
+    /// 
+    /// # 参数
+    /// * `file_path` - 音频文件路径
+    /// 
+    /// # 返回
+    /// 临时播放列表实例
+    pub fn create_temporary(file_path: String) -> Self {
+        let mut playlist = Self {
+            items: Vec::new(),
+            current_index: None,
+            name: None,
+            audio_cache: AudioFileCache::new(),
+            file_path: None, // 临时播放列表没有文件路径
+        };
+        
+        let item = PlaylistItem::new(file_path);
+        playlist.add_item(item);
+        playlist.set_current_index(0);
+        
+        playlist
+    }
+    
+    /// 创建持久播放列表（从文件加载）
+    /// 
+    /// # 参数
+    /// * `file_path` - 播放列表文件路径
+    /// * `name` - 播放列表名称
+    /// 
+    /// # 返回
+    /// 持久播放列表实例
+    pub fn create_persistent(file_path: String, name: String) -> Self {
+        Self {
+            items: Vec::new(),
+            current_index: None,
+            name: Some(name),
+            audio_cache: AudioFileCache::new(),
+            file_path: Some(file_path),
+        }
+    }
+    
     /// 移除指定索引的项目
     /// 
     /// # 参数
@@ -508,6 +569,17 @@ impl Playlist {
         }
     }
     
+    /// 检查缓存中是否包含指定文件
+    /// 
+    /// # 参数
+    /// * `file_path` - 音频文件路径
+    /// 
+    /// # 返回
+    /// 如果缓存中包含指定文件返回true，否则返回false
+    pub fn contains_audio_file(&self, file_path: &str) -> bool {
+        self.audio_cache.contains(file_path)
+    }
+    
     /// 清空播放列表和缓存
     pub fn clear(&mut self) {
         self.items.clear();
@@ -520,10 +592,12 @@ impl Playlist {
 /// 
 /// 管理多个播放列表的缓存，避免重复加载播放列表文件
 pub struct PlaylistManager {
-    /// 播放列表文件路径 -> Playlist 的映射
+    /// 播放列表文件路径 -> Playlist 的映射（持久播放列表）
     playlists: HashMap<String, Playlist>,
     /// 当前活跃的播放列表路径
     current_playlist_path: Option<String>,
+    /// 临时播放列表（单个音频文件）
+    temporary_playlist: Option<Playlist>,
 }
 
 impl PlaylistManager {
@@ -532,6 +606,7 @@ impl PlaylistManager {
         Self {
             playlists: HashMap::new(),
             current_playlist_path: None,
+            temporary_playlist: None,
         }
     }
     
@@ -561,11 +636,24 @@ impl PlaylistManager {
     /// 设置当前活跃的播放列表
     /// 
     /// # 参数
-    /// * `playlist_path` - 播放列表文件路径
+    /// * `playlist_path` - 播放列表文件路径或音频文件路径
     pub fn set_current_playlist(&mut self, playlist_path: &str) -> Result<()> {
-        // 确保播放列表已加载
-        self.get_or_load_playlist(playlist_path)?;
-        self.current_playlist_path = Some(playlist_path.to_string());
+        // 检查是否是播放列表文件
+        if playlist_path.ends_with(".m3u") || playlist_path.ends_with(".m3u8") {
+            // 播放列表文件：检查是否已加载，如果已加载则直接使用
+            if !self.playlists.contains_key(playlist_path) {
+                // 首次加载播放列表
+                let playlist = parse_m3u_playlist(playlist_path)?;
+                self.playlists.insert(playlist_path.to_string(), playlist);
+            }
+            self.current_playlist_path = Some(playlist_path.to_string());
+            self.temporary_playlist = None; // 清除临时播放列表
+        } else {
+            // 单个音频文件：创建临时播放列表
+            let temp_playlist = Playlist::create_temporary(playlist_path.to_string());
+            self.temporary_playlist = Some(temp_playlist);
+            self.current_playlist_path = None; // 清除持久播放列表路径
+        }
         Ok(())
     }
     
@@ -574,7 +662,10 @@ impl PlaylistManager {
     /// # 返回
     /// 当前播放列表的可变引用
     pub fn current_playlist(&mut self) -> Option<&mut Playlist> {
-        if let Some(path) = &self.current_playlist_path.clone() {
+        // 优先返回临时播放列表
+        if let Some(ref mut temp_playlist) = self.temporary_playlist {
+            Some(temp_playlist)
+        } else if let Some(path) = &self.current_playlist_path.clone() {
             self.playlists.get_mut(path)
         } else {
             None
@@ -586,7 +677,10 @@ impl PlaylistManager {
     /// # 返回
     /// 当前播放列表的不可变引用
     pub fn current_playlist_ref(&self) -> Option<&Playlist> {
-        if let Some(path) = &self.current_playlist_path {
+        // 优先返回临时播放列表
+        if let Some(ref temp_playlist) = self.temporary_playlist {
+            Some(temp_playlist)
+        } else if let Some(path) = &self.current_playlist_path {
             self.playlists.get(path)
         } else {
             None
@@ -635,6 +729,74 @@ impl PlaylistManager {
     pub fn cached_playlist_paths(&self) -> Vec<&str> {
         self.playlists.keys().map(|s| s.as_str()).collect()
     }
+    
+    /// 获取所有持久播放列表（不包括临时播放列表）
+    /// 
+    /// # 返回
+    /// 持久播放列表的引用向量
+    pub fn get_persistent_playlists(&self) -> Vec<&Playlist> {
+        self.playlists.values().collect()
+    }
+    
+    /// 获取所有持久播放列表的路径和播放列表对
+    /// 
+    /// # 返回
+    /// (路径, 播放列表)的向量
+    pub fn get_persistent_playlists_with_paths(&self) -> Vec<(&str, &Playlist)> {
+        self.playlists.iter().map(|(path, playlist)| (path.as_str(), playlist)).collect()
+    }
+    
+    /// 检查当前播放列表是否为临时播放列表
+    /// 
+    /// # 返回
+    /// 如果当前播放列表是临时播放列表返回true
+    pub fn is_current_temporary(&self) -> bool {
+        self.temporary_playlist.is_some()
+    }
+    
+    /// 加载配置目录下的所有播放列表文件
+    /// 
+    /// # 返回
+    /// 成功加载的播放列表数量
+    pub fn load_config_playlists(&mut self) -> usize {
+        use std::fs;
+        
+        // 获取配置目录
+        let config_dir = match dirs::config_dir() {
+            Some(dir) => dir.join("summer-player"),
+            None => return 0,
+        };
+        
+        // 如果配置目录不存在，返回0
+        if !config_dir.exists() {
+            return 0;
+        }
+        
+        let mut loaded_count = 0;
+        
+        // 读取配置目录下的所有文件
+        if let Ok(entries) = fs::read_dir(&config_dir) {
+            for entry in entries.flatten() {
+                let path = entry.path();
+                if let Some(extension) = path.extension() {
+                    if extension == "m3u" || extension == "m3u8" {
+                        if let Some(path_str) = path.to_str() {
+                            // 检查是否已经加载过
+                            if !self.playlists.contains_key(path_str) {
+                                // 尝试加载播放列表
+                                if let Ok(playlist) = parse_m3u_playlist(path_str) {
+                                    self.playlists.insert(path_str.to_string(), playlist);
+                                    loaded_count += 1;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        
+        loaded_count
+    }
 }
 
 /// 解析M3U播放列表
@@ -649,7 +811,10 @@ pub fn parse_m3u_playlist(file_path: &str) -> Result<Playlist> {
         .map_err(|e| PlayerError::PlaylistError(format!("Failed to open playlist file: {}", e)))?;
     
     let reader = BufReader::new(file);
-    let mut playlist = Playlist::with_name(extract_filename(file_path));
+    let mut playlist = Playlist::create_persistent(
+        file_path.to_string(),
+        extract_filename(file_path)
+    );
     let playlist_dir = Path::new(file_path).parent()
         .ok_or_else(|| PlayerError::PlaylistError("Invalid playlist path".to_string()))?;
     
@@ -724,26 +889,15 @@ pub fn parse_m3u_playlist(file_path: &str) -> Result<Playlist> {
     Ok(playlist)
 }
 
-/// 创建单文件播放列表
+/// 创建单文件播放列表（临时播放列表）
 /// 
 /// # 参数
 /// * `file_path` - 音频文件路径
 /// 
 /// # 返回
-/// 包含单个文件的播放列表
+/// 包含单个文件的临时播放列表
 pub fn create_single_file_playlist(file_path: &str) -> Result<Playlist> {
-    let mut playlist = Playlist::new();
-    let item = PlaylistItem::new(file_path.to_string());
-    
-    // 延迟获取音频信息，避免重复调用AudioFile::open
-    // 时长信息将在实际播放时通过load_audio_file获取
-    // if let Ok(audio_info) = AudioFile::get_info(file_path) {
-    //     item = item.with_duration(audio_info.duration);
-    // }
-    
-    playlist.add_item(item);
-    playlist.set_current_index(0);
-    
+    let playlist = Playlist::create_temporary(file_path.to_string());
     Ok(playlist)
 }
 

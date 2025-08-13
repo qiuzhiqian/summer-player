@@ -361,7 +361,6 @@ impl AudioFile {
         if !Path::new(file_path).exists() {
             return Err(PlayerError::FileNotFound(file_path.to_string()));
         }
-        println!("open file: {}", file_path);
 
         let file = File::open(file_path)
             .map_err(|e| PlayerError::FileNotFound(format!("{}: {}", file_path, e)))?;
