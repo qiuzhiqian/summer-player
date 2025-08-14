@@ -1135,40 +1135,53 @@ pub fn playlist_files_grid_view(playlist_manager: &crate::playlist::PlaylistMana
                 
                 // 播放列表信息（名称和歌曲数）
                 column![
-                    // 播放列表名称
-                    container(
-                        {
-                            let display_name = if playlist_info.name.chars().count() > 18 {
-                                format!("{}...", playlist_info.name.chars().take(15).collect::<String>())
-                            } else {
-                                playlist_info.name.clone()
-                            };
-                            text(display_name)
-                                .size(constants::TEXT_LARGE)
+                    // 使用row布局来排列名称和歌曲数
+                    row![
+                        // 播放列表名称（去除文件扩展名）
+                        container(
+                            {
+                                // 移除文件扩展名
+                                let name_without_extension = std::path::Path::new(&playlist_info.name)
+                                    .file_stem()
+                                    .and_then(|s| s.to_str())
+                                    .unwrap_or(&playlist_info.name)
+                                    .to_string();
+                                
+                                let display_name = if name_without_extension.chars().count() > 18 {
+                                    format!("{}...", name_without_extension.chars().take(15).collect::<String>())
+                                } else {
+                                    name_without_extension
+                                };
+                                text(display_name)
+                                    .size(constants::TEXT_LARGE)
+                                    .align_x(Horizontal::Center)
+                                    .style(|theme: &iced::Theme| {
+                                        let palette = theme.extended_palette();
+                                        iced::widget::text::Style {
+                                            color: Some(palette.background.base.text),
+                                        }
+                                    })
+                            }
+                        ).width(Length::FillPortion(3)).align_x(Horizontal::Center),
+                        
+                        // 歌曲数信息
+                        container(
+                            text(format!("{} {}", playlist_info.song_count, if playlist_info.song_count == 1 { t!("song") } else { t!("songs") }))
+                                .size(constants::TEXT_MEDIUM)
                                 .align_x(Horizontal::Center)
                                 .style(|theme: &iced::Theme| {
                                     let palette = theme.extended_palette();
                                     iced::widget::text::Style {
-                                        color: Some(palette.background.base.text),
+                                        color: Some(Color { a: 0.7, ..palette.background.base.text }),
                                     }
                                 })
-                        }
-                    ).width(Length::Fill).align_x(Horizontal::Center),
-                    
-                    // 歌曲数信息
-                    container(
-                        text(format!("{} {}", playlist_info.song_count, if playlist_info.song_count == 1 { t!("song") } else { t!("songs") }))
-                            .size(constants::TEXT_MEDIUM)
-                            .align_x(Horizontal::Center)
-                            .style(|theme: &iced::Theme| {
-                                let palette = theme.extended_palette();
-                                iced::widget::text::Style {
-                                    color: Some(Color { a: 0.7, ..palette.background.base.text }),
-                                }
-                            })
-                    ).width(Length::Fill).align_x(Horizontal::Center),
+                        ).width(Length::FillPortion(2)).align_x(Horizontal::Center),
+                    ]
+                    .spacing(6)
+                    .width(Length::Fill)
+                    .align_y(Vertical::Center)
                 ]
-                .spacing(6) // 调整间距
+                .spacing(constants::SPACING_MEDIUM) // 调整主列间距
                 .width(Length::Fill)
                 .align_x(Horizontal::Center)
             ]
