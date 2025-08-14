@@ -1107,9 +1107,9 @@ pub fn playlist_files_grid_view(playlist_manager: &crate::playlist::PlaylistMana
         // 创建网格项
         let grid_item = container(
             column![
-                // 播放列表图标（较大）
+                // 播放列表图标（方形）
                 container(
-                    svg_icon(icons::CD_ICON, 60.0, constants::ICON_COLOR)
+                    svg_icon(icons::CD_ICON, 90.0, constants::ICON_COLOR)
                 )
                 .style(|theme: &iced::Theme| {
                     let palette = theme.extended_palette();
@@ -1128,8 +1128,8 @@ pub fn playlist_files_grid_view(playlist_manager: &crate::playlist::PlaylistMana
                         text_color: None,
                     }
                 })
-                .width(Length::Fixed(100.0))
-                .height(Length::Fixed(100.0))
+                .width(Length::Fixed(160.0)) // 固定宽度确保方形
+                .height(Length::Fixed(160.0)) // 固定高度确保方形
                 .align_x(Horizontal::Center)
                 .align_y(Vertical::Center),
                 
@@ -1168,12 +1168,13 @@ pub fn playlist_files_grid_view(playlist_manager: &crate::playlist::PlaylistMana
                             })
                     ).width(Length::Fill).align_x(Horizontal::Center),
                 ]
-                .spacing(2)
+                .spacing(6) // 调整间距
                 .width(Length::Fill)
                 .align_x(Horizontal::Center)
             ]
-            .spacing(constants::SPACING_SMALL)
+            .spacing(constants::SPACING_MEDIUM) // 调整主列间距
             .align_x(Horizontal::Center)
+            .height(Length::Fill)
         )
         .style(|theme: &iced::Theme| {
             let palette = theme.extended_palette();
@@ -1192,11 +1193,11 @@ pub fn playlist_files_grid_view(playlist_manager: &crate::playlist::PlaylistMana
                 text_color: None,
             }
         })
-        .width(Length::Fixed(180.0)) // 增大宽度以适应更多信息
-        .height(Length::Fixed(200.0)) // 增大高度以适应歌曲数信息
+        .width(Length::Fixed(170.0)) // 固定宽度
+        .height(Length::Fixed(230.0)) // 调整总高度
         .align_x(Horizontal::Center)
         .align_y(Vertical::Center)
-        .padding(constants::PADDING_LARGE);
+        .padding([constants::PADDING_MEDIUM, constants::PADDING_SMALL]);
         
         let clickable_item = button(grid_item)
             .on_press(Message::PlaylistFileSelected(playlist_info.path.clone()))
