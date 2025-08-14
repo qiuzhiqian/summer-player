@@ -16,6 +16,7 @@ use crate::utils::format_duration;
 
 use super::Message;
 use super::theme::{AppTheme, AppThemeVariant};
+use super::widgets::{StyledContainer, StyledButton, StyledText, IconButton};
 use rust_i18n::t;
 
 use dirs;
@@ -164,10 +165,9 @@ fn tooltip_style() -> impl Fn(&iced::Theme) -> container::Style {
 
 /// 透明文本样式
 fn alpha_text_style(alpha: f32) -> impl Fn(&iced::Theme) -> iced::widget::text::Style {
-    move |theme: &iced::Theme| {
-        let palette = theme.extended_palette();
+    move |_theme: &iced::Theme| {
         iced::widget::text::Style {
-            color: Some(Color { a: alpha, ..palette.background.base.text }),
+            color: Some(Color { r: 0.4, g: 0.4, b: 0.4, a: alpha }),
         }
     }
 }
@@ -193,24 +193,13 @@ fn icon_button(
     message: Message, 
     size: f32, 
     icon_size: f32,
-    style_fn: fn() -> fn(&iced::Theme, iced::widget::button::Status) -> iced::widget::button::Style
+    _style_fn: fn() -> fn(&iced::Theme, iced::widget::button::Status) -> iced::widget::button::Style
 ) -> Element<'static, Message> {
-    tooltip(
-        button(
-            container(svg_icon(icon, icon_size, constants::ICON_COLOR))
-                .width(Length::Fill).height(Length::Fill)
-                .align_x(Horizontal::Center).align_y(Vertical::Center)
-        )
-        .style(style_fn())
-        .width(Length::Fixed(size))
-        .height(Length::Fixed(size))
-        .on_press(message),
-        text(tooltip_text).size(constants::TEXT_NORMAL),
-        tooltip::Position::Top
-    )
-    .style(tooltip_style())
-    .padding(constants::PADDING_SMALL)
-    .into()
+    IconButton::new(icon, tooltip_text)
+        .on_press(message)
+        .size(size)
+        .icon_size(icon_size)
+        .build()
 }
 
 // ============================================================================
@@ -267,114 +256,178 @@ impl PlayMode {
 /// 导航侧边栏
 pub fn navigation_sidebar(current_page: &PageType) -> Element<'static, Message> {
     let nav_button = |icon: &'static str, label: String, page: PageType, is_active: bool| {
-        let style_fn = if is_active { AppTheme::control_button } else { AppTheme::file_button };
-        icon_button(icon, label, Message::PageChanged(page), constants::BUTTON_SIZE_SMALL, constants::ICON_SIZE_SMALL, style_fn)
+        let style = if is_active { 
+            super::widgets::styled_button::ButtonStyle::Control
+        } else { 
+            super::widgets::styled_button::ButtonStyle::File
+        };
+        IconButton::new(icon, label)
+            .on_press(Message::PageChanged(page))
+            .size(constants::BUTTON_SIZE_SMALL)
+            .icon_size(constants::ICON_SIZE_SMALL)
+            .style(style)
+            .build()
     };
 
-    column![
-        nav_button(icons::HOME, t!("Home").to_string(), PageType::Home, *current_page == PageType::Home),
-        nav_button(icons::SETTINGS, t!("Settings").to_string(), PageType::Settings, *current_page == PageType::Settings),
-        Space::with_height(Length::Fill),
-        container(
-            column![
-                text("🎵").size(constants::TEXT_TITLE).shaping(Shaping::Advanced),
-                text("Summer").size(constants::TEXT_SMALL).style(alpha_text_style(0.7)),
-            ].align_x(Horizontal::Center).spacing(4)
-        ).width(Length::Fill).align_x(Horizontal::Center).padding(constants::PADDING_SMALL),
-    ]
-    .width(Length::Shrink).height(Length::Fill)
-    .spacing(constants::SPACING_MEDIUM).padding(constants::PADDING_MEDIUM)
-    .into()
+    StyledContainer::new(
+        column![
+            nav_button(icons::HOME, t!("Home").to_string(), PageType::Home, *current_page == PageType::Home),
+            nav_button(icons::SETTINGS, t!("Settings").to_string(), PageType::Settings, *current_page == PageType::Settings),
+            Space::with_height(Length::Fill),
+            container(
+                column![
+                    text("🎵").size(constants::TEXT_TITLE).shaping(Shaping::Advanced),
+                    text("Summer").size(constants::TEXT_SMALL).style(alpha_text_style(0.7)),
+                ].align_x(Horizontal::Center).spacing(4)
+            ).width(Length::Fill).align_x(Horizontal::Center).padding(constants::PADDING_SMALL),
+        ]
+        .width(Length::Shrink).height(Length::Fill)
+        .spacing(constants::SPACING_MEDIUM).padding(constants::PADDING_MEDIUM)
+    )
+    .style(super::widgets::styled_container::ContainerStyle::MainSection)
+    .width(Length::Shrink)
+    .height(Length::Fill)
+    .build()
 }
 
 /// 设置页面
 pub fn settings_page(current_theme: &AppThemeVariant, current_language: &str) -> Element<'static, Message> {
     let theme_setting = row![
-        text(match current_theme {
+        StyledText::new(match current_theme {
             AppThemeVariant::Light => "Light",
             AppThemeVariant::Dark => "Dark",
-        }).size(constants::TEXT_MEDIUM),
+        }).size(constants::TEXT_MEDIUM).build(),
         Space::with_width(Length::Fill),
-        button(text(t!("Toggle")))
+        StyledButton::new(StyledText::new(t!("Toggle")).size(constants::TEXT_NORMAL).build())
             .on_press(Message::ToggleTheme)
-            .style(AppTheme::file_button())
+            .style(super::widgets::styled_button::ButtonStyle::File)
             .padding(constants::PADDING_SMALL)
+            .build()
     ].align_y(Vertical::Center);
 
     let language_setting = row![
-        text(match current_language {
+        StyledText::new(match current_language {
             "zh-CN" => t!("Chinese").to_string(),
             _ => "English".to_string(),
-        }).size(constants::TEXT_MEDIUM),
+        }).size(constants::TEXT_MEDIUM).build(),
         Space::with_width(Length::Fill),
-        button(text(t!("Change")))
-            .style(AppTheme::file_button())
+        StyledButton::new(StyledText::new(t!("Change")).size(constants::TEXT_NORMAL).build())
+            .style(super::widgets::styled_button::ButtonStyle::File)
             .padding(constants::PADDING_SMALL)
+            .build()
     ].align_y(Vertical::Center);
 
-    column![
-        container(text(t!("Settings")).size(constants::TEXT_TITLE + 4).style(AppTheme::emphasis_text()))
-            .padding(constants::PADDING_MEDIUM),
-        
+    StyledContainer::new(
         column![
-            text(t!("Appearance")).size(constants::TEXT_LARGE).style(AppTheme::subtitle_text()),
-            container(
-                row![
-                    text(t!("Theme")).size(constants::TEXT_MEDIUM).width(Length::Fixed(150.0)),
-                    theme_setting
-                ].align_y(Vertical::Center).spacing(constants::SPACING_MEDIUM).padding(constants::PADDING_SMALL)
-            ).style(AppTheme::card_container()).padding(constants::PADDING_MEDIUM).width(Length::Fill)
-        ].spacing(constants::SPACING_SMALL),
-        
-        column![
-            text(t!("Language")).size(constants::TEXT_LARGE).style(AppTheme::subtitle_text()),
-            container(
-                row![
-                    text(t!("Interface Language")).size(constants::TEXT_MEDIUM).width(Length::Fixed(150.0)),
-                    language_setting
-                ].align_y(Vertical::Center).spacing(constants::SPACING_MEDIUM).padding(constants::PADDING_SMALL)
-            ).style(AppTheme::card_container()).padding(constants::PADDING_MEDIUM).width(Length::Fill)
-        ].spacing(constants::SPACING_SMALL),
-
-        column![
-            text("Advanced Settings").size(constants::TEXT_LARGE).style(AppTheme::subtitle_text()),
-            container(
-                column![
-                    row![
-                        text("Config File").size(constants::TEXT_MEDIUM).width(Length::Fixed(150.0)),
-                        {
-                            let config_path = crate::config::AppConfig::get_config_path_string();
-                            let truncated_path = if config_path.len() > 50 {
-                                format!("...{}", &config_path[config_path.len().saturating_sub(47)..])
-                            } else {
-                                config_path
-                            };
-                            text(truncated_path).size(constants::TEXT_SMALL).style(alpha_text_style(0.7))
-                        }
-                    ].align_y(Vertical::Center).spacing(constants::SPACING_MEDIUM),
-                    row![
-                        text("Reset Settings").size(constants::TEXT_MEDIUM).width(Length::Fixed(150.0)),
-                        button(text("Reset to Default"))
-                            .on_press(Message::ResetConfig)
-                            .style(AppTheme::file_button())
-                            .padding(constants::PADDING_SMALL)
-                    ].align_y(Vertical::Center).spacing(constants::SPACING_MEDIUM),
-                ].spacing(constants::SPACING_MEDIUM).padding(constants::PADDING_SMALL)
-            ).style(AppTheme::card_container()).padding(constants::PADDING_MEDIUM).width(Length::Fill)
-        ].spacing(constants::SPACING_SMALL),
-        
-        Space::with_height(Length::Fill),
-        container(
+            StyledContainer::new(
+                StyledText::new(t!("Settings")).size(constants::TEXT_TITLE + 4)
+                    .style(super::widgets::styled_text::TextStyle::Emphasis)
+                    .build()
+            )
+            .padding(constants::PADDING_MEDIUM)
+            .build(),
+            
             column![
-                text(format!("{} v{}", t!("Summer Player"), env!("CARGO_PKG_VERSION")))
-                    .size(constants::TEXT_NORMAL).style(AppTheme::subtitle_text()),
-                text(format!("© 2025 {}", t!("xml")))
-                    .size(constants::TEXT_SMALL).style(AppTheme::hint_text()),
-            ].align_x(Horizontal::Center).spacing(2)
-        ).center_x(Length::Fill).padding(constants::PADDING_MEDIUM)
-    ]
-    .spacing(constants::SPACING_MEDIUM).padding(constants::PADDING_LARGE)
-    .into()
+                StyledText::new(t!("Appearance")).size(constants::TEXT_LARGE)
+                    .style(super::widgets::styled_text::TextStyle::Secondary)
+                    .build(),
+                StyledContainer::new(
+                    row![
+                        StyledText::new(t!("Theme")).size(constants::TEXT_MEDIUM)
+                            .width(Length::Fixed(150.0))
+                            .build(),
+                        theme_setting
+                    ].align_y(Vertical::Center).spacing(constants::SPACING_MEDIUM).padding(constants::PADDING_SMALL)
+                )
+                .style(super::widgets::styled_container::ContainerStyle::Card)
+                .padding(constants::PADDING_MEDIUM)
+                .width(Length::Fill)
+                .build()
+            ].spacing(constants::SPACING_SMALL),
+            
+            column![
+                StyledText::new(t!("Language")).size(constants::TEXT_LARGE)
+                    .style(super::widgets::styled_text::TextStyle::Secondary)
+                    .build(),
+                StyledContainer::new(
+                    row![
+                        StyledText::new(t!("Interface Language")).size(constants::TEXT_MEDIUM)
+                            .width(Length::Fixed(150.0))
+                            .build(),
+                        language_setting
+                    ].align_y(Vertical::Center).spacing(constants::SPACING_MEDIUM).padding(constants::PADDING_SMALL)
+                )
+                .style(super::widgets::styled_container::ContainerStyle::Card)
+                .padding(constants::PADDING_MEDIUM)
+                .width(Length::Fill)
+                .build()
+            ].spacing(constants::SPACING_SMALL),
+
+            column![
+                StyledText::new("Advanced Settings").size(constants::TEXT_LARGE)
+                    .style(super::widgets::styled_text::TextStyle::Secondary)
+                    .build(),
+                StyledContainer::new(
+                    column![
+                        row![
+                            StyledText::new("Config File").size(constants::TEXT_MEDIUM)
+                                .width(Length::Fixed(150.0))
+                                .build(),
+                            {
+                                let config_path = crate::config::AppConfig::get_config_path_string();
+                                let truncated_path = if config_path.len() > 50 {
+                                    format!("...{}", &config_path[config_path.len().saturating_sub(47)..])
+                                } else {
+                                    config_path
+                                };
+                                StyledText::new(truncated_path).size(constants::TEXT_SMALL)
+                                    .style(super::widgets::styled_text::TextStyle::WithAlpha(0.7))
+                                    .build()
+                            }
+                        ].align_y(Vertical::Center).spacing(constants::SPACING_MEDIUM),
+                        row![
+                            StyledText::new("Reset Settings").size(constants::TEXT_MEDIUM)
+                                .width(Length::Fixed(150.0))
+                                .build(),
+                            StyledButton::new(
+                                StyledText::new("Reset to Default").size(constants::TEXT_NORMAL).build()
+                            )
+                            .on_press(Message::ResetConfig)
+                            .style(super::widgets::styled_button::ButtonStyle::File)
+                            .padding(constants::PADDING_SMALL)
+                            .build()
+                        ].align_y(Vertical::Center).spacing(constants::SPACING_MEDIUM),
+                    ].spacing(constants::SPACING_MEDIUM).padding(constants::PADDING_SMALL)
+                )
+                .style(super::widgets::styled_container::ContainerStyle::Card)
+                .padding(constants::PADDING_MEDIUM)
+                .width(Length::Fill)
+                .build()
+            ].spacing(constants::SPACING_SMALL),
+            
+            Space::with_height(Length::Fill),
+            StyledContainer::new(
+                column![
+                    StyledText::new(format!("{} v{}", t!("Summer Player"), env!("CARGO_PKG_VERSION")))
+                        .size(constants::TEXT_NORMAL)
+                        .style(super::widgets::styled_text::TextStyle::Secondary)
+                        .build(),
+                    StyledText::new(format!("© 2025 {}", t!("xml")))
+                        .size(constants::TEXT_SMALL)
+                        .style(super::widgets::styled_text::TextStyle::Hint)
+                        .build(),
+                ].align_x(Horizontal::Center).spacing(2)
+            )
+            .center_x()
+            .width(Length::Fill)
+            .padding(constants::PADDING_MEDIUM)
+            .build()
+        ]
+        .spacing(constants::SPACING_MEDIUM)
+        .padding(constants::PADDING_LARGE)
+    )
+    .style(super::widgets::styled_container::ContainerStyle::Background)
+    .build()
 }
 
 /// 文件信息视图
@@ -387,38 +440,54 @@ pub fn file_info_view(audio_info: Option<&AudioInfo>, file_path: &str) -> Elemen
         let display_title = info.metadata.title.clone().unwrap_or(file_name);
         
         let mut main_col = column![
-            container(
+            StyledContainer::new(
                 {
-                    let palette_color = Color { r: 0.0, g: 0.6, b: 1.0, a: 1.0 };
-                    truncated_text(display_title, constants::TEXT_TRUNCATE_LONG, constants::TEXT_LARGE, palette_color)
+                    truncated_text(display_title, constants::TEXT_TRUNCATE_LONG, constants::TEXT_LARGE, Color { r: 0.0, g: 0.6, b: 1.0, a: 1.0 })
                 }
-            ).width(Length::Fill),
+            ).width(Length::Fill).build(),
         ].spacing(constants::SPACING_MEDIUM);
-
-        // 封面图片现在显示在底部栏
 
         // 音频信息
         main_col = main_col.push(
             column![
-                text(t!("Audio Info")).size(constants::TEXT_MEDIUM).style(alpha_text_style(0.8)),
-                row![text("🎵").size(constants::TEXT_MEDIUM).shaping(Shaping::Advanced), text(format!("频道: {}", info.channels)).size(constants::TEXT_NORMAL).style(alpha_text_style(0.8))].spacing(constants::SPACING_SMALL),
-                row![text("📡").size(constants::TEXT_MEDIUM).shaping(Shaping::Advanced), text(format!("采样率: {} Hz", info.sample_rate)).size(constants::TEXT_NORMAL).style(alpha_text_style(0.8))].spacing(constants::SPACING_SMALL),
-                row![text("⏱️").size(constants::TEXT_MEDIUM).shaping(Shaping::Advanced), text(format!("时长: {}", info.duration.map_or("未知".to_string(), |d| format_duration(d)))).size(constants::TEXT_NORMAL).style(alpha_text_style(0.8))].spacing(constants::SPACING_SMALL),
+                StyledText::new(t!("Audio Info")).size(constants::TEXT_MEDIUM)
+                    .style(super::widgets::styled_text::TextStyle::WithAlpha(0.8))
+                    .build(),
+                row![
+                    StyledText::new("🎵").size(constants::TEXT_MEDIUM).shaping(Shaping::Advanced).build(),
+                    StyledText::new(format!("频道: {}", info.channels)).size(constants::TEXT_NORMAL)
+                        .style(super::widgets::styled_text::TextStyle::WithAlpha(0.8))
+                        .build()
+                ].spacing(constants::SPACING_SMALL),
+                row![
+                    StyledText::new("📡").size(constants::TEXT_MEDIUM).shaping(Shaping::Advanced).build(),
+                    StyledText::new(format!("采样率: {} Hz", info.sample_rate)).size(constants::TEXT_NORMAL)
+                        .style(super::widgets::styled_text::TextStyle::WithAlpha(0.8))
+                        .build()
+                ].spacing(constants::SPACING_SMALL),
+                row![
+                    StyledText::new("⏱️").size(constants::TEXT_MEDIUM).shaping(Shaping::Advanced).build(),
+                    StyledText::new(format!("时长: {}", info.duration.map_or("未知".to_string(), |d| format_duration(d)))).size(constants::TEXT_NORMAL)
+                        .style(super::widgets::styled_text::TextStyle::WithAlpha(0.8))
+                        .build()
+                ].spacing(constants::SPACING_SMALL),
             ].spacing(constants::SPACING_SMALL)
         );
 
         // 元数据
         if info.metadata.title.is_some() || info.metadata.artist.is_some() || info.metadata.album.is_some() {
             let mut metadata_col = column![
-                text(t!("Metadata")).size(constants::TEXT_MEDIUM).style(alpha_text_style(0.8)),
+                StyledText::new(t!("Metadata")).size(constants::TEXT_MEDIUM)
+                    .style(super::widgets::styled_text::TextStyle::WithAlpha(0.8))
+                    .build(),
             ].spacing(constants::SPACING_SMALL);
             
             if let Some(ref title) = info.metadata.title {
                 metadata_col = metadata_col.push(
-                    row![text("🎤").size(constants::TEXT_MEDIUM).shaping(Shaping::Advanced), 
+                    row![
+                        StyledText::new("🎤").size(constants::TEXT_MEDIUM).shaping(Shaping::Advanced).build(), 
                         {
-                            let text_color = Color { r: 0.4, g: 0.4, b: 0.4, a: 0.8 };
-                            truncated_text(format!("标题: {}", title), 25, constants::TEXT_NORMAL, text_color)
+                            truncated_text(format!("标题: {}", title), 25, constants::TEXT_NORMAL, Color { r: 0.4, g: 0.4, b: 0.4, a: 0.8 })
                         }
                     ].spacing(constants::SPACING_SMALL)
                 );
@@ -426,10 +495,10 @@ pub fn file_info_view(audio_info: Option<&AudioInfo>, file_path: &str) -> Elemen
             
             if let Some(ref artist) = info.metadata.artist {
                 metadata_col = metadata_col.push(
-                    row![text("🎨").size(constants::TEXT_MEDIUM).shaping(Shaping::Advanced), 
+                    row![
+                        StyledText::new("🎨").size(constants::TEXT_MEDIUM).shaping(Shaping::Advanced).build(), 
                         {
-                            let text_color = Color { r: 0.4, g: 0.4, b: 0.4, a: 0.8 };
-                            truncated_text(format!("艺术家: {}", artist), 25, constants::TEXT_NORMAL, text_color)
+                            truncated_text(format!("艺术家: {}", artist), 25, constants::TEXT_NORMAL, Color { r: 0.4, g: 0.4, b: 0.4, a: 0.8 })
                         }
                     ].spacing(constants::SPACING_SMALL)
                 );
@@ -441,16 +510,19 @@ pub fn file_info_view(audio_info: Option<&AudioInfo>, file_path: &str) -> Elemen
         main_col.into()
     } else {
         column![
-            text("🎼").size(32).align_x(Horizontal::Center).shaping(Shaping::Advanced),
-            text(t!("File not selected")).size(constants::TEXT_MEDIUM).align_x(Horizontal::Center).style(alpha_text_style(0.7)),
+            StyledText::new("🎼").size(32).align(Horizontal::Center).shaping(Shaping::Advanced).build(),
+            StyledText::new(t!("File not selected")).size(constants::TEXT_MEDIUM)
+                .align(Horizontal::Center)
+                .style(super::widgets::styled_text::TextStyle::WithAlpha(0.7))
+                .build(),
         ].spacing(constants::SPACING_SMALL).align_x(Horizontal::Center).into()
     };
 
-    container(content)
-        .style(AppTheme::main_section_container())
+    StyledContainer::new(content)
+        .style(super::widgets::styled_container::ContainerStyle::MainSection)
         .padding(constants::PADDING_LARGE)
         .width(Length::Fill)
-        .into()
+        .build()
 }
 
 /// 控制按钮组
@@ -462,9 +534,24 @@ pub fn control_buttons_view(is_playing: bool) -> Element<'static, Message> {
     };
 
     row![
-        icon_button(icons::PREVIOUS, t!("Previous Track").to_string(), Message::PreviousTrack, constants::BUTTON_SIZE_SMALL, constants::ICON_SIZE_SMALL, AppTheme::control_button),
-        icon_button(play_icon, play_tooltip, Message::PlayPause, constants::BUTTON_SIZE_MEDIUM, constants::ICON_SIZE_MEDIUM, AppTheme::play_button),
-        icon_button(icons::NEXT, t!("Next Track").to_string(), Message::NextTrack, constants::BUTTON_SIZE_SMALL, constants::ICON_SIZE_SMALL, AppTheme::control_button),
+        IconButton::new(icons::PREVIOUS, t!("Previous Track").to_string())
+            .on_press(Message::PreviousTrack)
+            .size(constants::BUTTON_SIZE_SMALL)
+            .icon_size(constants::ICON_SIZE_SMALL)
+            .style(super::widgets::styled_button::ButtonStyle::Control)
+            .build(),
+        IconButton::new(play_icon, play_tooltip)
+            .on_press(Message::PlayPause)
+            .size(constants::BUTTON_SIZE_MEDIUM)
+            .icon_size(constants::ICON_SIZE_MEDIUM)
+            .style(super::widgets::styled_button::ButtonStyle::Primary)
+            .build(),
+        IconButton::new(icons::NEXT, t!("Next Track").to_string())
+            .on_press(Message::NextTrack)
+            .size(constants::BUTTON_SIZE_SMALL)
+            .icon_size(constants::ICON_SIZE_SMALL)
+            .style(super::widgets::styled_button::ButtonStyle::Control)
+            .build(),
     ]
     .spacing(constants::SPACING_SMALL)
     .align_y(Vertical::Center)
@@ -588,13 +675,24 @@ pub fn simple_time_view(playback_state: &PlaybackState) -> Element<'static, Mess
 /// 播放列表视图
 pub fn playlist_view(playlist: &Playlist, playlist_loaded: bool, is_playing: bool) -> Element<'static, Message> {
     if !playlist_loaded {
-        return container(
+        return StyledContainer::new(
             column![
-                text("📂").size(48).align_x(Horizontal::Center).shaping(Shaping::Advanced),
-                text(t!("No playlist loaded")).size(constants::TEXT_LARGE).align_x(Horizontal::Center).style(AppTheme::subtitle_text()),
-                text(t!(r#"Click "Open File" to start"#.to_string())).size(constants::TEXT_NORMAL).align_x(Horizontal::Center).style(AppTheme::hint_text()),
+                StyledText::new("📂").size(48).align(Horizontal::Center).shaping(Shaping::Advanced).build(),
+                StyledText::new(t!("No playlist loaded")).size(constants::TEXT_LARGE)
+                    .align(Horizontal::Center)
+                    .style(super::widgets::styled_text::TextStyle::Secondary)
+                    .build(),
+                StyledText::new(t!(r#"Click "Open File" to start"#.to_string())).size(constants::TEXT_NORMAL)
+                    .align(Horizontal::Center)
+                    .style(super::widgets::styled_text::TextStyle::Hint)
+                    .build(),
             ].spacing(constants::SPACING_MEDIUM).align_x(Horizontal::Center)
-        ).style(AppTheme::card_container()).padding(32).width(Length::Fill).height(Length::Fill).into();
+        )
+        .style(super::widgets::styled_container::ContainerStyle::Card)
+        .padding(32)
+        .width(Length::Fill)
+        .height(Length::Fill)
+        .build();
     }
 
     let items: Vec<Element<Message>> = playlist.items().iter().enumerate().map(|(index, item)| {
@@ -605,10 +703,10 @@ pub fn playlist_view(playlist: &Playlist, playlist_loaded: bool, is_playing: boo
             if is_playing_current { "🎵" } else { "⏸" }
         } else { "🎼" };
         
-        let content = container(
+        let content = StyledContainer::new(
             row![
-                text(icon).size(constants::TEXT_MEDIUM).shaping(Shaping::Advanced),
-                container(
+                StyledText::new(icon).size(constants::TEXT_MEDIUM).shaping(Shaping::Advanced).build(),
+                StyledContainer::new(
                     {
                         let text_color = if is_current { 
                             Color { r: 0.0, g: 0.6, b: 1.0, a: 1.0 }
@@ -617,40 +715,50 @@ pub fn playlist_view(playlist: &Playlist, playlist_loaded: bool, is_playing: boo
                         };
                         truncated_text(item.name.clone(), constants::TEXT_TRUNCATE_DEFAULT, constants::TEXT_MEDIUM, text_color)
                     }
-                ).width(Length::FillPortion(4)),
-                text(item.duration.map_or("--:--".to_string(), |d| format_duration(d)))
+                ).width(Length::FillPortion(4)).build(),
+                StyledText::new(item.duration.map_or("--:--".to_string(), |d| format_duration(d)))
                     .width(Length::FillPortion(1))
                     .size(constants::TEXT_NORMAL)
-                    .align_x(Horizontal::Right)
-                    .style(alpha_text_style(0.7)),
+                    .align(Horizontal::Right)
+                    .style(super::widgets::styled_text::TextStyle::WithAlpha(0.7))
+                    .build(),
             ].spacing(constants::SPACING_MEDIUM).align_y(Vertical::Center)
-        ).padding([constants::PADDING_SMALL, constants::PADDING_MEDIUM]).width(Length::Fill);
+        )
+        .padding(constants::PADDING_SMALL)
+        .width(Length::Fill)
+        .build();
         
-        button(content)
+        StyledButton::new(content)
             .on_press(Message::PlaylistItemSelected(index))
             .width(Length::Fill)
-            .style(AppTheme::playlist_item_button(is_playing_current, is_current))
-            .into()
+            .style(super::widgets::styled_button::ButtonStyle::PlaylistItem { 
+                is_playing: is_playing_current, 
+                is_current 
+            })
+            .build()
     }).collect();
     
-    container(
+    StyledContainer::new(
         column![
-            container(
+            StyledContainer::new(
                 row![
-                    text("📋").size(constants::TEXT_TITLE).shaping(Shaping::Advanced),
-                    text(t!("messages.Playlist", count = format!("{}", playlist.len())))
-                        .size(constants::TEXT_TITLE - 2).style(primary_text_style()),
+                    StyledText::new("📋").size(constants::TEXT_TITLE).shaping(Shaping::Advanced).build(),
+                    StyledText::new(t!("messages.Playlist", count = format!("{}", playlist.len())))
+                        .size(constants::TEXT_TITLE - 2)
+                        .style(super::widgets::styled_text::TextStyle::Primary)
+                        .build(),
                 ].spacing(constants::SPACING_MEDIUM).align_y(Vertical::Center)
-            ).padding(constants::PADDING_SMALL),
+            ).padding(constants::PADDING_SMALL).build(),
             scrollable(
-                column(items).spacing(constants::SPACING_SMALL).padding([constants::SPACING_MEDIUM, constants::SPACING_SMALL])
+                column(items).spacing(constants::SPACING_SMALL).padding([constants::SPACING_MEDIUM, constants::PADDING_SMALL])
             ).height(Length::Fill).width(Length::Fill),
         ].spacing(constants::SPACING_LARGE)
     )
-    .style(AppTheme::main_section_container())
-    .padding(constants::SPACING_LARGE)
-    .width(Length::Fill).height(Length::Fill)
-    .into()
+    .style(super::widgets::styled_container::ContainerStyle::MainSection)
+    .padding(constants::PADDING_LARGE)
+    .width(Length::Fill)
+    .height(Length::Fill)
+    .build()
 }
 
 /// 歌词视图
