@@ -106,11 +106,27 @@ pub mod icons {
 // ============================================================================
 
 /// 创建SVG图标
+/// 创建SVG图标
 fn svg_icon(content: &str, size: f32, color: Color) -> Element<'static, Message> {
     svg(svg::Handle::from_memory(content.as_bytes().to_vec()))
         .width(Length::Fixed(size))
         .height(Length::Fixed(size))
-        .style(move |_, _| svg::Style { color: Some(color) })
+        .style(move |theme: &iced::Theme, _status: svg::Status| {
+            // 在深色模式下使用更亮的颜色
+            let is_dark_theme = {
+                let bg = theme.extended_palette().background.base.color;
+                bg.r + bg.g + bg.b < 1.5
+            };
+            
+            svg::Style { 
+                color: Some(if is_dark_theme && color.a <= 0.9 {
+                    // 只对默认图标颜色进行调整，保持自定义颜色不变
+                    Color { r: 0.8, g: 0.8, b: 0.8, a: 1.0 }
+                } else {
+                    color
+                })
+            }
+        })
         .into()
 }
 
@@ -575,31 +591,6 @@ pub fn compact_view_toggle_button(current_view: ViewType) -> Element<'static, Me
     icon_button(icon, tooltip, Message::ToggleView, constants::BUTTON_SIZE_SMALL, constants::ICON_SIZE_SMALL, AppTheme::file_button)
 }
 
-/// 进度条视图
-pub fn progress_view(playback_state: &PlaybackState) -> Element<'static, Message> {
-    let progress = if playback_state.total_duration > 0.0 {
-        (playback_state.current_time / playback_state.total_duration) as f32
-    } else { 0.0 };
-    
-    column![
-        row![
-            text(format_duration(playback_state.current_time))
-                .size(constants::TEXT_SMALL)
-                .style(AppTheme::current_time_text()),
-            Space::new(Length::Fill, Length::Shrink),
-            text(format_duration(playback_state.total_duration))
-                .size(constants::TEXT_SMALL)
-                .style(AppTheme::total_time_text()),
-        ],
-        slider(0.0..=1.0, progress, Message::ProgressChanged)
-            .step(0.001)
-            .style(AppTheme::progress_slider())
-    ]
-    .spacing(4)
-    .width(Length::Fill)
-    .into()
-}
-
 /// 细进度条视图（用于底部栏）
 pub fn thin_progress_view(playback_state: &PlaybackState) -> Element<'static, Message> {
     let progress = if playback_state.total_duration > 0.0 {
@@ -678,11 +669,11 @@ pub fn playlist_view(playlist: &Playlist, playlist_loaded: bool, is_playing: boo
         return StyledContainer::new(
             column![
                 StyledText::new("📂").size(48).align(Horizontal::Center).shaping(Shaping::Advanced).build(),
-                StyledText::new(t!("No playlist loaded")).size(constants::TEXT_LARGE)
+                StyledText::new(t!("No playlist started")).size(constants::TEXT_LARGE)
                     .align(Horizontal::Center)
                     .style(super::widgets::styled_text::TextStyle::Secondary)
                     .build(),
-                StyledText::new(t!(r#"Click "Open File" to start"#.to_string())).size(constants::TEXT_NORMAL)
+                StyledText::new(t!(r#"Please click the playlist card you want to open"#.to_string())).size(constants::TEXT_NORMAL)
                     .align(Horizontal::Center)
                     .style(super::widgets::styled_text::TextStyle::Hint)
                     .build(),
@@ -743,7 +734,7 @@ pub fn playlist_view(playlist: &Playlist, playlist_loaded: bool, is_playing: boo
             StyledContainer::new(
                 row![
                     StyledText::new("📋").size(constants::TEXT_TITLE).shaping(Shaping::Advanced).build(),
-                    StyledText::new(t!("messages.Playlist", count = format!("{}", playlist.len())))
+                    StyledText::new(t!("messages.CurrentPlaylist", count = format!("{}", playlist.len())))
                         .size(constants::TEXT_TITLE - 2)
                         .style(super::widgets::styled_text::TextStyle::Primary)
                         .build(),
@@ -986,15 +977,31 @@ pub fn compact_album_cover_view(audio_info: Option<&AudioInfo>) -> Element<'stat
     container(content)
         .style(|theme: &iced::Theme| {
             let palette = theme.extended_palette();
+            // 在深色模式下使用更亮的边框和背景色
+            let is_dark_theme = palette.background.base.color.r + palette.background.base.color.g + palette.background.base.color.b < 1.5;
+            let (background_color, border_color, shadow_color) = if is_dark_theme {
+                (
+                    palette.background.weak.color,
+                    Color { r: 0.35, g: 0.35, b: 0.37, a: 1.0 },  // 更亮的边框
+                    Color::from_rgba(0.0, 0.0, 0.0, 0.25)
+                )
+            } else {
+                (
+                    palette.background.weak.color,
+                    palette.background.strong.color,
+                    Color::from_rgba(0.0, 0.0, 0.0, 0.15)
+                )
+            };
+            
             container::Style {
-                background: Some(Background::Color(palette.background.weak.color)),
+                background: Some(Background::Color(background_color)),
                 border: Border {
                     radius: Radius::from(6.0),
                     width: 1.0,
-                    color: palette.background.strong.color,
+                    color: border_color,
                 },
                 shadow: Shadow {
-                    color: Color::from_rgba(0.0, 0.0, 0.0, 0.15),
+                    color: shadow_color,
                     offset: iced::Vector::new(0.0, 2.0),
                     blur_radius: 4.0,
                 },
@@ -1103,12 +1110,26 @@ pub fn current_track_info_view(audio_info: Option<&AudioInfo>, file_path: &str) 
         )
         .style(|theme: &iced::Theme| {
             let palette = theme.extended_palette();
+            // 在深色模式下使用更亮的边框和背景色
+            let is_dark_theme = palette.background.base.color.r + palette.background.base.color.g + palette.background.base.color.b < 1.5;
+            let (background_color, border_color) = if is_dark_theme {
+                (
+                    palette.background.weak.color,
+                    Color { r: 0.35, g: 0.35, b: 0.37, a: 1.0 }  // 更亮的边框
+                )
+            } else {
+                (
+                    palette.background.weak.color,
+                    palette.background.strong.color
+                )
+            };
+            
             container::Style {
-                background: Some(Background::Color(palette.background.weak.color)),
+                background: Some(Background::Color(background_color)),
                 border: Border {
                     radius: Radius::from(6.0),
                     width: 1.0,
-                    color: palette.background.strong.color,
+                    color: border_color,
                 },
                 shadow: Shadow::default(),
                 text_color: None,
@@ -1156,12 +1177,26 @@ pub fn current_track_info_view(audio_info: Option<&AudioInfo>, file_path: &str) 
                 )
                 .style(|theme: &iced::Theme| {
                     let palette = theme.extended_palette();
+                    // 在深色模式下使用更亮的边框和背景色
+                    let is_dark_theme = palette.background.base.color.r + palette.background.base.color.g + palette.background.base.color.b < 1.5;
+                    let (background_color, border_color) = if is_dark_theme {
+                        (
+                            palette.background.weak.color,
+                            Color { r: 0.35, g: 0.35, b: 0.37, a: 1.0 }  // 更亮的边框
+                        )
+                    } else {
+                        (
+                            palette.background.weak.color,
+                            palette.background.strong.color
+                        )
+                    };
+                    
                     container::Style {
-                        background: Some(Background::Color(palette.background.weak.color)),
+                        background: Some(Background::Color(background_color)),
                         border: Border {
                             radius: Radius::from(6.0),
                             width: 1.0,
-                            color: palette.background.strong.color,
+                            color: border_color,
                         },
                         shadow: Shadow::default(),
                         text_color: None,

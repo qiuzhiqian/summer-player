@@ -65,8 +65,20 @@ impl IconButton {
         let icon_svg = svg(icon_handle)
             .width(Length::Fixed(self.icon_size))
             .height(Length::Fixed(self.icon_size))
-            .style(|_theme: &iced::Theme, _status: svg::Status| svg::Style { 
-                color: Some(Color { r: 0.4, g: 0.4, b: 0.4, a: 0.9 }) 
+            .style(|theme: &iced::Theme, _status: svg::Status| {
+                // 在深色模式下使用更亮的颜色
+                let is_dark_theme = {
+                    let bg = theme.extended_palette().background.base.color;
+                    bg.r + bg.g + bg.b < 1.5
+                };
+                
+                svg::Style { 
+                    color: Some(if is_dark_theme {
+                        Color { r: 0.8, g: 0.8, b: 0.8, a: 1.0 }  // 更亮的图标颜色
+                    } else {
+                        Color { r: 0.4, g: 0.4, b: 0.4, a: 0.9 }
+                    })
+                }
             });
 
         let icon_container = container(icon_svg)

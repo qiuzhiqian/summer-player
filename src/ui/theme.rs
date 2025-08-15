@@ -66,16 +66,16 @@ impl AppColors {
     /// 获取主色调
     pub fn primary(theme: &Theme) -> Color {
         if Self::is_dark_theme(theme) {
-            Color::from_rgb(0.04, 0.52, 1.0)      // #0A84FF
+            Color::from_rgb(0.2, 0.6, 1.0)        // #3399FF - 更亮的蓝色主色
         } else {
-            Color::from_rgb(0.0, 0.48, 1.0)       // #007AFF
+            Color::from_rgb(0.0, 0.48, 1.0)       // #007AFF - 蓝色主色
         }
     }
 
     /// 获取主色调渐变起始色
     pub fn primary_gradient_start(theme: &Theme) -> Color {
         if Self::is_dark_theme(theme) {
-            Color::from_rgb(0.04, 0.52, 1.0)      // #0A84FF
+            Color::from_rgb(0.2, 0.6, 1.0)        // #3399FF
         } else {
             Color::from_rgb(0.0, 0.48, 1.0)       // #007AFF
         }
@@ -84,7 +84,7 @@ impl AppColors {
     /// 获取主色调渐变结束色
     pub fn primary_gradient_end(theme: &Theme) -> Color {
         if Self::is_dark_theme(theme) {
-            Color::from_rgb(0.20, 0.34, 0.96)     // #3456F5
+            Color::from_rgb(0.3, 0.45, 0.98)      // #4D73FA
         } else {
             Color::from_rgb(0.35, 0.34, 0.84)     // #5856D6
         }
@@ -93,7 +93,7 @@ impl AppColors {
     /// 获取次要色调
     pub fn secondary(theme: &Theme) -> Color {
         if Self::is_dark_theme(theme) {
-            Color::from_rgb(0.37, 0.36, 0.90)     // #5E5CE6
+            Color::from_rgb(0.5, 0.45, 0.95)      // #8073F2
         } else {
             Color::from_rgb(0.35, 0.34, 0.84)     // #5856D6
         }
@@ -102,7 +102,7 @@ impl AppColors {
     /// 获取成功色
     pub fn success(theme: &Theme) -> Color {
         if Self::is_dark_theme(theme) {
-            Color::from_rgb(0.20, 0.78, 0.35)     // #34C759
+            Color::from_rgb(0.25, 0.85, 0.4)      // #40D966
         } else {
             Color::from_rgb(0.13, 0.70, 0.29)     // #22B348
         }
@@ -165,7 +165,7 @@ impl AppColors {
     /// 获取边框色
     pub fn border(theme: &Theme) -> Color {
         if Self::is_dark_theme(theme) {
-            Color::from_rgb(0.20, 0.20, 0.22)     // #333338
+            Color::from_rgb(0.25, 0.25, 0.27)     // #404045 - 更亮的边框
         } else {
             Color::from_rgb(0.88, 0.89, 0.91)     // #E1E3E7
         }
@@ -174,7 +174,7 @@ impl AppColors {
     /// 获取分隔线颜色
     pub fn divider(theme: &Theme) -> Color {
         if Self::is_dark_theme(theme) {
-            Color::from_rgba(0.44, 0.44, 0.46, 0.3) // 半透明分隔线
+            Color::from_rgba(0.5, 0.5, 0.52, 0.4) // 更亮的半透明分隔线
         } else {
             Color::from_rgba(0.68, 0.68, 0.70, 0.3)
         }
@@ -192,7 +192,7 @@ impl AppColors {
     /// 获取次要文本色
     pub fn text_secondary(theme: &Theme) -> Color {
         if Self::is_dark_theme(theme) {
-            Color::from_rgb(0.56, 0.56, 0.58)     // #8E8E93
+            Color::from_rgb(0.65, 0.65, 0.67)     // #A6A6AB - 更亮的次要文本
         } else {
             Color::from_rgb(0.44, 0.44, 0.46)     // #6D6D75
         }
@@ -201,7 +201,7 @@ impl AppColors {
     /// 获取提示文本色
     pub fn text_hint(theme: &Theme) -> Color {
         if Self::is_dark_theme(theme) {
-            Color::from_rgb(0.44, 0.44, 0.46)     // #6D6D75
+            Color::from_rgb(0.52, 0.52, 0.54)     // #85858A - 更亮的提示文本
         } else {
             Color::from_rgb(0.68, 0.68, 0.70)     // #AEAEB2
         }
@@ -210,7 +210,7 @@ impl AppColors {
     /// 获取阴影色
     pub fn shadow(theme: &Theme) -> Color {
         if Self::is_dark_theme(theme) {
-            Color::from_rgba(0.0, 0.0, 0.0, 0.3)
+            Color::from_rgba(0.0, 0.0, 0.0, 0.4)  // 更深的阴影
         } else {
             Color::from_rgba(0.0, 0.0, 0.0, 0.1)
         }
@@ -219,7 +219,7 @@ impl AppColors {
     /// 获取强阴影色
     pub fn shadow_strong(theme: &Theme) -> Color {
         if Self::is_dark_theme(theme) {
-            Color::from_rgba(0.0, 0.0, 0.0, 0.5)
+            Color::from_rgba(0.0, 0.0, 0.0, 0.6)  // 更深的强阴影
         } else {
             Color::from_rgba(0.0, 0.0, 0.0, 0.2)
         }
@@ -228,7 +228,7 @@ impl AppColors {
     /// 获取警告色
     pub fn warning(theme: &Theme) -> Color {
         if Self::is_dark_theme(theme) {
-            Color::from_rgb(1.0, 0.62, 0.04)      // #FF9F0A
+            Color::from_rgb(1.0, 0.7, 0.2)        // #FFB333 - 更亮的警告色
         } else {
             Color::from_rgb(1.0, 0.58, 0.0)       // #FF9500
         }
@@ -935,7 +935,11 @@ impl AppTheme {
     pub fn total_time_text() -> fn(&Theme) -> text::Style {
         |theme: &Theme| {
             text::Style {
-                color: Some(AppColors::text_secondary(theme)),
+                color: Some(if AppColors::is_dark_theme(theme) {
+                    Color::from_rgb(0.8, 0.8, 0.82)  // 在深色模式下使用更亮的颜色
+                } else {
+                    AppColors::text_secondary(theme)
+                }),
             }
         }
     }

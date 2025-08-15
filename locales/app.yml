@@ -140,9 +140,9 @@ summer audio player:
 Click "Open File" to start:
   en: Click "Open File" to start
   zh-CN: 点击「打开文件」开始
-messages.Playlist:
-  en: Playlist (%{count} songs)
-  zh-CN: 播放列表 (%{count} 首歌曲)
+messages.CurrentPlaylist:
+  en: Current playlist (%{count} songs)
+  zh-CN: 当前播放列表 (%{count} 首歌曲)
 Play:
   en: Play
   zh-CN: 播放
