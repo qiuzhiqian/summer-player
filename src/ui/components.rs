@@ -428,7 +428,7 @@ pub fn settings_page(current_theme: &AppThemeVariant, current_language: &str) ->
                         .size(constants::TEXT_NORMAL)
                         .style(super::widgets::styled_text::TextStyle::Secondary)
                         .build(),
-                    StyledText::new(format!("© 2025 {}", t!("xml")))
+                    StyledText::new(format!("© 2025 {}", "xiamengliang@gmail.com"))
                         .size(constants::TEXT_SMALL)
                         .style(super::widgets::styled_text::TextStyle::Hint)
                         .build(),
@@ -587,26 +587,28 @@ pub fn playlist_view(playlist: &Playlist, playlist_loaded: bool, is_playing: boo
         let icon = if is_current {
             if is_playing_current { "🎵" } else { "⏸" }
         } else { "🎼" };
+
+        let text_color = if is_current { 
+            Color { r: 0.0, g: 0.6, b: 1.0, a: 1.0 }
+        } else { 
+            Color { r: 0.4, g: 0.4, b: 0.4, a: 1.0 }
+        };
         
         let content = StyledContainer::new(
             row![
                 StyledText::new(icon).size(constants::TEXT_MEDIUM).shaping(Shaping::Advanced).build(),
+                // 歌曲名使用剩余空间
                 StyledContainer::new(
-                    {
-                        let text_color = if is_current { 
-                            Color { r: 0.0, g: 0.6, b: 1.0, a: 1.0 }
-                        } else { 
-                            Color { r: 0.4, g: 0.4, b: 0.4, a: 1.0 }
-                        };
-                        truncated_text(item.name.clone(), constants::TEXT_TRUNCATE_DEFAULT, constants::TEXT_MEDIUM, text_color)
-                    }
-                ).width(Length::FillPortion(4)).build(),
-                StyledText::new(item.duration.map_or("--:--".to_string(), |d| format_duration(d)))
-                    .width(Length::FillPortion(1))
-                    .size(constants::TEXT_NORMAL)
-                    .align(Horizontal::Right)
-                    .style(super::widgets::styled_text::TextStyle::WithAlpha(0.7))
-                    .build(),
+                    truncated_text(item.name.clone(), constants::TEXT_TRUNCATE_DEFAULT, constants::TEXT_MEDIUM, text_color)
+                ).style(super::widgets::styled_container::ContainerStyle::Transparent).width(Length::Fill).build(),
+                // 时间区域固定宽度并右对齐
+                StyledContainer::new(
+                    StyledText::new(item.duration.map_or("--:--".to_string(), |d| format_duration(d)))
+                        .size(constants::TEXT_NORMAL)
+                        .align(Horizontal::Right)
+                        .style(super::widgets::styled_text::TextStyle::WithAlpha(0.7))
+                        .build()
+                ).style(super::widgets::styled_container::ContainerStyle::Transparent).width(Length::Fixed(60.0)).align_x(Horizontal::Right).build(),
             ].spacing(constants::SPACING_MEDIUM).align_y(Vertical::Center)
         )
         .padding(constants::PADDING_SMALL)
@@ -625,15 +627,15 @@ pub fn playlist_view(playlist: &Playlist, playlist_loaded: bool, is_playing: boo
     
     StyledContainer::new(
         column![
-            StyledContainer::new(
+            //StyledContainer::new(
                 row![
                     StyledText::new("📋").size(constants::TEXT_TITLE).shaping(Shaping::Advanced).build(),
                     StyledText::new(t!("messages.CurrentPlaylist", count = format!("{}", playlist.len())))
                         .size(constants::TEXT_TITLE - 2)
                         .style(super::widgets::styled_text::TextStyle::Primary)
                         .build(),
-                ].spacing(constants::SPACING_MEDIUM).align_y(Vertical::Center)
-            ).padding(constants::PADDING_SMALL).build(),
+                ].spacing(constants::SPACING_MEDIUM).align_y(Vertical::Center),
+            //).padding(constants::PADDING_SMALL).build(),
             scrollable(
                 column(items).spacing(constants::SPACING_SMALL).padding([constants::SPACING_MEDIUM, constants::PADDING_SMALL])
             ).height(Length::Fill).width(Length::Fill),

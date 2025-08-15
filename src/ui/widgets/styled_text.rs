@@ -11,6 +11,7 @@ use iced::{
 use iced::advanced::text::Shaping;
 
 use crate::ui::Message;
+use crate::ui::theme::AppColors;
 
 /// 样式化文本组件
 pub struct StyledText {
@@ -135,9 +136,8 @@ fn primary_text_style(theme: &iced::Theme) -> iced::widget::text::Style {
 
 /// 次要文本样式
 fn secondary_text_style(theme: &iced::Theme) -> iced::widget::text::Style {
-    let palette = theme.extended_palette();
     iced::widget::text::Style {
-        color: Some(palette.secondary.base.color),
+        color: Some(AppColors::text_secondary(theme)),
     }
 }
 

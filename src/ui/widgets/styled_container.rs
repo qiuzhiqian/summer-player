@@ -42,6 +42,8 @@ pub enum ContainerStyle {
     Emphasis,
     /// 装饰容器 - 用于装饰性元素（合并AlbumCover, PlaylistIcon, PlaylistCard, TimeDisplay, SongInfo）
     Decorative,
+    /// 透明容器 - 完全透明，无背景、无边框、无阴影，仅用于布局控制
+    Transparent,
 }
 
 impl StyledContainer {
@@ -134,6 +136,7 @@ impl StyledContainer {
             ContainerStyle::Background => Box::new(background_style),
             ContainerStyle::Emphasis => Box::new(emphasis_style),
             ContainerStyle::Decorative => Box::new(decorative_style),
+            ContainerStyle::Transparent => Box::new(transparent_style),
         }
     }
 }
@@ -222,6 +225,20 @@ fn decorative_style(theme: &iced::Theme) -> Style {
             offset: iced::Vector::new(0.0, 2.0),
             blur_radius: 4.0,
         },
+        text_color: None,
+    }
+}
+
+/// 透明容器样式 - 完全透明，无背景、无边框、无阴影，仅用于布局控制
+fn transparent_style(_theme: &iced::Theme) -> Style {
+    Style {
+        background: None,
+        border: Border {
+            radius: Radius::from(0.0),
+            width: 0.0,
+            color: Color::TRANSPARENT,
+        },
+        shadow: Shadow::default(),
         text_color: None,
     }
 }

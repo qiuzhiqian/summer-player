@@ -170,3 +170,12 @@ No M3U playlists found in config directory:
 Playlists:
   en: Playlists
   zh-CN: 播放列表
+No playlist started:
+  en: No playlist started
+  zh-CN: 未启动播放列表
+Please click the playlist card you want to open:
+  en: Please click the playlist card you want to open
+  zh-CN: 请点击你想打开的播放列表卡
+Summer Player:
+  en: Summer Player
+  zh-CN: 夏日音乐播放器
