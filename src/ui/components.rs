@@ -290,12 +290,12 @@ pub fn navigation_sidebar(current_page: &PageType) -> Element<'static, Message> 
             nav_button(icons::HOME, t!("Home").to_string(), PageType::Home, *current_page == PageType::Home),
             nav_button(icons::SETTINGS, t!("Settings").to_string(), PageType::Settings, *current_page == PageType::Settings),
             Space::with_height(Length::Fill),
-            container(
+            StyledContainer::new(
                 column![
                     text("🎵").size(constants::TEXT_TITLE).shaping(Shaping::Advanced),
                     text("Summer").size(constants::TEXT_SMALL).style(alpha_text_style(0.7)),
                 ].align_x(Horizontal::Center).spacing(4)
-            ).width(Length::Fill).align_x(Horizontal::Center).padding(constants::PADDING_SMALL),
+            ).width(Length::Fill).align_x(Horizontal::Center).padding(constants::PADDING_SMALL).build(),
         ]
         .width(Length::Shrink).height(Length::Fill)
         .spacing(constants::SPACING_MEDIUM).padding(constants::PADDING_MEDIUM)
@@ -335,13 +335,13 @@ pub fn settings_page(current_theme: &AppThemeVariant, current_language: &str) ->
 
     StyledContainer::new(
         column![
-            StyledContainer::new(
+            //StyledContainer::new(
                 StyledText::new(t!("Settings")).size(constants::TEXT_TITLE + 4)
                     .style(super::widgets::styled_text::TextStyle::Emphasis)
-                    .build()
-            )
-            .padding(constants::PADDING_MEDIUM)
-            .build(),
+                    .build(),
+            //)
+            //.padding(constants::PADDING_MEDIUM)
+            //.build(),
             
             column![
                 StyledText::new(t!("Appearance")).size(constants::TEXT_LARGE)
@@ -446,101 +446,6 @@ pub fn settings_page(current_theme: &AppThemeVariant, current_language: &str) ->
     .build()
 }
 
-/// 文件信息视图
-pub fn file_info_view(audio_info: Option<&AudioInfo>, file_path: &str) -> Element<'static, Message> {
-    let content: Element<'static, Message> = if let Some(info) = audio_info {
-        let file_name = std::path::Path::new(file_path)
-            .file_stem().and_then(|s| s.to_str())
-            .unwrap_or("unknown file").to_string();
-        
-        let display_title = info.metadata.title.clone().unwrap_or(file_name);
-        
-        let mut main_col = column![
-            StyledContainer::new(
-                {
-                    truncated_text(display_title, constants::TEXT_TRUNCATE_LONG, constants::TEXT_LARGE, Color { r: 0.0, g: 0.6, b: 1.0, a: 1.0 })
-                }
-            ).width(Length::Fill).build(),
-        ].spacing(constants::SPACING_MEDIUM);
-
-        // 音频信息
-        main_col = main_col.push(
-            column![
-                StyledText::new(t!("Audio Info")).size(constants::TEXT_MEDIUM)
-                    .style(super::widgets::styled_text::TextStyle::WithAlpha(0.8))
-                    .build(),
-                row![
-                    StyledText::new("🎵").size(constants::TEXT_MEDIUM).shaping(Shaping::Advanced).build(),
-                    StyledText::new(format!("频道: {}", info.channels)).size(constants::TEXT_NORMAL)
-                        .style(super::widgets::styled_text::TextStyle::WithAlpha(0.8))
-                        .build()
-                ].spacing(constants::SPACING_SMALL),
-                row![
-                    StyledText::new("📡").size(constants::TEXT_MEDIUM).shaping(Shaping::Advanced).build(),
-                    StyledText::new(format!("采样率: {} Hz", info.sample_rate)).size(constants::TEXT_NORMAL)
-                        .style(super::widgets::styled_text::TextStyle::WithAlpha(0.8))
-                        .build()
-                ].spacing(constants::SPACING_SMALL),
-                row![
-                    StyledText::new("⏱️").size(constants::TEXT_MEDIUM).shaping(Shaping::Advanced).build(),
-                    StyledText::new(format!("时长: {}", info.duration.map_or("未知".to_string(), |d| format_duration(d)))).size(constants::TEXT_NORMAL)
-                        .style(super::widgets::styled_text::TextStyle::WithAlpha(0.8))
-                        .build()
-                ].spacing(constants::SPACING_SMALL),
-            ].spacing(constants::SPACING_SMALL)
-        );
-
-        // 元数据
-        if info.metadata.title.is_some() || info.metadata.artist.is_some() || info.metadata.album.is_some() {
-            let mut metadata_col = column![
-                StyledText::new(t!("Metadata")).size(constants::TEXT_MEDIUM)
-                    .style(super::widgets::styled_text::TextStyle::WithAlpha(0.8))
-                    .build(),
-            ].spacing(constants::SPACING_SMALL);
-            
-            if let Some(ref title) = info.metadata.title {
-                metadata_col = metadata_col.push(
-                    row![
-                        StyledText::new("🎤").size(constants::TEXT_MEDIUM).shaping(Shaping::Advanced).build(), 
-                        {
-                            truncated_text(format!("标题: {}", title), 25, constants::TEXT_NORMAL, Color { r: 0.4, g: 0.4, b: 0.4, a: 0.8 })
-                        }
-                    ].spacing(constants::SPACING_SMALL)
-                );
-            }
-            
-            if let Some(ref artist) = info.metadata.artist {
-                metadata_col = metadata_col.push(
-                    row![
-                        StyledText::new("🎨").size(constants::TEXT_MEDIUM).shaping(Shaping::Advanced).build(), 
-                        {
-                            truncated_text(format!("艺术家: {}", artist), 25, constants::TEXT_NORMAL, Color { r: 0.4, g: 0.4, b: 0.4, a: 0.8 })
-                        }
-                    ].spacing(constants::SPACING_SMALL)
-                );
-            }
-            
-            main_col = main_col.push(metadata_col);
-        }
-        
-        main_col.into()
-    } else {
-        column![
-            StyledText::new("🎼").size(32).align(Horizontal::Center).shaping(Shaping::Advanced).build(),
-            StyledText::new(t!("File not selected")).size(constants::TEXT_MEDIUM)
-                .align(Horizontal::Center)
-                .style(super::widgets::styled_text::TextStyle::WithAlpha(0.7))
-                .build(),
-        ].spacing(constants::SPACING_SMALL).align_x(Horizontal::Center).into()
-    };
-
-    StyledContainer::new(content)
-        .style(super::widgets::styled_container::ContainerStyle::MainSection)
-        .padding(constants::PADDING_LARGE)
-        .width(Length::Fill)
-        .build()
-}
-
 /// 控制按钮组
 pub fn control_buttons_view(is_playing: bool) -> Element<'static, Message> {
     let (play_icon, play_tooltip) = if is_playing {
@@ -613,7 +518,7 @@ pub fn simple_time_view(playback_state: &PlaybackState) -> Element<'static, Mess
     let current_time_str = format_duration(playback_state.current_time);
     let total_time_str = format_duration(playback_state.total_duration);
     
-    container(
+    //StyledContainer::new(
         row![
             text(current_time_str)
                 .size(constants::TEXT_NORMAL)
@@ -641,26 +546,15 @@ pub fn simple_time_view(playback_state: &PlaybackState) -> Element<'static, Mess
                 }),
         ]
         .spacing(4)
-        .align_y(Vertical::Center)
-    )
-    .style(|theme: &iced::Theme| {
-        let palette = theme.extended_palette();
-        container::Style {
-            background: Some(Background::Color(Color { a: 0.1, ..palette.background.strong.color })),
-            border: Border {
-                radius: Radius::from(4.0),
-                width: 0.0,
-                color: Color::TRANSPARENT,
-            },
-            shadow: Shadow::default(),
-            text_color: None,
-        }
-    })
-    .width(Length::Fixed(120.0))
-    .align_x(Horizontal::Center)
-    .align_y(Vertical::Center)
-    .padding(4)
-    .into()
+        .align_y(Vertical::Center).into()
+    //)
+    //.style(super::widgets::styled_container::ContainerStyle::Decorative)
+    //.width(Length::Fixed(120.0))
+    //.align_x(Horizontal::Center)
+    //.align_y(Vertical::Center)
+    //.padding(4)
+    //.build()
+    //.into()
 }
 
 /// 播放列表视图
@@ -755,13 +649,13 @@ pub fn playlist_view(playlist: &Playlist, playlist_loaded: bool, is_playing: boo
 /// 歌词视图
 pub fn lyrics_view(file_path: &str, is_playing: bool, current_time: f64, lyrics: Option<crate::lyrics::Lyrics>, window_height: f32) -> Element<'static, Message> {
     if file_path.is_empty() {
-        return container(
+        return StyledContainer::new(
             column![
                 text("🎵").size(48).align_x(Horizontal::Center).shaping(Shaping::Advanced),
                 text(t!("Lyrics Display")).size(constants::TEXT_TITLE).align_x(Horizontal::Center).style(primary_text_style()),
                 text(t!("Please select an audio file")).size(constants::TEXT_MEDIUM).align_x(Horizontal::Center).style(alpha_text_style(0.7)),
             ].spacing(constants::SPACING_MEDIUM).align_x(Horizontal::Center)
-        ).style(AppTheme::card_container()).padding(32).width(Length::Fill).height(Length::Fill).into();
+        ).style(super::widgets::styled_container::ContainerStyle::Card).padding(32).width(Length::Fill).height(Length::Fill).build().into();
     }
     
     let mut elements = Vec::<Element<Message>>::new();
@@ -774,22 +668,22 @@ pub fn lyrics_view(file_path: &str, is_playing: bool, current_time: f64, lyrics:
         });
         
         elements.push(
-            container(
+            StyledContainer::new(
                 {
                     let title_color = Color { r: 0.0, g: 0.6, b: 1.0, a: 1.0 };
                     truncated_text(title, constants::TEXT_TRUNCATE_LONG, constants::TEXT_TITLE, title_color)
                 }
-            ).width(Length::Fill).align_x(Horizontal::Center).into()
+            ).width(Length::Fill).align_x(Horizontal::Center).build().into()
         );
         
         if let Some(ref artist) = lyrics_data.metadata.artist {
             elements.push(
-                container(
+                StyledContainer::new(
                     {
                         let artist_color = Color { r: 0.4, g: 0.4, b: 0.4, a: 0.8 };
                         truncated_text(format!("🎤 {}", artist), 35, constants::TEXT_MEDIUM, artist_color)
                     }
-                ).width(Length::Fill).align_x(Horizontal::Center).into()
+                ).width(Length::Fill).align_x(Horizontal::Center).build().into()
             );
         }
         
@@ -808,21 +702,14 @@ pub fn lyrics_view(file_path: &str, is_playing: bool, current_time: f64, lyrics:
                 let is_current = Some(line_index) == current_line;
                 
                 let text_elem = if is_current && is_playing {
-                    container(
+                    StyledContainer::new(
                         text(format!("▶ {}", if line.text.trim().is_empty() { "♪".to_string() } else { line.text.clone() }))
                             .size(constants::TEXT_TITLE - 2).align_x(Horizontal::Center).shaping(Shaping::Advanced)
                             .style(|theme: &iced::Theme| {
                                 let palette = theme.extended_palette();
                                 iced::widget::text::Style { color: Some(palette.primary.strong.color) }
                             })
-                    ).style(|theme: &iced::Theme| {
-                        let palette = theme.extended_palette();
-                        container::Style {
-                            background: Some(Background::Color(Color { a: 0.1, ..palette.primary.base.color })),
-                            border: Border { radius: Radius::from(8.0), width: 0.0, color: Color::TRANSPARENT },
-                            shadow: Shadow::default(), text_color: None,
-                        }
-                    }).padding([constants::PADDING_SMALL, constants::PADDING_MEDIUM]).width(Length::Fill).into()
+                    ).style(super::widgets::styled_container::ContainerStyle::Emphasis).padding(constants::PADDING_SMALL).width(Length::Fill).build().into()
                 } else {
                     text(if line.text.trim().is_empty() { "♪".to_string() } else { line.text.clone() })
                         .size(constants::TEXT_MEDIUM).align_x(Horizontal::Center).shaping(Shaping::Advanced)
@@ -859,32 +746,24 @@ pub fn lyrics_view(file_path: &str, is_playing: bool, current_time: f64, lyrics:
         // 使用提示
         elements.push(text("").into());
         elements.push(
-            container(
+            StyledContainer::new(
                 column![
                     text("💡 使用提示").size(constants::TEXT_MEDIUM).shaping(Shaping::Advanced).style(primary_text_style()),
                     text("📁 将 .lrc 歌词文件放在音频文件同目录下").size(11).shaping(Shaping::Advanced),
                     text("📝 歌词文件名需与音频文件名相同").size(11).shaping(Shaping::Advanced),
                     text("🕐 支持时间同步的LRC格式歌词").size(11).shaping(Shaping::Advanced),
                 ].spacing(constants::SPACING_SMALL)
-            ).style(|theme: &iced::Theme| {
-                let palette = theme.extended_palette();
-                container::Style {
-                    background: Some(Background::Color(Color { a: 0.05, ..palette.primary.base.color })),
-                    border: Border { radius: Radius::from(8.0), width: 1.0, color: Color { a: 0.2, ..palette.primary.base.color } },
-                    shadow: Shadow::default(),
-                    text_color: Some(Color { a: 0.8, ..palette.background.base.text }),
-                }
-            }).padding(constants::PADDING_MEDIUM).into()
+            ).style(super::widgets::styled_container::ContainerStyle::Emphasis).padding(constants::PADDING_MEDIUM).build().into()
         );
     }
     
-    container(
+    StyledContainer::new(
         column(elements).spacing(constants::SPACING_LARGE).width(Length::Fill).align_x(Horizontal::Center)
     )
-    .style(AppTheme::main_section_container())
+    .style(super::widgets::styled_container::ContainerStyle::MainSection)
     .padding(constants::PADDING_LARGE + 4)
     .width(Length::Fill).height(Length::Fill)
-    .into()
+    .build().into()
 }
 
 // ============================================================================
@@ -974,45 +853,14 @@ pub fn compact_album_cover_view(audio_info: Option<&AudioInfo>) -> Element<'stat
         svg_icon(icons::MUSIC_NOTE, 28.0, constants::ICON_COLOR)
     };
 
-    container(content)
-        .style(|theme: &iced::Theme| {
-            let palette = theme.extended_palette();
-            // 在深色模式下使用更亮的边框和背景色
-            let is_dark_theme = palette.background.base.color.r + palette.background.base.color.g + palette.background.base.color.b < 1.5;
-            let (background_color, border_color, shadow_color) = if is_dark_theme {
-                (
-                    palette.background.weak.color,
-                    Color { r: 0.35, g: 0.35, b: 0.37, a: 1.0 },  // 更亮的边框
-                    Color::from_rgba(0.0, 0.0, 0.0, 0.25)
-                )
-            } else {
-                (
-                    palette.background.weak.color,
-                    palette.background.strong.color,
-                    Color::from_rgba(0.0, 0.0, 0.0, 0.15)
-                )
-            };
-            
-            container::Style {
-                background: Some(Background::Color(background_color)),
-                border: Border {
-                    radius: Radius::from(6.0),
-                    width: 1.0,
-                    color: border_color,
-                },
-                shadow: Shadow {
-                    color: shadow_color,
-                    offset: iced::Vector::new(0.0, 2.0),
-                    blur_radius: 4.0,
-                },
-                text_color: None,
-            }
-        })
+    StyledContainer::new(content)
+        .style(super::widgets::styled_container::ContainerStyle::Decorative)
         .width(Length::Fixed(56.0))
         .height(Length::Fixed(56.0))
         .align_x(Horizontal::Center)
         .align_y(Vertical::Center)
         .padding(3)
+        .build()
         .into()
 }
 
@@ -1026,7 +874,7 @@ pub fn compact_song_info_view(audio_info: Option<&AudioInfo>, file_path: &str) -
         let display_title = info.metadata.title.clone().unwrap_or(file_name);
         let display_artist = info.metadata.artist.clone().unwrap_or("Unknown Artist".to_string());
         
-        container(
+        //StyledContainer::new(
             column![
                 // 第一行：歌曲名（使用主题强调色，高对比度）
                 text(if display_title.chars().count() > 25 {
@@ -1056,172 +904,24 @@ pub fn compact_song_info_view(audio_info: Option<&AudioInfo>, file_path: &str) -
                     }
                 }),
             ]
-            .spacing(3)
-        )
-        .style(|theme: &iced::Theme| {
-            let palette = theme.extended_palette();
-            container::Style {
-                background: Some(Background::Color(Color { a: 0.05, ..palette.background.strong.color })),
-                border: Border {
-                    radius: Radius::from(4.0),
-                    width: 0.0,
-                    color: Color::TRANSPARENT,
-                },
-                shadow: Shadow::default(),
-                text_color: None,
-            }
-        })
-        .width(Length::Fixed(180.0))
-        .align_y(Vertical::Center)
-        .padding([4, 8])
-        .into()
+            .spacing(3).into()
+        //)
+        //.style(super::widgets::styled_container::ContainerStyle::Decorative)
+        //.width(Length::Fixed(180.0))
+        //.align_y(Vertical::Center)
+        //.padding([4, 8])
+        //.build()
+        //.into()
     } else {
-        container(
-            column![
-                text("No Track")
-                    .size(constants::TEXT_MEDIUM)
-                    .style(alpha_text_style(0.8)),
-                text("Select a file to play")
-                    .size(constants::TEXT_SMALL)
-                    .style(alpha_text_style(0.6))
-            ]
-            .spacing(2)
-        )
-        .width(Length::Fixed(180.0))
-        .align_y(Vertical::Center)
-        .padding([0, 8])
-        .into()
-    }
-}
-
-/// 当前歌曲信息视图（用于底部栏）
-pub fn current_track_info_view(audio_info: Option<&AudioInfo>, file_path: &str) -> Element<'static, Message> {
-    if let Some(info) = audio_info {
-        let file_name = std::path::Path::new(file_path)
-            .file_stem().and_then(|s| s.to_str())
-            .unwrap_or("Unknown Track").to_string();
-        
-        let display_title = info.metadata.title.clone().unwrap_or(file_name);
-        let display_artist = info.metadata.artist.clone().unwrap_or("Unknown Artist".to_string());
-        
-        // 音乐图标 (暂时简化，不显示专辑封面)
-        let cover_element = container(
-            svg_icon(icons::MUSIC_NOTE, 24.0, constants::ICON_COLOR)
-        )
-        .style(|theme: &iced::Theme| {
-            let palette = theme.extended_palette();
-            // 在深色模式下使用更亮的边框和背景色
-            let is_dark_theme = palette.background.base.color.r + palette.background.base.color.g + palette.background.base.color.b < 1.5;
-            let (background_color, border_color) = if is_dark_theme {
-                (
-                    palette.background.weak.color,
-                    Color { r: 0.35, g: 0.35, b: 0.37, a: 1.0 }  // 更亮的边框
-                )
-            } else {
-                (
-                    palette.background.weak.color,
-                    palette.background.strong.color
-                )
-            };
-            
-            container::Style {
-                background: Some(Background::Color(background_color)),
-                border: Border {
-                    radius: Radius::from(6.0),
-                    width: 1.0,
-                    color: border_color,
-                },
-                shadow: Shadow::default(),
-                text_color: None,
-            }
-        })
-        .width(Length::Fixed(48.0))
-        .height(Length::Fixed(48.0))
-        .align_x(Horizontal::Center)
-        .align_y(Vertical::Center);
-        
-        // 歌曲信息
-        let track_info = column![
-            {
-                let title_color = Color { r: 0.9, g: 0.9, b: 0.9, a: 1.0 };
-                truncated_text(display_title, 25, constants::TEXT_MEDIUM, title_color)
-            },
-            {
-                let artist_color = Color { r: 0.6, g: 0.6, b: 0.6, a: 1.0 };
-                truncated_text(display_artist, 25, constants::TEXT_SMALL, artist_color)
-            }
+        column![
+            text("No Track")
+                .size(constants::TEXT_MEDIUM)
+                .style(alpha_text_style(0.8)),
+            text("Select a file to play")
+                .size(constants::TEXT_SMALL)
+                .style(alpha_text_style(0.6))
         ]
-        .spacing(2);
-        
-        container(
-            row![
-                cover_element,
-                container(track_info)
-                    .width(Length::Fill)
-                    .align_y(Vertical::Center)
-                    .padding([0, constants::PADDING_SMALL])
-            ]
-            .spacing(constants::SPACING_MEDIUM)
-            .align_y(Vertical::Center)
-        )
-        .width(Length::Fixed(220.0)) // 固定宽度以保持布局稳定
-        .height(Length::Fixed(48.0))
-        .align_y(Vertical::Center)
-        .into()
-    } else {
-        // 没有音频文件时的默认显示
-        container(
-            row![
-                container(
-                    svg_icon(icons::MUSIC_NOTE, 24.0, constants::ICON_COLOR_SUBTLE)
-                )
-                .style(|theme: &iced::Theme| {
-                    let palette = theme.extended_palette();
-                    // 在深色模式下使用更亮的边框和背景色
-                    let is_dark_theme = palette.background.base.color.r + palette.background.base.color.g + palette.background.base.color.b < 1.5;
-                    let (background_color, border_color) = if is_dark_theme {
-                        (
-                            palette.background.weak.color,
-                            Color { r: 0.35, g: 0.35, b: 0.37, a: 1.0 }  // 更亮的边框
-                        )
-                    } else {
-                        (
-                            palette.background.weak.color,
-                            palette.background.strong.color
-                        )
-                    };
-                    
-                    container::Style {
-                        background: Some(Background::Color(background_color)),
-                        border: Border {
-                            radius: Radius::from(6.0),
-                            width: 1.0,
-                            color: border_color,
-                        },
-                        shadow: Shadow::default(),
-                        text_color: None,
-                    }
-                })
-                .width(Length::Fixed(48.0))
-                .height(Length::Fixed(48.0))
-                .align_x(Horizontal::Center)
-                .align_y(Vertical::Center),
-                
-                column![
-                    text("No Track").size(constants::TEXT_MEDIUM).style(alpha_text_style(0.7)),
-                    text("Select a file to play").size(constants::TEXT_SMALL).style(alpha_text_style(0.5))
-                ]
-                .spacing(2)
-                .width(Length::Fill)
-                .padding([0, constants::PADDING_SMALL])
-            ]
-            .spacing(constants::SPACING_MEDIUM)
-            .align_y(Vertical::Center)
-        )
-        .width(Length::Fixed(220.0))
-        .height(Length::Fixed(48.0))
-        .align_y(Vertical::Center)
-        .into()
+        .spacing(2).into()
     }
 }
 
@@ -1233,13 +933,13 @@ pub fn playlist_files_grid_view(playlist_manager: &crate::playlist::PlaylistMana
     
     if playlist_infos.is_empty() {
         // 没有播放列表文件时的显示
-        return container(
+        return StyledContainer::new(
             column![
                 text("📁").size(48).align_x(Horizontal::Center).shaping(Shaping::Advanced),
                 text(t!("No Playlists")).size(constants::TEXT_LARGE).align_x(Horizontal::Center).style(AppTheme::subtitle_text()),
                 text(t!("No M3U playlists found in config directory")).size(constants::TEXT_NORMAL).align_x(Horizontal::Center).style(AppTheme::hint_text()),
             ].spacing(constants::SPACING_MEDIUM).align_x(Horizontal::Center)
-        ).style(AppTheme::card_container()).padding(32).width(Length::Fill).height(Length::Fill).into();
+        ).style(super::widgets::styled_container::ContainerStyle::Card).padding(32).width(Length::Fill).height(Length::Fill).build().into();
     }
     
     // 创建网格布局，每行显示3个播放列表
@@ -1247,68 +947,56 @@ pub fn playlist_files_grid_view(playlist_manager: &crate::playlist::PlaylistMana
     let mut current_row = Vec::<Element<Message>>::new();
     
     for (index, playlist_info) in playlist_infos.iter().enumerate() {
+        let card_info = {
+            // 移除文件扩展名
+            let name_without_extension = std::path::Path::new(&playlist_info.name)
+            .file_stem()
+            .and_then(|s| s.to_str())
+            .unwrap_or(&playlist_info.name)
+            .to_string();
+        
+        let display_name = if name_without_extension.chars().count() > 18 {
+            format!("{}...", name_without_extension.chars().take(15).collect::<String>())
+        } else {
+            name_without_extension
+        };
+        text(display_name)
+            .size(constants::TEXT_LARGE)
+            .align_x(Horizontal::Center)
+            .style(|theme: &iced::Theme| {
+                let palette = theme.extended_palette();
+                iced::widget::text::Style {
+                    color: Some(palette.background.base.text),
+                }
+            })
+        };
         // 创建网格项
-        let grid_item = container(
+        let grid_item = StyledContainer::new(
             column![
                 // 播放列表图标（方形）
-                container(
+                StyledContainer::new(
                     svg_icon(icons::CD_ICON, 90.0, constants::ICON_COLOR)
                 )
-                .style(|theme: &iced::Theme| {
-                    let palette = theme.extended_palette();
-                    container::Style {
-                        background: Some(Background::Color(palette.background.weak.color)),
-                        border: Border {
-                            radius: Radius::from(12.0),
-                            width: 1.0,
-                            color: palette.background.strong.color,
-                        },
-                        shadow: Shadow {
-                            color: Color::from_rgba(0.0, 0.0, 0.0, 0.15),
-                            offset: iced::Vector::new(0.0, 4.0),
-                            blur_radius: 8.0,
-                        },
-                        text_color: None,
-                    }
-                })
+                .style(super::widgets::styled_container::ContainerStyle::Decorative)
                 .width(Length::Fixed(160.0)) // 固定宽度确保方形
                 .height(Length::Fixed(160.0)) // 固定高度确保方形
                 .align_x(Horizontal::Center)
-                .align_y(Vertical::Center),
+                .align_y(Vertical::Center)
+                .build(),
                 
                 // 播放列表信息（名称和歌曲数）
                 column![
                     // 使用row布局来排列名称和歌曲数
                     row![
                         // 播放列表名称（去除文件扩展名）
-                        container(
-                            {
-                                // 移除文件扩展名
-                                let name_without_extension = std::path::Path::new(&playlist_info.name)
-                                    .file_stem()
-                                    .and_then(|s| s.to_str())
-                                    .unwrap_or(&playlist_info.name)
-                                    .to_string();
-                                
-                                let display_name = if name_without_extension.chars().count() > 18 {
-                                    format!("{}...", name_without_extension.chars().take(15).collect::<String>())
-                                } else {
-                                    name_without_extension
-                                };
-                                text(display_name)
-                                    .size(constants::TEXT_LARGE)
-                                    .align_x(Horizontal::Center)
-                                    .style(|theme: &iced::Theme| {
-                                        let palette = theme.extended_palette();
-                                        iced::widget::text::Style {
-                                            color: Some(palette.background.base.text),
-                                        }
-                                    })
-                            }
-                        ).width(Length::FillPortion(3)).align_x(Horizontal::Center),
+                        //StyledContainer::new(
+                        //    {
+                                card_info,
+                        //    }
+                        //).width(Length::FillPortion(3)).align_x(Horizontal::Center).build(),
                         
                         // 歌曲数信息
-                        container(
+                        //StyledContainer::new(
                             text(format!("{} {}", playlist_info.song_count, if playlist_info.song_count == 1 { t!("song") } else { t!("songs") }))
                                 .size(constants::TEXT_MEDIUM)
                                 .align_x(Horizontal::Center)
@@ -1318,7 +1006,7 @@ pub fn playlist_files_grid_view(playlist_manager: &crate::playlist::PlaylistMana
                                         color: Some(Color { a: 0.7, ..palette.background.base.text }),
                                     }
                                 })
-                        ).width(Length::FillPortion(2)).align_x(Horizontal::Center),
+                        //).width(Length::FillPortion(2)).align_x(Horizontal::Center).build(),
                     ]
                     .spacing(6)
                     .width(Length::Fill)
@@ -1332,28 +1020,13 @@ pub fn playlist_files_grid_view(playlist_manager: &crate::playlist::PlaylistMana
             .align_x(Horizontal::Center)
             .height(Length::Fill)
         )
-        .style(|theme: &iced::Theme| {
-            let palette = theme.extended_palette();
-            container::Style {
-                background: Some(Background::Color(Color { a: 0.03, ..palette.background.strong.color })),
-                border: Border {
-                    radius: Radius::from(12.0),
-                    width: 1.0,
-                    color: Color { a: 0.1, ..palette.background.strong.color },
-                },
-                shadow: Shadow {
-                    color: Color::from_rgba(0.0, 0.0, 0.0, 0.15),
-                    offset: iced::Vector::new(0.0, 4.0),
-                    blur_radius: 8.0,
-                },
-                text_color: None,
-            }
-        })
+        .style(super::widgets::styled_container::ContainerStyle::Decorative)
         .width(Length::Fixed(170.0)) // 固定宽度
         .height(Length::Fixed(230.0)) // 调整总高度
         .align_x(Horizontal::Center)
         .align_y(Vertical::Center)
-        .padding([constants::PADDING_MEDIUM, constants::PADDING_SMALL]);
+        .padding([constants::PADDING_MEDIUM, constants::PADDING_SMALL])
+        .build();
         
         let clickable_item = button(grid_item)
             .on_press(Message::PlaylistFileSelected(playlist_info.path.clone()))
@@ -1430,15 +1103,15 @@ pub fn playlist_files_grid_view(playlist_manager: &crate::playlist::PlaylistMana
         }
     }
     
-    container(
+    StyledContainer::new(
         column![
             // 标题
-            container(
+            //StyledContainer::new(
                 row![
                     text("📋").size(constants::TEXT_TITLE).shaping(Shaping::Advanced),
                     text(t!("Playlists")).size(constants::TEXT_TITLE - 2).style(primary_text_style()),
-                ].spacing(constants::SPACING_MEDIUM).align_y(Vertical::Center)
-            ).padding(constants::PADDING_SMALL),
+                ].spacing(constants::SPACING_MEDIUM).align_y(Vertical::Center),
+            //).padding(constants::PADDING_SMALL).build(),
             
             // 网格布局的播放列表（自适应高度，滚动条）
             scrollable(
@@ -1448,9 +1121,10 @@ pub fn playlist_files_grid_view(playlist_manager: &crate::playlist::PlaylistMana
             ).height(Length::Fill).width(Length::Fill), // 高度填满可用空间，超出时自动滚动
         ].spacing(constants::SPACING_LARGE).height(Length::Fill) // 确保列也填满高度
     )
-    .style(AppTheme::main_section_container())
+    .style(super::widgets::styled_container::ContainerStyle::MainSection)
     .padding(constants::SPACING_LARGE)
     .width(Length::Fill).height(Length::Fill) // 容器填满可用空间
+    .build()
     .into()
 }
 
@@ -1486,59 +1160,5 @@ fn get_playlist_files_info_from_manager(playlist_manager: &crate::playlist::Play
     playlist_infos.sort_by(|a, b| a.name.cmp(&b.name));
     playlist_infos
 }
-
-/// 获取配置目录下的所有m3u播放列表文件及其信息（保留原函数作为备用）
-fn get_playlist_files_info() -> Vec<PlaylistFileInfo> {
-    use std::fs;
-    use crate::playlist::parse_m3u_playlist;
-    
-    // 获取配置目录
-    let config_dir = match dirs::config_dir() {
-        Some(dir) => dir.join("summer-player"),
-        None => return Vec::new(),
-    };
-    
-    // 如果配置目录不存在，返回空列表
-    if !config_dir.exists() {
-        return Vec::new();
-    }
-    
-    let mut playlist_infos = Vec::new();
-    
-    // 读取配置目录下的所有文件
-    if let Ok(entries) = fs::read_dir(&config_dir) {
-        for entry in entries.flatten() {
-            let path = entry.path();
-            if let Some(extension) = path.extension() {
-                if extension == "m3u" || extension == "m3u8" {
-                    if let Some(path_str) = path.to_str() {
-                        let name = path.file_stem()
-                            .and_then(|s| s.to_str())
-                            .unwrap_or("Unknown Playlist")
-                            .to_string();
-                        
-                        // 尝试解析播放列表以获取歌曲数
-                        let song_count = match parse_m3u_playlist(path_str) {
-                            Ok(playlist) => playlist.len(),
-                            Err(_) => 0, // 解析失败时显示0
-                        };
-                        
-                        playlist_infos.push(PlaylistFileInfo {
-                            path: path_str.to_string(),
-                            name,
-                            song_count,
-                        });
-                    }
-                }
-            }
-        }
-    }
-    
-    // 按文件名排序
-    playlist_infos.sort_by(|a, b| a.name.cmp(&b.name));
-    playlist_infos
-}
-
-
 
  
