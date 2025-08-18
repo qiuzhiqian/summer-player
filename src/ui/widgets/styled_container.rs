@@ -164,7 +164,7 @@ fn card_style(theme: &iced::Theme) -> Style {
     Style {
         background: Some(Background::Color(crate::ui::theme::AppColors::card_background(theme))),
         border: Border {
-            radius: Radius::from(16.0), // 与AppTheme::card_container保持一致
+            radius: Radius::from(6.0), // 与AppTheme::card_container保持一致
             width: 1.0,
             color: crate::ui::theme::AppColors::border(theme),
         },

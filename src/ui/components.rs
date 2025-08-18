@@ -611,6 +611,7 @@ pub fn playlist_view(playlist: &Playlist, playlist_loaded: bool, is_playing: boo
                 ).style(super::widgets::styled_container::ContainerStyle::Transparent).width(Length::Fixed(60.0)).align_x(Horizontal::Right).build(),
             ].spacing(constants::SPACING_MEDIUM).align_y(Vertical::Center)
         )
+        .style(super::widgets::styled_container::ContainerStyle::Card)
         .padding(constants::PADDING_SMALL)
         .width(Length::Fill)
         .build();
@@ -1022,7 +1023,7 @@ pub fn playlist_files_grid_view(playlist_manager: &crate::playlist::PlaylistMana
             .align_x(Horizontal::Center)
             .height(Length::Fill)
         )
-        .style(super::widgets::styled_container::ContainerStyle::Decorative)
+        .style(super::widgets::styled_container::ContainerStyle::Card)
         .width(Length::Fixed(170.0)) // 固定宽度
         .height(Length::Fixed(230.0)) // 调整总高度
         .align_x(Horizontal::Center)
