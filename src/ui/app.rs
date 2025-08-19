@@ -76,6 +76,8 @@ pub struct PlayerApp {
     play_mode: PlayMode,
     /// 应用程序配置
     app_config: AppConfig,
+    /// 当前选中的播放列表路径（用于网格视图的选中效果）
+    selected_playlist_path: Option<String>,
 }
 
 impl Default for PlayerApp {
@@ -98,6 +100,7 @@ impl Default for PlayerApp {
             current_language: "en".to_string(),
             play_mode: PlayMode::default(),
             app_config: AppConfig::default(),
+            selected_playlist_path: None,
         }
     }
 }
@@ -170,6 +173,7 @@ impl PlayerApp {
             Message::FileSelected(file_path) => self.handle_file_selected(file_path),
             Message::PlaylistItemSelected(index) => self.handle_playlist_item_selected(index),
             Message::PlaylistFileSelected(playlist_path) => self.handle_playlist_file_selected(playlist_path),
+            Message::PlaylistCardToggled(playlist_path) => self.handle_playlist_card_toggled(playlist_path),
             Message::NextTrack => self.handle_next_track(),
             Message::PreviousTrack => self.handle_previous_track(),
             Message::Tick => self.handle_tick(),
@@ -361,6 +365,8 @@ impl PlayerApp {
             match self.playlist_manager.set_current_playlist(&path) {
                 Ok(_) => {
                     self.playlist_loaded = true;
+                    // 清除选中状态，因为这是单个文件，不是播放列表文件
+                    self.selected_playlist_path = None;
                     self.update_ui_for_track(&path);
                     
                     // 停止当前播放，然后如果之前正在播放则启动新的播放会话
@@ -404,6 +410,8 @@ impl PlayerApp {
         match self.playlist_manager.set_current_playlist(&playlist_path) {
             Ok(_) => {
                 self.playlist_loaded = true;
+                // 更新选中状态，确保选中状态与当前播放列表同步
+                self.selected_playlist_path = Some(playlist_path);
                 
                 // 启动后台AudioFile加载任务
                 let background_task = self.start_background_audio_loading();
@@ -660,6 +668,38 @@ impl PlayerApp {
         Task::none()
     }
 
+    fn handle_playlist_card_toggled(&mut self, playlist_path: String) -> Task<Message> {
+        // 实现播放列表卡片选中逻辑：单击选中，选中其他卡片时切换
+        if let Some(ref current_selected) = self.selected_playlist_path {
+            if current_selected == &playlist_path {
+                // 如果点击的是已选中的卡片，保持选中状态（不取消选中）
+                // 可以重新加载播放列表，确保数据是最新的
+                println!("重新加载已选中的播放列表: {}", playlist_path);
+            } else {
+                // 如果点击的是其他卡片，则选中新的卡片
+                self.selected_playlist_path = Some(playlist_path.clone());
+                println!("切换选中播放列表: {}", playlist_path);
+            }
+        } else {
+            // 如果当前没有选中任何卡片，则选中点击的卡片
+            self.selected_playlist_path = Some(playlist_path.clone());
+            println!("选中播放列表: {}", playlist_path);
+        }
+        
+        // 总是加载选中的播放列表到右侧显示（但不开始播放）
+        match self.playlist_manager.set_current_playlist(&playlist_path) {
+            Ok(_) => {
+                self.playlist_loaded = true;
+                // 启动后台AudioFile加载任务，但不自动开始播放
+                self.start_background_audio_loading()
+            }
+            Err(e) => {
+                eprintln!("加载播放列表失败: {}", e);
+                Task::none()
+            }
+        }
+    }
+
     // 辅助方法
 
     /// 从当前应用状态更新配置
@@ -845,7 +885,7 @@ impl PlayerApp {
     fn create_home_page(&self) -> Element<Message> {
         // 左侧面板：播放列表文件网格视图（自适应宽度和高度）
         let left_panel = column![
-            playlist_files_grid_view(&self.playlist_manager),
+            playlist_files_grid_view(&self.playlist_manager, &self.selected_playlist_path),
         ].spacing(16)
          .width(Length::Fill)
          .height(Length::Fill); // 确保填满可用高度

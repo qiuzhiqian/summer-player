@@ -930,7 +930,7 @@ pub fn compact_song_info_view(audio_info: Option<&AudioInfo>, file_path: &str) -
 
 /// 播放列表文件展示控件（网格布局）
 /// 显示配置目录下的所有m3u播放列表文件
-pub fn playlist_files_grid_view(playlist_manager: &crate::playlist::PlaylistManager) -> Element<'static, Message> {
+pub fn playlist_files_grid_view(playlist_manager: &crate::playlist::PlaylistManager, selected_playlist_path: &Option<String>) -> Element<'static, Message> {
     // 从PlaylistManager获取播放列表文件信息
     let playlist_infos = get_playlist_files_info_from_manager(playlist_manager);
     
@@ -950,6 +950,9 @@ pub fn playlist_files_grid_view(playlist_manager: &crate::playlist::PlaylistMana
     let mut current_row = Vec::<Element<Message>>::new();
     
     for (index, playlist_info) in playlist_infos.iter().enumerate() {
+        // 检查当前卡片是否被选中
+        let is_selected = selected_playlist_path.as_ref() == Some(&playlist_info.path);
+        
         let card_info = {
             // 移除文件扩展名
             let name_without_extension = std::path::Path::new(&playlist_info.name)
@@ -966,10 +969,14 @@ pub fn playlist_files_grid_view(playlist_manager: &crate::playlist::PlaylistMana
         text(display_name)
             .size(constants::TEXT_LARGE)
             .align_x(Horizontal::Center)
-            .style(|theme: &iced::Theme| {
+            .style(move |theme: &iced::Theme| {
                 let palette = theme.extended_palette();
                 iced::widget::text::Style {
-                    color: Some(palette.background.base.text),
+                    color: Some(if is_selected {
+                        palette.primary.strong.color
+                    } else {
+                        palette.background.base.text
+                    }),
                 }
             })
         };
@@ -978,7 +985,11 @@ pub fn playlist_files_grid_view(playlist_manager: &crate::playlist::PlaylistMana
             column![
                 // 播放列表图标（方形）
                 StyledContainer::new(
-                    svg_icon(icons::CD_ICON, 90.0, constants::ICON_COLOR)
+                    svg_icon(icons::CD_ICON, 90.0, if is_selected {
+                        Color { a: 0.9, ..constants::ICON_COLOR }
+                    } else {
+                        constants::ICON_COLOR
+                    })
                 )
                 .style(super::widgets::styled_container::ContainerStyle::Decorative)
                 .width(Length::Fixed(160.0)) // 固定宽度确保方形
@@ -1003,10 +1014,14 @@ pub fn playlist_files_grid_view(playlist_manager: &crate::playlist::PlaylistMana
                             text(format!("{} {}", playlist_info.song_count, if playlist_info.song_count == 1 { t!("song") } else { t!("songs") }))
                                 .size(constants::TEXT_MEDIUM)
                                 .align_x(Horizontal::Center)
-                                .style(|theme: &iced::Theme| {
+                                .style(move |theme: &iced::Theme| {
                                     let palette = theme.extended_palette();
                                     iced::widget::text::Style {
-                                        color: Some(Color { a: 0.7, ..palette.background.base.text }),
+                                        color: Some(if is_selected {
+                                            Color { a: 0.8, ..palette.primary.strong.color }
+                                        } else {
+                                            Color { a: 0.7, ..palette.background.base.text }
+                                        }),
                                     }
                                 })
                         //).width(Length::FillPortion(2)).align_x(Horizontal::Center).build(),
@@ -1032,46 +1047,70 @@ pub fn playlist_files_grid_view(playlist_manager: &crate::playlist::PlaylistMana
         .build();
         
         let clickable_item = button(grid_item)
-            .on_press(Message::PlaylistFileSelected(playlist_info.path.clone()))
-            .style(|theme: &iced::Theme, status| {
+            .on_press(Message::PlaylistCardToggled(playlist_info.path.clone()))
+            .style(move |theme: &iced::Theme, status| {
                 let palette = theme.extended_palette();
                 match status {
                     iced::widget::button::Status::Active => iced::widget::button::Style {
-                        background: Some(Background::Color(Color::TRANSPARENT)),
-                        text_color: palette.background.base.text,
+                        background: if is_selected {
+                            Some(Background::Color(Color { a: 0.3, ..palette.primary.base.color }))
+                        } else {
+                            Some(Background::Color(Color::TRANSPARENT))
+                        },
+                        text_color: if is_selected {
+                            palette.primary.strong.color
+                        } else {
+                            palette.background.base.text
+                        },
                         border: Border {
                             radius: Radius::from(8.0),
                             width: 0.0,
                             color: Color::TRANSPARENT,
                         },
-                        shadow: Shadow::default(),
+                        shadow: if is_selected {
+                            Shadow {
+                                color: Color::from_rgba(0.0, 0.0, 0.0, 0.15),
+                                offset: iced::Vector::new(0.0, 3.0),
+                                blur_radius: 8.0,
+                            }
+                        } else {
+                            Shadow::default()
+                        },
                     },
                     iced::widget::button::Status::Hovered => iced::widget::button::Style {
-                        background: Some(Background::Color(Color { a: 0.1, ..palette.primary.base.color })),
+                        background: if is_selected {
+                            Some(Background::Color(Color { a: 0.4, ..palette.primary.base.color }))
+                        } else {
+                            Some(Background::Color(Color { a: 0.15, ..palette.primary.base.color }))
+                        },
                         text_color: palette.primary.strong.color,
                         border: Border {
                             radius: Radius::from(8.0),
-                            width: 1.0,
-                            color: Color { a: 0.3, ..palette.primary.base.color },
-                        },
-                        shadow: Shadow {
-                            color: Color::from_rgba(0.0, 0.0, 0.0, 0.15),
-                            offset: iced::Vector::new(0.0, 4.0),
-                            blur_radius: 8.0,
-                        },
-                    },
-                    iced::widget::button::Status::Pressed => iced::widget::button::Style {
-                        background: Some(Background::Color(Color { a: 0.15, ..palette.primary.base.color })),
-                        text_color: palette.primary.strong.color,
-                        border: Border {
-                            radius: Radius::from(8.0),
-                            width: 1.0,
-                            color: palette.primary.base.color,
+                            width: 0.0,
+                            color: Color::TRANSPARENT,
                         },
                         shadow: Shadow {
                             color: Color::from_rgba(0.0, 0.0, 0.0, 0.2),
+                            offset: iced::Vector::new(0.0, 4.0),
+                            blur_radius: 10.0,
+                        },
+                    },
+                    iced::widget::button::Status::Pressed => iced::widget::button::Style {
+                        background: if is_selected {
+                            Some(Background::Color(Color { a: 0.5, ..palette.primary.base.color }))
+                        } else {
+                            Some(Background::Color(Color { a: 0.25, ..palette.primary.base.color }))
+                        },
+                        text_color: palette.primary.strong.color,
+                        border: Border {
+                            radius: Radius::from(8.0),
+                            width: 0.0,
+                            color: Color::TRANSPARENT,
+                        },
+                        shadow: Shadow {
+                            color: Color::from_rgba(0.0, 0.0, 0.0, 0.25),
                             offset: iced::Vector::new(0.0, 2.0),
-                            blur_radius: 4.0,
+                            blur_radius: 6.0,
                         },
                     },
                     iced::widget::button::Status::Disabled => iced::widget::button::Style {

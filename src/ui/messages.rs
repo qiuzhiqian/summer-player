@@ -21,6 +21,9 @@ pub enum Message {
     PlaylistItemSelected(usize),
     /// 播放列表文件选择
     PlaylistFileSelected(String),
+    /// 播放列表卡片选中切换（用于视觉选中效果）
+    PlaylistCardToggled(String),
+
     /// 下一首
     NextTrack,
     /// 上一首
