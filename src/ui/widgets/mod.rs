@@ -6,9 +6,11 @@ pub mod styled_container;
 pub mod styled_button;
 pub mod styled_text;
 pub mod icon_button;
+pub mod playlist_card;
 
 // 重新导出主要类型
 pub use styled_container::StyledContainer;
 pub use styled_button::StyledButton;
 pub use styled_text::StyledText;
 pub use icon_button::IconButton;
+pub use playlist_card::{PlaylistCard, PlaylistCardBuilder, PlaylistCardConfig};

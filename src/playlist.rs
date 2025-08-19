@@ -431,14 +431,14 @@ impl Playlist {
         self.file_path.is_none()
     }
     
-    /// 创建临时播放列表（用于单个音频文件）
+    /// 创建临时播放列表（用于多个音频文件）
     /// 
     /// # 参数
-    /// * `file_path` - 音频文件路径
+    /// * `file_paths` - 音频文件路径向量
     /// 
     /// # 返回
     /// 临时播放列表实例
-    pub fn create_temporary(file_path: String) -> Self {
+    pub fn create_from_audio_files(file_paths: Vec<String>) -> Self {
         let mut playlist = Self {
             items: Vec::new(),
             current_index: None,
@@ -447,9 +447,16 @@ impl Playlist {
             file_path: None, // 临时播放列表没有文件路径
         };
         
-        let item = PlaylistItem::new(file_path);
-        playlist.add_item(item);
-        playlist.set_current_index(0);
+        // 为每个文件路径创建播放列表项
+        for file_path in file_paths {
+            let item = PlaylistItem::new(file_path);
+            playlist.add_item(item);
+        }
+        
+        // 如果有文件，设置第一个为当前播放项
+        if !playlist.is_empty() {
+            playlist.set_current_index(0);
+        }
         
         playlist
     }
@@ -624,7 +631,7 @@ impl PlaylistManager {
                 parse_m3u_playlist(playlist_path)?
             } else {
                 // 单个音频文件创建播放列表
-                create_single_file_playlist(playlist_path)?
+                Playlist::create_from_audio_files(vec![playlist_path.to_string()])
             };
             
             self.playlists.insert(playlist_path.to_string(), playlist);
@@ -650,7 +657,7 @@ impl PlaylistManager {
             self.temporary_playlist = None; // 清除临时播放列表
         } else {
             // 单个音频文件：创建临时播放列表
-            let temp_playlist = Playlist::create_temporary(playlist_path.to_string());
+            let temp_playlist = Playlist::create_from_audio_files(vec![playlist_path.to_string()]);
             self.temporary_playlist = Some(temp_playlist);
             self.current_playlist_path = None; // 清除持久播放列表路径
         }
@@ -889,18 +896,6 @@ pub fn parse_m3u_playlist(file_path: &str) -> Result<Playlist> {
     Ok(playlist)
 }
 
-/// 创建单文件播放列表（临时播放列表）
-/// 
-/// # 参数
-/// * `file_path` - 音频文件路径
-/// 
-/// # 返回
-/// 包含单个文件的临时播放列表
-pub fn create_single_file_playlist(file_path: &str) -> Result<Playlist> {
-    let playlist = Playlist::create_temporary(file_path.to_string());
-    Ok(playlist)
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -948,5 +943,50 @@ mod tests {
         assert_eq!(item.path, "/path/to/test.mp3");
         assert_eq!(item.name, "Custom Name");
         assert_eq!(item.duration, Some(180.0));
+    }
+    
+    #[test]
+    fn test_create_from_multiple_audio_files() {
+        let file_paths = vec![
+            "song1.mp3".to_string(),
+            "song2.flac".to_string(),
+            "song3.wav".to_string(),
+        ];
+        
+        let playlist = Playlist::create_from_audio_files(file_paths);
+        
+        assert_eq!(playlist.len(), 3);
+        assert!(!playlist.is_empty());
+        assert_eq!(playlist.current_index(), Some(0));
+        assert!(playlist.is_temporary());
+        
+        // 验证所有文件都被添加到播放列表中
+        let items = playlist.items();
+        assert_eq!(items[0].path, "song1.mp3");
+        assert_eq!(items[1].path, "song2.flac");
+        assert_eq!(items[2].path, "song3.wav");
+    }
+    
+    #[test]
+    fn test_create_from_single_audio_file_convenience() {
+        let playlist = Playlist::create_from_audio_files(vec!["single_song.mp3".to_string()]);
+        
+        assert_eq!(playlist.len(), 1);
+        assert!(!playlist.is_empty());
+        assert_eq!(playlist.current_index(), Some(0));
+        assert!(playlist.is_temporary());
+        
+        let items = playlist.items();
+        assert_eq!(items[0].path, "single_song.mp3");
+    }
+    
+    #[test]
+    fn test_create_from_empty_audio_files() {
+        let playlist = Playlist::create_from_audio_files(vec![]);
+        
+        assert_eq!(playlist.len(), 0);
+        assert!(playlist.is_empty());
+        assert_eq!(playlist.current_index(), None);
+        assert!(playlist.is_temporary());
     }
 } 

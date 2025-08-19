@@ -16,7 +16,7 @@ use crate::utils::format_duration;
 
 use super::Message;
 use super::theme::{AppTheme, AppThemeVariant};
-use super::widgets::{StyledContainer, StyledButton, StyledText, IconButton};
+use super::widgets::{StyledContainer, StyledButton, StyledText, IconButton, PlaylistCard};
 use rust_i18n::t;
 
 use dirs;
@@ -107,7 +107,7 @@ pub mod icons {
 
 /// 创建SVG图标
 /// 创建SVG图标
-fn svg_icon(content: &str, size: f32, color: Color) -> Element<'static, Message> {
+pub fn svg_icon(content: &str, size: f32, color: Color) -> Element<'static, Message> {
     svg(svg::Handle::from_memory(content.as_bytes().to_vec()))
         .width(Length::Fixed(size))
         .height(Length::Fixed(size))
@@ -953,181 +953,17 @@ pub fn playlist_files_grid_view(playlist_manager: &crate::playlist::PlaylistMana
         // 检查当前卡片是否被选中
         let is_selected = selected_playlist_path.as_ref() == Some(&playlist_info.path);
         
-        let card_info = {
-            // 移除文件扩展名
-            let name_without_extension = std::path::Path::new(&playlist_info.name)
-            .file_stem()
-            .and_then(|s| s.to_str())
-            .unwrap_or(&playlist_info.name)
-            .to_string();
+        // 使用新的PlaylistCard控件
+        let playlist_card = PlaylistCard::builder()
+            .path(playlist_info.path.clone())
+            .name(playlist_info.name.clone())
+            .song_count(playlist_info.song_count)
+            .selected(is_selected)
+            .width(170.0)
+            .height(230.0)
+            .build();
         
-        let display_name = if name_without_extension.chars().count() > 18 {
-            format!("{}...", name_without_extension.chars().take(15).collect::<String>())
-        } else {
-            name_without_extension
-        };
-        text(display_name)
-            .size(constants::TEXT_LARGE)
-            .align_x(Horizontal::Center)
-            .style(move |theme: &iced::Theme| {
-                let palette = theme.extended_palette();
-                iced::widget::text::Style {
-                    color: Some(if is_selected {
-                        palette.primary.strong.color
-                    } else {
-                        palette.background.base.text
-                    }),
-                }
-            })
-        };
-        // 创建网格项
-        let grid_item = StyledContainer::new(
-            column![
-                // 播放列表图标（方形）
-                StyledContainer::new(
-                    svg_icon(icons::CD_ICON, 90.0, if is_selected {
-                        Color { a: 0.9, ..constants::ICON_COLOR }
-                    } else {
-                        constants::ICON_COLOR
-                    })
-                )
-                .style(super::widgets::styled_container::ContainerStyle::Decorative)
-                .width(Length::Fixed(160.0)) // 固定宽度确保方形
-                .height(Length::Fixed(160.0)) // 固定高度确保方形
-                .align_x(Horizontal::Center)
-                .align_y(Vertical::Center)
-                .build(),
-                
-                // 播放列表信息（名称和歌曲数）
-                column![
-                    // 使用row布局来排列名称和歌曲数
-                    row![
-                        // 播放列表名称（去除文件扩展名）
-                        //StyledContainer::new(
-                        //    {
-                                card_info,
-                        //    }
-                        //).width(Length::FillPortion(3)).align_x(Horizontal::Center).build(),
-                        
-                        // 歌曲数信息
-                        //StyledContainer::new(
-                            text(format!("{} {}", playlist_info.song_count, if playlist_info.song_count == 1 { t!("song") } else { t!("songs") }))
-                                .size(constants::TEXT_MEDIUM)
-                                .align_x(Horizontal::Center)
-                                .style(move |theme: &iced::Theme| {
-                                    let palette = theme.extended_palette();
-                                    iced::widget::text::Style {
-                                        color: Some(if is_selected {
-                                            Color { a: 0.8, ..palette.primary.strong.color }
-                                        } else {
-                                            Color { a: 0.7, ..palette.background.base.text }
-                                        }),
-                                    }
-                                })
-                        //).width(Length::FillPortion(2)).align_x(Horizontal::Center).build(),
-                    ]
-                    .spacing(6)
-                    .width(Length::Fill)
-                    .align_y(Vertical::Center)
-                ]
-                .spacing(constants::SPACING_MEDIUM) // 调整主列间距
-                .width(Length::Fill)
-                .align_x(Horizontal::Center)
-            ]
-            .spacing(constants::SPACING_MEDIUM) // 调整主列间距
-            .align_x(Horizontal::Center)
-            .height(Length::Fill)
-        )
-        .style(super::widgets::styled_container::ContainerStyle::Card)
-        .width(Length::Fixed(170.0)) // 固定宽度
-        .height(Length::Fixed(230.0)) // 调整总高度
-        .align_x(Horizontal::Center)
-        .align_y(Vertical::Center)
-        .padding([constants::PADDING_MEDIUM, constants::PADDING_SMALL])
-        .build();
-        
-        let clickable_item = button(grid_item)
-            .on_press(Message::PlaylistCardToggled(playlist_info.path.clone()))
-            .style(move |theme: &iced::Theme, status| {
-                let palette = theme.extended_palette();
-                match status {
-                    iced::widget::button::Status::Active => iced::widget::button::Style {
-                        background: if is_selected {
-                            Some(Background::Color(Color { a: 0.3, ..palette.primary.base.color }))
-                        } else {
-                            Some(Background::Color(Color::TRANSPARENT))
-                        },
-                        text_color: if is_selected {
-                            palette.primary.strong.color
-                        } else {
-                            palette.background.base.text
-                        },
-                        border: Border {
-                            radius: Radius::from(8.0),
-                            width: 0.0,
-                            color: Color::TRANSPARENT,
-                        },
-                        shadow: if is_selected {
-                            Shadow {
-                                color: Color::from_rgba(0.0, 0.0, 0.0, 0.15),
-                                offset: iced::Vector::new(0.0, 3.0),
-                                blur_radius: 8.0,
-                            }
-                        } else {
-                            Shadow::default()
-                        },
-                    },
-                    iced::widget::button::Status::Hovered => iced::widget::button::Style {
-                        background: if is_selected {
-                            Some(Background::Color(Color { a: 0.4, ..palette.primary.base.color }))
-                        } else {
-                            Some(Background::Color(Color { a: 0.15, ..palette.primary.base.color }))
-                        },
-                        text_color: palette.primary.strong.color,
-                        border: Border {
-                            radius: Radius::from(8.0),
-                            width: 0.0,
-                            color: Color::TRANSPARENT,
-                        },
-                        shadow: Shadow {
-                            color: Color::from_rgba(0.0, 0.0, 0.0, 0.2),
-                            offset: iced::Vector::new(0.0, 4.0),
-                            blur_radius: 10.0,
-                        },
-                    },
-                    iced::widget::button::Status::Pressed => iced::widget::button::Style {
-                        background: if is_selected {
-                            Some(Background::Color(Color { a: 0.5, ..palette.primary.base.color }))
-                        } else {
-                            Some(Background::Color(Color { a: 0.25, ..palette.primary.base.color }))
-                        },
-                        text_color: palette.primary.strong.color,
-                        border: Border {
-                            radius: Radius::from(8.0),
-                            width: 0.0,
-                            color: Color::TRANSPARENT,
-                        },
-                        shadow: Shadow {
-                            color: Color::from_rgba(0.0, 0.0, 0.0, 0.25),
-                            offset: iced::Vector::new(0.0, 2.0),
-                            blur_radius: 6.0,
-                        },
-                    },
-                    iced::widget::button::Status::Disabled => iced::widget::button::Style {
-                        background: Some(Background::Color(Color { a: 0.05, ..palette.background.strong.color })),
-                        text_color: Color { a: 0.5, ..palette.background.base.text },
-                        border: Border {
-                            radius: Radius::from(8.0),
-                            width: 0.0,
-                            color: Color::TRANSPARENT,
-                        },
-                        shadow: Shadow::default(),
-                    },
-                }
-            })
-            .into();
-        
-        current_row.push(clickable_item);
+        current_row.push(playlist_card);
         
         // 每行3个项目或到达最后一个项目时创建行
         if current_row.len() == 3 || index == playlist_infos.len() - 1 {
