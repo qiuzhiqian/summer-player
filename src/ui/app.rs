@@ -171,7 +171,6 @@ impl PlayerApp {
             Message::PlayPause => self.handle_play_pause(),
             Message::OpenFile => self.handle_open_file(),
 
-            Message::FileSelected(file_path) => self.handle_file_selected(file_path),
             Message::MultipleAudioFilesSelected(file_paths) => self.handle_multiple_audio_files_selected(file_paths),
             Message::PlaylistItemSelected(index) => self.handle_playlist_item_selected(index),
             Message::PlaylistFileSelected(playlist_path) => self.handle_playlist_file_selected(playlist_path),

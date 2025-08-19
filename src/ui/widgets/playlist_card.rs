@@ -132,9 +132,20 @@ impl PlaylistCard {
                 
                 // 播放列表信息
                 column![
+                    // 使用一个行布局来实现左右对齐
                     row![
-                        name_text,
-                        song_count_text
+                        // 名称占用剩余空间，左对齐
+                        StyledContainer::new(name_text)
+                            .style(ContainerStyle::Transparent)
+                            .width(Length::Fill)
+                            .align_x(Horizontal::Left)
+                            .build(),
+                        // 歌曲数量固定宽度，右对齐
+                        StyledContainer::new(song_count_text)
+                            .style(ContainerStyle::Transparent)
+                            .width(Length::Shrink)
+                            .align_x(Horizontal::Right)
+                            .build()
                     ]
                     .spacing(6)
                     .width(Length::Fill)

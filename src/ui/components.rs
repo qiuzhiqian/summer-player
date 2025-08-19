@@ -518,7 +518,8 @@ pub fn simple_time_view(playback_state: &PlaybackState) -> Element<'static, Mess
     let current_time_str = format_duration(playback_state.current_time);
     let total_time_str = format_duration(playback_state.total_duration);
     
-    //StyledContainer::new(
+    // 使用固定宽度的容器来防止播放控制按钮位置变动
+    StyledContainer::new(
         row![
             text(current_time_str)
                 .size(constants::TEXT_NORMAL)
@@ -531,7 +532,7 @@ pub fn simple_time_view(playback_state: &PlaybackState) -> Element<'static, Mess
             text(" / ")
                 .size(constants::TEXT_NORMAL)
                 .style(|theme: &iced::Theme| {
-                                         let palette = theme.extended_palette();
+                    let palette = theme.extended_palette();
                     iced::widget::text::Style {
                         color: Some(palette.background.base.text), // 使用主题文本色
                     }
@@ -546,15 +547,14 @@ pub fn simple_time_view(playback_state: &PlaybackState) -> Element<'static, Mess
                 }),
         ]
         .spacing(4)
-        .align_y(Vertical::Center).into()
-    //)
-    //.style(super::widgets::styled_container::ContainerStyle::Decorative)
-    //.width(Length::Fixed(120.0))
-    //.align_x(Horizontal::Center)
-    //.align_y(Vertical::Center)
-    //.padding(4)
-    //.build()
-    //.into()
+        .align_y(Vertical::Center)
+    )
+    .style(super::widgets::styled_container::ContainerStyle::Transparent)
+    .width(Length::Fixed(110.0)) // 固定宽度防止位置变动 (例如: "00:00 / 99:59")
+    .align_x(Horizontal::Center)
+    .align_y(Vertical::Center)
+    .build()
+    .into()
 }
 
 /// 播放列表视图
@@ -877,7 +877,7 @@ pub fn compact_song_info_view(audio_info: Option<&AudioInfo>, file_path: &str) -
         let display_title = info.metadata.title.clone().unwrap_or(file_name);
         let display_artist = info.metadata.artist.clone().unwrap_or("Unknown Artist".to_string());
         
-        //StyledContainer::new(
+        StyledContainer::new(
             column![
                 // 第一行：歌曲名（使用主题强调色，高对比度）
                 text(if display_title.chars().count() > 25 {
@@ -907,14 +907,14 @@ pub fn compact_song_info_view(audio_info: Option<&AudioInfo>, file_path: &str) -
                     }
                 }),
             ]
-            .spacing(3).into()
-        //)
-        //.style(super::widgets::styled_container::ContainerStyle::Decorative)
-        //.width(Length::Fixed(180.0))
-        //.align_y(Vertical::Center)
-        //.padding([4, 8])
-        //.build()
-        //.into()
+            .spacing(3)
+        )
+        .style(super::widgets::styled_container::ContainerStyle::Transparent)
+        .width(Length::Fixed(180.0))
+        .align_y(Vertical::Center)
+        .padding([4, 8])
+        .build()
+        .into()
     } else {
         column![
             text("No Track")
