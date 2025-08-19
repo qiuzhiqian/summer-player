@@ -13,10 +13,13 @@ use super::components::PageType;
 pub enum Message {
     /// 播放/暂停切换
     PlayPause,
-    /// 打开文件对话框
+    /// 打开文件对话框（音频文件多选，播放列表单选，有验证逻辑）
     OpenFile,
-    /// 文件选择完成
+
+    /// 文件选择完成（单个文件，用于播放列表）
     FileSelected(Option<String>),
+    /// 多个音频文件选择完成
+    MultipleAudioFilesSelected(Vec<String>),
     /// 播放列表项目选择
     PlaylistItemSelected(usize),
     /// 播放列表文件选择

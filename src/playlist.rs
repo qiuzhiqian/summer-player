@@ -664,6 +664,18 @@ impl PlaylistManager {
         Ok(())
     }
     
+    /// 设置当前活跃的播放列表（从多个音频文件）
+    /// 
+    /// # 参数
+    /// * `file_paths` - 音频文件路径列表
+    pub fn set_current_playlist_from_files(&mut self, file_paths: Vec<String>) -> Result<()> {
+        // 创建临时播放列表
+        let temp_playlist = Playlist::create_from_audio_files(file_paths);
+        self.temporary_playlist = Some(temp_playlist);
+        self.current_playlist_path = None; // 清除持久播放列表路径
+        Ok(())
+    }
+    
     /// 获取当前活跃的播放列表
     /// 
     /// # 返回

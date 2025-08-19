@@ -170,7 +170,9 @@ impl PlayerApp {
         match message {
             Message::PlayPause => self.handle_play_pause(),
             Message::OpenFile => self.handle_open_file(),
+
             Message::FileSelected(file_path) => self.handle_file_selected(file_path),
+            Message::MultipleAudioFilesSelected(file_paths) => self.handle_multiple_audio_files_selected(file_paths),
             Message::PlaylistItemSelected(index) => self.handle_playlist_item_selected(index),
             Message::PlaylistFileSelected(playlist_path) => self.handle_playlist_file_selected(playlist_path),
             Message::PlaylistCardToggled(playlist_path) => self.handle_playlist_card_toggled(playlist_path),
@@ -307,14 +309,20 @@ impl PlayerApp {
 
 
     fn handle_open_file(&mut self) -> Task<Message> {
-        Task::perform(open_file_dialog(), Message::FileSelected)
+        // 使用音频文件多选对话框，这是更常用的场景
+        Task::perform(open_audio_files_dialog(), Message::MultipleAudioFilesSelected)
     }
 
-    /// 处理用户选择的文件
+
+
+    /// 处理用户选择的文件（智能模式）
     /// 
-    /// 当用户通过文件选择对话框选择一个文件后，此函数会被调用。
+    /// 当用户通过智能文件选择对话框选择一个文件后，此函数会被调用。
     /// 它会根据文件类型（普通音频文件或播放列表文件）进行相应处理，
     /// 并更新播放器状态以开始播放。
+    /// 
+    /// 对于播放列表文件，直接加载播放列表。
+    /// 对于音频文件，如果是单选，创建临时播放列表；如果需要多选，应使用OpenAudioFiles消息。
     /// 
     /// # 参数
     /// * `file_path` - 用户选择的文件路径，如果用户取消选择则为None
@@ -385,7 +393,82 @@ impl PlayerApp {
         Task::none()
     }
 
+    /// 处理用户选择的多个音频文件
+    /// 
+    /// 当用户通过文件选择对话框选择一个或多个音频文件后，此函数会被调用。
+    /// 它会验证选择的文件类型，然后创建一个临时播放列表并开始播放第一个文件。
+    /// 
+    /// 验证规则：
+    /// - 如果选择了播放列表文件，则只能选择一个文件，且必须是播放列表文件
+    /// - 如果选择了多个文件，则所有文件都必须是音频文件，不能包含播放列表文件
+    /// 
+    /// # 参数
+    /// * `file_paths` - 用户选择的文件路径列表
+    /// 
+    /// # 返回
+    /// 返回一个Task，用于执行后续的异步操作
+    fn handle_multiple_audio_files_selected(&mut self, file_paths: Vec<String>) -> Task<Message> {
+        if file_paths.is_empty() {
+            return Task::none();
+        }
 
+        // 验证文件选择的合法性
+        let playlist_files: Vec<&String> = file_paths.iter().filter(|path| is_m3u_playlist(path)).collect();
+        let audio_files: Vec<&String> = file_paths.iter().filter(|path| !is_m3u_playlist(path)).collect();
+
+        // 验证选择规则
+        if !playlist_files.is_empty() && !audio_files.is_empty() {
+            eprintln!("错误：不能同时选择音频文件和播放列表文件！");
+            return Task::none();
+        }
+
+        if playlist_files.len() > 1 {
+            eprintln!("错误：播放列表文件一次只能选择一个！");
+            return Task::none();
+        }
+
+        // 如果选择的是播放列表文件，使用播放列表处理逻辑
+        if playlist_files.len() == 1 {
+            let playlist_path = playlist_files[0].clone();
+            return self.handle_file_selected(Some(playlist_path));
+        }
+
+        // 如果选择的是音频文件，继续原有逻辑
+        // 记录是否之前正在播放
+        let was_playing = self.is_playing;
+
+        // 使用第一个文件作为当前文件路径
+        self.file_path = file_paths[0].clone();
+        
+        // 使用播放列表管理器为音频文件创建临时播放列表（支持单个或多个文件）
+        match self.playlist_manager.set_current_playlist_from_files(file_paths.clone()) {
+            Ok(_) => {
+                self.playlist_loaded = true;
+                // 清除选中状态，因为这是临时播放列表，不是播放列表文件
+                self.selected_playlist_path = None;
+                self.update_ui_for_track(&self.file_path.clone());
+                
+                // 停止当前播放，然后如果之前正在播放则启动新的播放会话
+                self.stop_current_playback();
+                
+                // 显示选择的文件数量信息
+                if file_paths.len() > 1 {
+                    println!("Created temporary playlist with {} audio files", file_paths.len());
+                } else {
+                    println!("Loaded single audio file");
+                }
+                
+                if was_playing {
+                    return self.start_audio_playback_task(self.file_path.clone());
+                }
+            }
+            Err(e) => {
+                eprintln!("Failed to create playlist from audio files: {}", e);
+            }
+        }
+        
+        Task::none()
+    }
 
     fn handle_playlist_item_selected(&mut self, index: usize) -> Task<Message> {
         if self.playlist_loaded {
@@ -1037,16 +1120,23 @@ impl PlayerApp {
     }
 }
 
-/// 打开文件对话框
-async fn open_file_dialog() -> Option<String> {
-    let file = rfd::AsyncFileDialog::new()
+
+
+
+/// 打开文件对话框（支持音频文件多选和播放列表单选）
+async fn open_audio_files_dialog() -> Vec<String> {
+    let files = rfd::AsyncFileDialog::new()
         .add_filter("Audio Files", &["mp3", "flac", "wav", "ogg", "aac", "m4a", "m4s"])
         .add_filter("Playlist Files", &["m3u", "m3u8"])
         .add_filter("All Files", &["*"])
-        .pick_file()
+        .pick_files()
         .await;
     
-    file.map(|f| f.path().to_string_lossy().to_string())
+    files.map(|files_vec| 
+        files_vec.into_iter()
+            .map(|f| f.path().to_string_lossy().to_string())
+            .collect()
+    ).unwrap_or_default()
 }
 
  

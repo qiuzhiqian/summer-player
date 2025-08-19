@@ -485,7 +485,7 @@ pub fn compact_play_mode_button(current_mode: PlayMode) -> Element<'static, Mess
 }
 
 pub fn compact_file_button() -> Element<'static, Message> {
-    icon_button(icons::FILE_FOLDER, t!("Open File").to_string(), Message::OpenFile, constants::BUTTON_SIZE_SMALL, constants::ICON_SIZE_SMALL, AppTheme::file_button)
+    icon_button(icons::FILE_FOLDER, t!("Open Files").to_string(), Message::OpenFile, constants::BUTTON_SIZE_SMALL, constants::ICON_SIZE_SMALL, AppTheme::file_button)
 }
 
 pub fn compact_view_toggle_button(current_view: ViewType) -> Element<'static, Message> {
