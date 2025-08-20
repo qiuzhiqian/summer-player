@@ -469,7 +469,8 @@ impl Playlist {
     /// 
     /// # 返回
     /// 持久播放列表实例
-    pub fn create_persistent(file_path: String, name: String) -> Self {
+    pub fn create_from_playlist_file(file_path: String) -> Self {
+        let name = extract_filename(&file_path);
         Self {
             items: Vec::new(),
             current_index: None,
@@ -522,7 +523,7 @@ impl Playlist {
     pub fn get_audio_file(&mut self, file_path: &str) -> Result<&AudioFile> {
         self.audio_cache.get_or_load(file_path)
     }
-    
+
     /// 获取当前播放项的AudioFile
     /// 
     /// # 返回
@@ -721,6 +722,21 @@ impl PlaylistManager {
     pub fn contains_playlist(&self, playlist_path: &str) -> bool {
         self.playlists.contains_key(playlist_path)
     }
+
+    /// 插入一个播放列表缓存
+    /// 
+    /// # 参数
+    /// * `playlist` - 播放列表
+    pub fn insert_playlist(&mut self, playlist: Playlist) {
+        match playlist.file_path {
+            Some(ref path) => {
+                self.playlists.insert(path.clone(), playlist);
+            },
+            None => {
+                self.temporary_playlist = Some(playlist);
+            }
+        }
+    }
     
     /// 移除指定的播放列表缓存
     /// 
@@ -830,9 +846,8 @@ pub fn parse_m3u_playlist(file_path: &str) -> Result<Playlist> {
         .map_err(|e| PlayerError::PlaylistError(format!("Failed to open playlist file: {}", e)))?;
     
     let reader = BufReader::new(file);
-    let mut playlist = Playlist::create_persistent(
+    let mut playlist = Playlist::create_from_playlist_file(
         file_path.to_string(),
-        extract_filename(file_path)
     );
     let playlist_dir = Path::new(file_path).parent()
         .ok_or_else(|| PlayerError::PlaylistError("Invalid playlist path".to_string()))?;

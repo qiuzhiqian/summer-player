@@ -413,7 +413,7 @@ impl PlayerApp {
 
         // 验证文件选择的合法性
         let playlist_files: Vec<&String> = file_paths.iter().filter(|path| is_m3u_playlist(path)).collect();
-        let audio_files: Vec<&String> = file_paths.iter().filter(|path| !is_m3u_playlist(path)).collect();
+        let audio_files: Vec<String> = file_paths.iter().filter(|path| !is_m3u_playlist(path)).cloned().collect();
 
         // 验证选择规则
         if !playlist_files.is_empty() && !audio_files.is_empty() {
@@ -427,46 +427,35 @@ impl PlayerApp {
         }
 
         // 如果选择的是播放列表文件，使用播放列表处理逻辑
-        if playlist_files.len() == 1 {
+        let new_playlist = if playlist_files.len() == 1 {
             let playlist_path = playlist_files[0].clone();
-            return self.handle_file_selected(Some(playlist_path));
-        }
-
-        // 如果选择的是音频文件，继续原有逻辑
-        // 记录是否之前正在播放
-        let was_playing = self.is_playing;
-
-        // 使用第一个文件作为当前文件路径
-        self.file_path = file_paths[0].clone();
-        
-        // 使用播放列表管理器为音频文件创建临时播放列表（支持单个或多个文件）
-        match self.playlist_manager.set_current_playlist_from_files(file_paths.clone()) {
-            Ok(_) => {
-                self.playlist_loaded = true;
-                // 清除选中状态，因为这是临时播放列表，不是播放列表文件
-                self.selected_playlist_path = None;
-                self.update_ui_for_track(&self.file_path.clone());
-                
-                // 停止当前播放，然后如果之前正在播放则启动新的播放会话
-                self.stop_current_playback();
-                
-                // 显示选择的文件数量信息
-                if file_paths.len() > 1 {
-                    println!("Created temporary playlist with {} audio files", file_paths.len());
-                } else {
-                    println!("Loaded single audio file");
-                }
-                
-                if was_playing {
-                    return self.start_audio_playback_task(self.file_path.clone());
-                }
+            //return self.handle_file_selected(Some(playlist_path));
+            if self.playlist_manager.contains_playlist(&playlist_path) {
+                // switch to playlist
+                return Task::none()
             }
-            Err(e) => {
-                eprintln!("Failed to create playlist from audio files: {}", e);
-            }
+            Playlist::create_from_playlist_file(playlist_path)
+        } else if audio_files.len() > 0 {
+            // 创建临时播放列表
+            Playlist::create_from_audio_files(audio_files.clone())
+        } else {
+            // 无效流程
+            return Task::none();
+        };
+
+        let background_task = self.start_background_audio_loading();
+        if let Some(path) = new_playlist.file_path() {
+            self.selected_playlist_path = Some(path.to_string())
+        } else {
+            self.selected_playlist_path = None
         }
-        
-        Task::none()
+        self.playlist_manager.insert_playlist(new_playlist);
+        self.stop_current_playback();
+
+        return self.start_audio_playback_task(self.file_path.clone());
+
+        let playback_task = self.start_audio_playback_task(file_path);
+                                return Task::batch([background_task, playback_task]);
     }
 
     fn handle_playlist_item_selected(&mut self, index: usize) -> Task<Message> {
