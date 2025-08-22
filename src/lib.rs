@@ -13,7 +13,7 @@ pub mod utils;
 // 重新导出主要的公共类型
 pub use error::{PlayerError, Result};
 pub use audio::{AudioFile, AudioInfo, PlaybackState, PlaybackCommand};
-pub use playlist::{Playlist, PlaylistItem};
+pub use playlist::{Playlist};
 pub use ui::PlayerApp; 
 
 rust_i18n::i18n!("locales");

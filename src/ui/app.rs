@@ -328,7 +328,7 @@ impl PlayerApp {
     /// 
     /// # 返回
     /// 返回一个Task，用于执行后续的异步操作
-    fn handle_file_selected(&mut self, file_path: Option<String>) -> Task<Message> {
+    /*fn handle_file_selected(&mut self, file_path: Option<String>) -> Task<Message> {
         let Some(path) = file_path else {
             return Task::none();
         };
@@ -390,7 +390,7 @@ impl PlayerApp {
         }
         
         Task::none()
-    }
+    }*/
 
     /// 处理用户选择的多个音频文件
     /// 
@@ -413,7 +413,7 @@ impl PlayerApp {
 
         // 验证文件选择的合法性
         let playlist_files: Vec<&String> = file_paths.iter().filter(|path| is_m3u_playlist(path)).collect();
-        let audio_files: Vec<String> = file_paths.iter().filter(|path| !is_m3u_playlist(path)).cloned().collect();
+        let audio_files: Vec<String> = file_paths.iter().filter(|path| !is_m3u_playlist(path)).collect();
 
         // 验证选择规则
         if !playlist_files.is_empty() && !audio_files.is_empty() {
@@ -427,12 +427,12 @@ impl PlayerApp {
         }
 
         // 如果选择的是播放列表文件，使用播放列表处理逻辑
-        let new_playlist = if playlist_files.len() == 1 {
+        let mut new_playlist = if playlist_files.len() == 1 {
             let playlist_path = playlist_files[0].clone();
             //return self.handle_file_selected(Some(playlist_path));
             if self.playlist_manager.contains_playlist(&playlist_path) {
                 // switch to playlist
-                return Task::none()
+                return Task::none();
             }
             Playlist::create_from_playlist_file(playlist_path)
         } else if audio_files.len() > 0 {
@@ -443,26 +443,21 @@ impl PlayerApp {
             return Task::none();
         };
 
+        //let playlist_path = new_playlist.
+        let audio_file_path = new_playlist.set_current_index(0).unwrap();
+        self.playlist_manager.insert_and_set_current_playlist(new_playlist);
+        //self.playlist_manager.set_current_playlist(new_playlist.file_path())
         let background_task = self.start_background_audio_loading();
-        if let Some(path) = new_playlist.file_path() {
-            self.selected_playlist_path = Some(path.to_string())
-        } else {
-            self.selected_playlist_path = None
-        }
-        self.playlist_manager.insert_playlist(new_playlist);
         self.stop_current_playback();
-
-        return self.start_audio_playback_task(self.file_path.clone());
-
-        let playback_task = self.start_audio_playback_task(file_path);
-                                return Task::batch([background_task, playback_task]);
+        let playback_task = self.start_audio_playback_task(audio_file_path.clone());
+        return Task::batch([background_task, playback_task]);
     }
 
     fn handle_playlist_item_selected(&mut self, index: usize) -> Task<Message> {
         if self.playlist_loaded {
             if let Some(playlist) = self.playlist_manager.current_playlist() {
                 if let Some(item) = playlist.set_current_index(index) {
-                    let file_path = item.path.clone();
+                    let file_path = item.clone();
                     self.update_ui_for_track(&file_path);
                     
                     // 停止当前播放，然后立即启动新歌曲的播放
@@ -490,7 +485,7 @@ impl PlayerApp {
                 // 如果有播放列表项目，选择第一个开始播放
                 if let Some(playlist) = self.playlist_manager.current_playlist() {
                     if let Some(first_item) = playlist.set_current_index(0) {
-                        let file_path = first_item.path.clone();
+                        let file_path = first_item.clone();
                         self.update_ui_for_track(&file_path);
                         
                         // 停止当前播放，然后立即启动新歌曲的播放
@@ -514,9 +509,9 @@ impl PlayerApp {
     fn handle_next_track(&mut self) -> Task<Message> {
         if self.playlist_loaded {
             if let Some(playlist) = self.playlist_manager.current_playlist() {
-                let (next_item, should_restart) = playlist.next_item_with_mode(&self.play_mode);
+                let (next_item, should_restart) = playlist.next_file_with_mode(&self.play_mode);
                 if let Some(item) = next_item {
-                    let file_path = item.path.clone();
+                    let file_path = item.clone();
                     
                     if should_restart {
                         // 单曲循环或随机播放到同一首歌 - 重新开始播放
@@ -537,7 +532,7 @@ impl PlayerApp {
     fn handle_previous_track(&mut self) -> Task<Message> {
         if self.playlist_loaded {
             if let Some(playlist) = self.playlist_manager.current_playlist() {
-                let (prev_item, should_restart) = playlist.previous_item_with_mode(&self.play_mode);
+                let (prev_item, should_restart) = playlist.previous_file_with_mode(&self.play_mode);
                 if let Some(item) = prev_item {
                     let file_path = item.path.clone();
                     
@@ -728,7 +723,7 @@ impl PlayerApp {
                     
                     // 更新PlaylistItem的时长信息
                     let duration = audio_file.info.duration;
-                    if playlist.update_item_duration(&file_path, duration) {
+                    if playlist.update_file_duration(&file_path, duration) {
                         println!("Updated duration for {}: {:?}", file_path, duration);
                     }
                 }
@@ -933,9 +928,9 @@ impl PlayerApp {
         
         if self.playlist_loaded {
             if let Some(playlist) = self.playlist_manager.current_playlist() {
-                let (next_item, should_restart) = playlist.next_item_with_mode(&self.play_mode);
+                let (next_item, should_restart) = playlist.next_file_with_mode(&self.play_mode);
                 if let Some(item) = next_item {
-                    let file_path = item.path.clone();
+                    let file_path = item.clone();
                     
                     if should_restart {
                         // 单曲循环 - 重新开始播放当前歌曲
