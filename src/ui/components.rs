@@ -624,7 +624,7 @@ pub fn playlist_view(playlist: &Playlist, playlist_loaded: bool, is_playing: boo
                 ).style(super::widgets::styled_container::ContainerStyle::Transparent).width(Length::Fixed(60.0)).align_x(Horizontal::Right).build(),
             ].spacing(constants::SPACING_MEDIUM).align_y(Vertical::Center)
         )
-        .style(super::widgets::styled_container::ContainerStyle::Card)
+        .style(super::widgets::styled_container::ContainerStyle::Transparent)
         .padding(constants::PADDING_SMALL)
         .width(Length::Fill)
         .build();
@@ -655,8 +655,8 @@ pub fn playlist_view(playlist: &Playlist, playlist_loaded: bool, is_playing: boo
             ).height(Length::Fill).width(Length::Fill),
         ].spacing(constants::SPACING_LARGE)
     )
-    .style(super::widgets::styled_container::ContainerStyle::MainSection)
-    .padding(constants::PADDING_LARGE)
+    .style(super::widgets::styled_container::ContainerStyle::Transparent)
+    .padding(constants::PADDING_SMALL)
     .width(Length::Fill)
     .height(Length::Fill)
     .build()
@@ -671,7 +671,7 @@ pub fn lyrics_view(file_path: &str, is_playing: bool, current_time: f64, lyrics:
                 text(t!("Lyrics Display")).size(constants::TEXT_TITLE).align_x(Horizontal::Center).style(primary_text_style()),
                 text(t!("Please select an audio file")).size(constants::TEXT_MEDIUM).align_x(Horizontal::Center).style(alpha_text_style(0.7)),
             ].spacing(constants::SPACING_MEDIUM).align_x(Horizontal::Center)
-        ).style(super::widgets::styled_container::ContainerStyle::Card).padding(32).width(Length::Fill).height(Length::Fill).build().into();
+        ).style(super::widgets::styled_container::ContainerStyle::Transparent).padding(constants::PADDING_SMALL).width(Length::Fill).height(Length::Fill).build().into();
     }
     
     let mut elements = Vec::<Element<Message>>::new();
@@ -776,8 +776,8 @@ pub fn lyrics_view(file_path: &str, is_playing: bool, current_time: f64, lyrics:
     StyledContainer::new(
         column(elements).spacing(constants::SPACING_LARGE).width(Length::Fill).align_x(Horizontal::Center)
     )
-    .style(super::widgets::styled_container::ContainerStyle::MainSection)
-    .padding(constants::PADDING_LARGE + 4)
+    .style(super::widgets::styled_container::ContainerStyle::Transparent)
+    .padding(constants::PADDING_SMALL)
     .width(Length::Fill).height(Length::Fill)
     .build().into()
 }
@@ -955,7 +955,7 @@ pub fn playlist_files_grid_view(playlist_manager: &crate::playlist::PlaylistMana
                 text(t!("No Playlists")).size(constants::TEXT_LARGE).align_x(Horizontal::Center).style(AppTheme::subtitle_text()),
                 text(t!("No M3U playlists found in config directory")).size(constants::TEXT_NORMAL).align_x(Horizontal::Center).style(AppTheme::hint_text()),
             ].spacing(constants::SPACING_MEDIUM).align_x(Horizontal::Center)
-        ).style(super::widgets::styled_container::ContainerStyle::Card).padding(32).width(Length::Fill).height(Length::Fill).build().into();
+        ).style(super::widgets::styled_container::ContainerStyle::Transparent).padding(constants::PADDING_SMALL).width(Length::Fill).height(Length::Fill).build().into();
     }
     
     // 创建网格布局，每行显示3个播放列表
@@ -1012,8 +1012,8 @@ pub fn playlist_files_grid_view(playlist_manager: &crate::playlist::PlaylistMana
             ).height(Length::Fill).width(Length::Fill), // 高度填满可用空间，超出时自动滚动
         ].spacing(constants::SPACING_LARGE).height(Length::Fill) // 确保列也填满高度
     )
-    .style(super::widgets::styled_container::ContainerStyle::MainSection)
-    .padding(constants::SPACING_LARGE)
+    .style(super::widgets::styled_container::ContainerStyle::Transparent)
+    .padding(constants::PADDING_SMALL)
     .width(Length::Fill).height(Length::Fill) // 容器填满可用空间
     .build()
     .into()

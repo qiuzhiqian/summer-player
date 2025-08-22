@@ -542,6 +542,11 @@ impl PlayerApp {
         //let playlist_path = new_playlist.
         let audio_file_path = new_playlist.set_current_index(0).unwrap().clone();
         self.playlist_manager.insert_and_set_current_playlist(new_playlist);
+        // 选择/创建播放列表后，强制切换到播放列表视图
+        self.view_animation.cancel();
+        self.current_view = ViewType::Playlist;
+        self.app_config.ui.current_view = self.current_view.clone().into();
+        self.app_config.save_safe();
         //self.playlist_manager.set_current_playlist(new_playlist.file_path())
         let background_task = self.start_background_audio_loading();
         self.stop_current_playback();
@@ -572,6 +577,11 @@ impl PlayerApp {
         match self.playlist_manager.set_current_playlist(&playlist_path) {
             Ok(_) => {
                 self.playlist_loaded = true;
+                // 进入播放列表后默认显示播放列表视图
+                self.view_animation.cancel();
+                self.current_view = ViewType::Playlist;
+                self.app_config.ui.current_view = self.current_view.clone().into();
+                self.app_config.save_safe();
                 // 更新选中状态，确保选中状态与当前播放列表同步
                 self.selected_playlist_path = Some(playlist_path);
                 
@@ -850,6 +860,11 @@ impl PlayerApp {
         match self.playlist_manager.set_current_playlist(&playlist_path) {
             Ok(_) => {
                 self.playlist_loaded = true;
+                // 切换播放列表时默认显示播放列表视图
+                self.view_animation.cancel();
+                self.current_view = ViewType::Playlist;
+                self.app_config.ui.current_view = self.current_view.clone().into();
+                self.app_config.save_safe();
                 // 启动后台AudioFile加载任务，但不自动开始播放
                 self.start_background_audio_loading()
             }
@@ -1075,7 +1090,7 @@ impl PlayerApp {
                 .build(),
             // 右侧面板（主内容）
             StyledContainer::new(right_panel)
-                .style(super::widgets::styled_container::ContainerStyle::Card)
+                .style(super::widgets::styled_container::ContainerStyle::Transparent)
                 .width(Length::Fixed(RIGHT_PANEL_WIDTH))
                 .height(Length::Fill)
                 .padding(constants::PADDING_LARGE)
@@ -1154,6 +1169,14 @@ impl PlayerApp {
             playlist_view(&empty_playlist, false, self.is_playing)
         };
         let lyrics_content = lyrics_view(&self.file_path, self.is_playing, self.playback_state.current_time, self.current_lyrics.clone(), self.window_size.1);
+
+        // 如果没有动画进行中，直接根据当前视图显示静态内容
+        if !self.view_animation.is_active() {
+            return match self.current_view {
+                ViewType::Playlist => playlist_content,
+                ViewType::Lyrics => lyrics_content,
+            };
+        }
         
         // 判断滑动方向：Playlist -> Lyrics (歌词从下方向上滑动), Lyrics -> Playlist (歌词向下滑出)
         let is_switching_to_lyrics = matches!(
@@ -1232,8 +1255,8 @@ impl PlayerApp {
         let main_content = self.create_sliding_animation_view();
 
         StyledContainer::new(container(main_content).height(Length::Fill).width(Length::Fill))
-            .style(super::widgets::styled_container::ContainerStyle::MainSection)
-            .padding(constants::PADDING_MEDIUM)
+            .style(super::widgets::styled_container::ContainerStyle::Transparent)
+            .padding(constants::PADDING_SMALL)
             .width(Length::Fill)
             .height(Length::Fill)
             .build()
@@ -1251,15 +1274,16 @@ impl PlayerApp {
             .spacing(constants::SPACING_MEDIUM)
             .align_x(Horizontal::Center)
         )
-        .style(super::widgets::styled_container::ContainerStyle::Card)
-        .padding(constants::PADDING_LARGE)
+        .style(super::widgets::styled_container::ContainerStyle::Transparent)
+        .padding(constants::PADDING_SMALL)
         .width(Length::Fill)
+        .height(Length::Fill)
         .build();
 
         // 欢迎内容（不包含底部栏与进度条，由首页统一布局承载）
         StyledContainer::new(container(welcome_main).height(Length::Fill).width(Length::Fill))
-            .style(super::widgets::styled_container::ContainerStyle::MainSection)
-            .padding(constants::PADDING_MEDIUM)
+            .style(super::widgets::styled_container::ContainerStyle::Transparent)
+            .padding(constants::PADDING_SMALL)
             .width(Length::Fill)
             .height(Length::Fill)
             .build()
