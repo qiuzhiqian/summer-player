@@ -19,8 +19,8 @@ use iced::widget::container::Style;
 use crate::ui::Message;
 
 /// 样式化容器组件
-pub struct StyledContainer {
-    content: Element<'static, Message>,
+pub struct StyledContainer<'a> {
+    content: Element<'a, Message>,
     style: ContainerStyle,
     width: Length,
     height: Length,
@@ -46,9 +46,9 @@ pub enum ContainerStyle {
     Transparent,
 }
 
-impl StyledContainer {
+impl<'a> StyledContainer<'a> {
     /// 创建新的样式化容器
-    pub fn new(content: impl Into<Element<'static, Message>>) -> Self {
+    pub fn new(content: impl Into<Element<'a, Message>>) -> Self {
         Self {
             content: content.into(),
             style: ContainerStyle::MainSection,
@@ -109,7 +109,7 @@ impl StyledContainer {
     }
 
     /// 构建容器元素
-    pub fn build(self) -> Element<'static, Message> {
+    pub fn build(self) -> Element<'a, Message> {
         let style_fn = self.get_style_fn();
         let mut container = container(self.content)
             .style(style_fn)

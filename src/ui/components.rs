@@ -3,7 +3,7 @@
 //! 包含可重用的UI组件和通用样式。
 
 use iced::{
-    widget::{button, column, row, text, slider, scrollable, Space, container, tooltip, svg},
+    widget::{column, row, text, slider, scrollable, Space, container, tooltip, svg},
     Element, Length, Border, Shadow, Background, Color,
     alignment::{Horizontal, Vertical},
     border::Radius,
@@ -12,14 +12,14 @@ use iced::advanced::text::Shaping;
 
 use crate::audio::{AudioInfo, PlaybackState};
 use crate::playlist::Playlist;
-use crate::utils::format_duration;
+use crate::utils::{extract_filename, format_duration};
 
 use super::Message;
 use super::theme::{AppTheme, AppThemeVariant};
 use super::widgets::{StyledContainer, StyledButton, StyledText, IconButton, PlaylistCard};
 use rust_i18n::t;
 
-use dirs;
+// use dirs;
 
 // ============================================================================
 // 常量和配置
@@ -279,8 +279,8 @@ pub fn navigation_sidebar(current_page: &PageType) -> Element<'static, Message> 
         };
         IconButton::new(icon, label)
             .on_press(Message::PageChanged(page))
-            .size(constants::BUTTON_SIZE_SMALL)
-            .icon_size(constants::ICON_SIZE_SMALL)
+            .size(constants::BUTTON_SIZE_MEDIUM)
+            .icon_size(constants::ICON_SIZE_MEDIUM)
             .style(style)
             .build()
     };
@@ -298,10 +298,10 @@ pub fn navigation_sidebar(current_page: &PageType) -> Element<'static, Message> 
             ).width(Length::Fill).align_x(Horizontal::Center).padding(constants::PADDING_SMALL).build(),
         ]
         .width(Length::Shrink).height(Length::Fill)
-        .spacing(constants::SPACING_MEDIUM).padding(constants::PADDING_MEDIUM)
+        .spacing(constants::SPACING_MEDIUM).padding(constants::PADDING_SMALL)
     )
     .style(super::widgets::styled_container::ContainerStyle::MainSection)
-    .width(Length::Shrink)
+    .width(Length::Fixed(70.0))
     .height(Length::Fill)
     .build()
 }
@@ -580,7 +580,20 @@ pub fn playlist_view(playlist: &Playlist, playlist_loaded: bool, is_playing: boo
         .build();
     }
 
-    let items: Vec<Element<Message>> = playlist.items().iter().enumerate().map(|(index, item)| {
+    // 预先获取所有显示信息以避免借用冲突
+    let file_paths: Vec<String> = {
+        let paths_ref = playlist.file_paths();
+        paths_ref.to_vec()
+    };
+    let display_items: Vec<_> = file_paths.iter().enumerate().map(|(index, file_path)| {
+        // 只用只读缓存，避免需要可变借用
+        let maybe_info = playlist.get_cached_audio_file(file_path);
+        let display_name = maybe_info.map(|i| i.display_name()).unwrap_or_else(|| extract_filename(file_path));
+        let duration = maybe_info.and_then(|i| i.duration());
+        (index, display_name, duration, file_path.clone())
+    }).collect();
+
+    let items: Vec<Element<Message>> = display_items.into_iter().map(|(index, display_name, duration, _file_path)| {
         let is_current = playlist.current_index() == Some(index);
         let is_playing_current = is_current && is_playing;
         
@@ -599,11 +612,11 @@ pub fn playlist_view(playlist: &Playlist, playlist_loaded: bool, is_playing: boo
                 StyledText::new(icon).size(constants::TEXT_MEDIUM).shaping(Shaping::Advanced).build(),
                 // 歌曲名使用剩余空间
                 StyledContainer::new(
-                    truncated_text(item.name.clone(), constants::TEXT_TRUNCATE_DEFAULT, constants::TEXT_MEDIUM, text_color)
+                    truncated_text(display_name, constants::TEXT_TRUNCATE_DEFAULT, constants::TEXT_MEDIUM, text_color)
                 ).style(super::widgets::styled_container::ContainerStyle::Transparent).width(Length::Fill).build(),
                 // 时间区域固定宽度并右对齐
                 StyledContainer::new(
-                    StyledText::new(item.duration.map_or("--:--".to_string(), |d| format_duration(d)))
+                    StyledText::new(duration.map_or("--:--".to_string(), |d| format_duration(d)))
                         .size(constants::TEXT_NORMAL)
                         .align(Horizontal::Right)
                         .style(super::widgets::styled_text::TextStyle::WithAlpha(0.7))

@@ -69,6 +69,33 @@ pub struct PlaylistItem {
     audio_file: AudioFile,
 }
 
+impl PlaylistItem {
+    /// 获取显示名称，优先使用PlaylistExtraInfo中的name，如果没有则使用AudioFile中的元数据或文件名
+    pub fn display_name(&self) -> String {
+        if let Some(name) = &self.extra_info.name {
+            name.clone()
+        } else if let Some(title) = &self.audio_file.info.metadata.title {
+            title.clone()
+        } else {
+            extract_filename(&self.audio_file.file_path)
+        }
+    }
+    
+    /// 获取时长，优先使用PlaylistExtraInfo中的duration，如果没有则使用AudioFile中的时长
+    pub fn duration(&self) -> Option<f64> {
+        if let Some(duration) = self.extra_info.duration {
+            Some(duration)
+        } else {
+            self.audio_file.info.duration
+        }
+    }
+    
+    /// 获取音频文件引用
+    pub fn audio_file(&self) -> &AudioFile {
+        &self.audio_file
+    }
+}
+
 /// AudioFile缓存管理器
 /// 
 /// 管理播放列表中每个音频文件的AudioFile实例，避免重复解析
@@ -97,6 +124,31 @@ impl AudioFileCache {
             return Err(PlayerError::FileNotFound(file_path.to_string()));
         }
         Ok(self.cache.get(file_path).unwrap())
+    }
+    
+    /// 获取或加载AudioFile，如果不存在则加载
+    /// 
+    /// # 参数
+    /// * `file_path` - 音频文件路径
+    /// * `extra_info` - 播放列表额外信息
+    /// 
+    /// # 返回
+    /// PlaylistItem的引用
+    pub fn get_or_load(&mut self, file_path: &str, extra_info: PlaylistExtraInfo) -> Result<&PlaylistItem> {
+        if !self.cache.contains_key(file_path) {
+            let audio_file = AudioFile::open(file_path)?;
+            let playlist_item = PlaylistItem {
+                extra_info,
+                audio_file,
+            };
+            self.cache.insert(file_path.to_string(), playlist_item);
+        }
+        Ok(self.cache.get(file_path).unwrap())
+    }
+
+    /// 只读获取已缓存的AudioFile（不会触发加载）
+    pub fn get_ref(&self, file_path: &str) -> Option<&PlaylistItem> {
+        self.cache.get(file_path)
     }
     
     /// 检查缓存中是否存在指定文件
@@ -508,7 +560,14 @@ impl Playlist {
     /// # 返回
     /// AudioFile的引用
     pub fn get_audio_file(&mut self, file_path: &str) -> Result<&PlaylistItem> {
-        self.audio_cache.get(file_path)
+        // 创建默认的PlaylistExtraInfo
+        let extra_info = PlaylistExtraInfo::new(file_path.to_string());
+        self.audio_cache.get_or_load(file_path, extra_info)
+    }
+
+    /// 获取缓存中的AudioFile（只读，不会触发加载）
+    pub fn get_cached_audio_file(&self, file_path: &str) -> Option<&PlaylistItem> {
+        self.audio_cache.get_ref(file_path)
     }
 
     /// 获取当前播放文件的AudioFile
@@ -849,7 +908,7 @@ pub fn parse_m3u_playlist(file_path: &str) -> Result<Playlist> {
     let playlist_dir = Path::new(file_path).parent()
         .ok_or_else(|| PlayerError::PlaylistError("Invalid playlist path".to_string()))?;
     
-    let mut current_track_info: Option<(i32, String)> = None; // (duration, title)
+    let mut current_track_info: Option<(f64, String)> = None; // (duration, title)
     
     for (line_num, line) in reader.lines().enumerate() {
         let line = line.map_err(|e| PlayerError::PlaylistError(format!("Failed to read line {}: {}", line_num + 1, e)))?;
@@ -869,7 +928,7 @@ pub fn parse_m3u_playlist(file_path: &str) -> Result<Playlist> {
                         let duration_str = &info_part[..comma_pos];
                         let title = &info_part[comma_pos + 1..];
                         
-                        if let Ok(duration) = duration_str.parse::<i32>() {
+                        if let Ok(duration) = duration_str.parse::<f64>() {
                             current_track_info = Some((duration, title.to_string()));
                         }
                     }
@@ -891,29 +950,17 @@ pub fn parse_m3u_playlist(file_path: &str) -> Result<Playlist> {
         // 添加文件到播放列表
         playlist.add_file(file_path.clone());
         
-        // 如果有EXTINF信息，更新对应的AudioFile元数据
-        if let Some((duration, title)) = current_track_info.take() {
-            // 获取或加载AudioFile以更新其元数据
-            if let Ok(audio_file) = playlist.get_audio_file(&file_path) {
-                // 更新AudioFile的标题（如果EXTINF中的标题与文件名不同）
-                if !title.is_empty() && title != extract_filename(&file_path) {
-                    // 克隆AudioFile并更新元数据
-                    let mut updated_audio_file = audio_file.clone();
-                    if updated_audio_file.info.metadata.title.is_none() || 
-                       updated_audio_file.info.metadata.title.as_ref().unwrap() != &title {
-                        updated_audio_file.info.metadata.title = Some(title);
-                    }
-                    
-                    // 更新缓存中的AudioFile
-                    // 注意：由于Rust的借用检查，我们不能直接修改缓存中的值
-                    // 这里我们只是记录需要更新的信息，实际更新将在播放时进行
-                }
-            }
-        }
-    }
-    
-    if playlist.is_empty() {
-        return Err(PlayerError::PlaylistError("No valid files found in playlist".to_string()));
+        // 如果有EXTINF信息，创建包含元数据的PlaylistExtraInfo
+        let extra_info = if let Some((duration, title)) = current_track_info.take() {
+            PlaylistExtraInfo::new(file_path.clone())
+                .with_duration(Some(duration))
+                .with_name(title)
+        } else {
+            PlaylistExtraInfo::new(file_path.clone())
+        };
+        
+        // 预加载文件到缓存
+        let _ = playlist.audio_cache.get_or_load(&file_path, extra_info);
     }
     
     Ok(playlist)

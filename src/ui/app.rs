@@ -24,7 +24,11 @@ use crate::config::AppConfig;
 use super::Message;
 use super::components::*;
 use super::animation::ViewTransitionAnimation;
-use super::theme::{AppThemeVariant, AppTheme};
+use super::theme::{AppThemeVariant};
+use super::widgets::StyledContainer;
+
+const RIGHT_PANEL_WIDTH: f32 = 720.0;
+const LEFT_INFO_WIDTH: f32 = 260.0;
 
 /// 后台加载单个AudioFile
 async fn background_load_single_audio_file(file_path: String) -> bool {
@@ -202,29 +206,121 @@ impl PlayerApp {
 
     /// 创建应用程序视图
     pub fn view(&self) -> Element<Message> {
-        // 左侧导航栏
-        let navigation = navigation_sidebar(&self.current_page);
-        
-        // 主内容区域根据当前页面显示不同内容
-        let main_content = match self.current_page {
-            PageType::Home => self.create_home_page(),
-            PageType::Settings => settings_page(&self.current_theme, &self.current_language),
-        };
+        // 顶部主区域：根据当前页面切换，但底部栏保持不变
+        let nav = navigation_sidebar(&self.current_page);
+        let top_row: Element<Message> = match self.current_page {
+            PageType::Home => {
+                // 左侧面板：播放列表文件网格视图（自适应宽度和高度）
+                let left_panel = column![
+                    playlist_files_grid_view(&self.playlist_manager, &self.selected_playlist_path),
+                ].spacing(16)
+                 .width(Length::Fill)
+                 .height(Length::Fill);
 
-        // 整体布局：导航栏 + 主内容
-        row![
-            container(navigation)
-                .style(AppTheme::main_section_container())
-                .width(Length::Shrink)
-                .height(Length::Fill),
-            container(main_content)
-                .style(AppTheme::background_container())
+                // 右侧面板：主内容区域
+                let right_panel = if self.playlist_manager.current_playlist_path().is_some() && self.playlist_loaded {
+                    self.create_main_player_view()
+                } else {
+                    self.create_welcome_view()
+                };
+
+                row![
+                    nav,
+                    StyledContainer::new(left_panel)
+                        .style(super::widgets::styled_container::ContainerStyle::Card)
+                        .width(Length::Fill)
+                        .height(Length::Fill)
+                        .padding(constants::PADDING_LARGE)
+                        .build(),
+                    StyledContainer::new(right_panel)
+                        .style(super::widgets::styled_container::ContainerStyle::Card)
+                        .width(Length::Fixed(RIGHT_PANEL_WIDTH))
+                        .height(Length::Fill)
+                        .padding(constants::PADDING_LARGE)
+                        .build(),
+                ]
+                .spacing(constants::SPACING_LARGE)
+                .height(Length::Fill)
+                .into()
+            }
+            PageType::Settings => {
+                let settings = StyledContainer::new(
+                    settings_page(&self.current_theme, &self.current_language)
+                )
+                .style(super::widgets::styled_container::ContainerStyle::MainSection)
+                .padding(constants::PADDING_MEDIUM)
                 .width(Length::Fill)
                 .height(Length::Fill)
-                .padding(16) // 增加内边距
+                .build();
+
+                row![
+                    nav,
+                    StyledContainer::new(settings)
+                        .style(super::widgets::styled_container::ContainerStyle::Card)
+                        .width(Length::Fill)
+                        .height(Length::Fill)
+                        .padding(constants::PADDING_LARGE)
+                        .build(),
+                ]
+                .spacing(constants::SPACING_LARGE)
+                .height(Length::Fill)
+                .into()
+            }
+        };
+
+        // 底部栏（统一）
+        let left_info = StyledContainer::new(
+            row![
+                compact_album_cover_view(self.audio_info.as_ref()),
+                compact_song_info_view(self.audio_info.as_ref(), &self.file_path),
+            ]
+            .spacing(constants::SPACING_SMALL)
+            .align_y(Vertical::Center)
+        )
+        .style(super::widgets::styled_container::ContainerStyle::Transparent)
+        .width(Length::Fixed(LEFT_INFO_WIDTH))
+        .build();
+
+        let right_controls = row![
+            simple_time_view(&self.playback_state),
+            compact_file_button(),
+            compact_play_mode_button(self.play_mode.clone()),
+            compact_view_toggle_button(self.current_view.clone()),
         ]
-        .spacing(12) // 增加间距
-        .padding(8) // 整体外边距
+        .spacing(constants::SPACING_SMALL)
+        .align_y(Vertical::Center);
+
+        let bottom_bar = StyledContainer::new(
+            row![
+                left_info,
+                container(control_buttons_view(self.is_playing))
+                    .width(Length::Fill)
+                    .align_x(Horizontal::Center),
+                right_controls,
+            ]
+            .spacing(constants::SPACING_MEDIUM)
+            .align_y(Vertical::Center)
+        )
+        .style(super::widgets::styled_container::ContainerStyle::Decorative)
+        .padding([constants::PADDING_SMALL, constants::PADDING_MEDIUM])
+        .width(Length::Fill)
+        .height(Length::Fixed(72.0))
+        .build();
+
+        StyledContainer::new(
+            column![
+                container(top_row).width(Length::Fill).height(Length::Fill),
+                container(thin_progress_view(&self.playback_state)).height(Length::Fixed(8.0)).width(Length::Fill),
+                bottom_bar,
+            ]
+            .spacing(constants::SPACING_MEDIUM)
+            .height(Length::Fill)
+        )
+        .style(super::widgets::styled_container::ContainerStyle::Background)
+        .padding(constants::PADDING_MEDIUM)
+        .width(Length::Fill)
+        .height(Length::Fill)
+        .build()
         .into()
     }
 
@@ -413,7 +509,7 @@ impl PlayerApp {
 
         // 验证文件选择的合法性
         let playlist_files: Vec<&String> = file_paths.iter().filter(|path| is_m3u_playlist(path)).collect();
-        let audio_files: Vec<String> = file_paths.iter().filter(|path| !is_m3u_playlist(path)).collect();
+        let audio_files: Vec<String> = file_paths.iter().filter(|path| !is_m3u_playlist(path)).cloned().collect();
 
         // 验证选择规则
         if !playlist_files.is_empty() && !audio_files.is_empty() {
@@ -444,7 +540,7 @@ impl PlayerApp {
         };
 
         //let playlist_path = new_playlist.
-        let audio_file_path = new_playlist.set_current_index(0).unwrap();
+        let audio_file_path = new_playlist.set_current_index(0).unwrap().clone();
         self.playlist_manager.insert_and_set_current_playlist(new_playlist);
         //self.playlist_manager.set_current_playlist(new_playlist.file_path())
         let background_task = self.start_background_audio_loading();
@@ -534,7 +630,7 @@ impl PlayerApp {
             if let Some(playlist) = self.playlist_manager.current_playlist() {
                 let (prev_item, should_restart) = playlist.previous_file_with_mode(&self.play_mode);
                 if let Some(item) = prev_item {
-                    let file_path = item.path.clone();
+                    let file_path = item.clone();
                     
                     if should_restart {
                         // 单曲循环或随机播放到同一首歌 - 重新开始播放
@@ -722,10 +818,8 @@ impl PlayerApp {
                     println!("AudioFile {} cached successfully", file_path);
                     
                     // 更新PlaylistItem的时长信息
-                    let duration = audio_file.info.duration;
-                    if playlist.update_file_duration(&file_path, duration) {
-                        println!("Updated duration for {}: {:?}", file_path, duration);
-                    }
+                    let duration = audio_file.duration();
+
                 }
             }
         } else {
@@ -792,9 +886,9 @@ impl PlayerApp {
     fn start_audio_playback_task(&mut self, file_path: String) -> Task<Message> {
         // 获取已缓存的AudioFile实例
         if let Some(playlist) = self.playlist_manager.current_playlist() {
-            if let Ok(Some(audio_file)) = playlist.get_audio_file_by_current_path(&file_path) {
+            if let Ok(Some(audio_file)) = playlist.get_audio_file_by_path(&file_path) {
                 return Task::perform(
-                    start_audio_playback(AudioSource::AudioFile(audio_file.clone()), None),
+                    start_audio_playback(AudioSource::AudioFile(audio_file.audio_file().clone()), None),
                     |(sender, _handle)| Message::AudioSessionStarted(sender)
                 );
             }
@@ -811,15 +905,14 @@ impl PlayerApp {
     fn start_background_audio_loading(&mut self) -> Task<Message> {
         if let Some(playlist) = self.playlist_manager.current_playlist() {
             // 只加载尚未缓存的文件
-            let file_paths: Vec<String> = playlist.items()
+            let file_paths: Vec<String> = playlist.file_paths()
                 .iter()
-                .filter_map(|item| {
+                .filter_map(|file_path| {
                     // 检查文件是否已缓存
-                    if !playlist.contains_audio_file(&item.path) {
-                        println!("Loading file: {}", item.path);
-                        Some(item.path.clone())
+                    if !playlist.contains_audio_file(file_path) {
+                        println!("Loading file: {}", file_path);
+                        Some(file_path.clone())
                     } else {
-                        println!("File already cached: {}", item.path);
                         None
                     }
                 })
@@ -858,14 +951,15 @@ impl PlayerApp {
         // 从播放列表缓存获取AudioFile信息
         if self.playlist_loaded {
             if let Some(playlist) = self.playlist_manager.current_playlist() {
-                if let Ok(Some(audio_file)) = playlist.get_audio_file_by_current_path(file_path) {
+                if let Ok(Some(audio_file)) = playlist.get_audio_file_by_path(file_path) {
                     // 从缓存中获取音频信息
-                    self.audio_info = Some(audio_file.info.clone());
-                    self.playback_state.total_duration = audio_file.info.duration.unwrap_or(0.0);
-                    self.playback_state.sample_rate = audio_file.info.sample_rate;
+                    let info = &audio_file.audio_file().info;
+                    self.audio_info = Some(info.clone());
+                    self.playback_state.total_duration = info.duration.unwrap_or(0.0);
+                    self.playback_state.sample_rate = info.sample_rate;
                     
                     // 使用AudioFile的内置歌词加载方法
-                    match audio_file.load_lyrics() {
+                    match audio_file.audio_file().load_lyrics() {
                         Ok(lyrics) => {
                             self.current_lyrics = lyrics;
                             if self.current_lyrics.is_some() {
@@ -956,71 +1050,95 @@ impl PlayerApp {
          .width(Length::Fill)
          .height(Length::Fill); // 确保填满可用高度
 
-        // 右侧面板根据当前视图类型显示不同内容（固定宽度）
-        let right_panel_content = if self.view_animation.is_active() {
-            // 动画期间同时显示两个视图，通过宽度比例实现滑动
-            self.create_sliding_animation_view()
+        // 右侧面板：主内容区域
+        let right_panel = if self.playlist_manager.current_playlist_path().is_some() && self.playlist_loaded {
+            // 播放列表已加载，显示主播放界面
+            self.create_main_player_view()
         } else {
-            // 正常状态显示对应内容
-            match self.current_view {
-                ViewType::Playlist => {
-                    if let Some(playlist) = self.playlist_manager.current_playlist_ref() {
-                        playlist_view(playlist, self.playlist_loaded, self.is_playing)
-                    } else {
-                        // 如果没有当前播放列表，创建一个空的临时播放列表用于显示
-                        let empty_playlist = Playlist::new();
-                        playlist_view(&empty_playlist, false, self.is_playing)
-                    }
-                },
-                ViewType::Lyrics => lyrics_view(&self.file_path, self.is_playing, self.playback_state.current_time, self.current_lyrics.clone(), self.window_size.1),
-            }
+            // 播放列表未加载，显示欢迎界面
+            self.create_welcome_view()
         };
 
-        let right_panel = column![
-            right_panel_content,
-        ].spacing(16).width(Length::Fixed(450.0)); // 设置固定宽度为450像素
+        // 左侧导航栏
+        let nav = navigation_sidebar(&self.current_page);
 
-        let main_content = row![left_panel, right_panel].spacing(20).height(Length::Fill);
-        
-        // 底部区域：上下两层布局
-        let bottom_section = container(
-            column![
-                // 上层：进度条
-                thin_progress_view(&self.playback_state),
-                
-                // 下层：横向布局
-                row![
-                    // 最左边：封面图片/歌曲图标
-                    compact_album_cover_view(self.audio_info.as_ref()),
-                    
-                    // 歌曲名
-                    compact_song_info_view(self.audio_info.as_ref(), &self.file_path),
-                    
-                    // 中间：控制按钮
-                    container(control_buttons_view(self.is_playing))
-                        .width(Length::Fill)
-                        .align_x(Horizontal::Center),
-                    
-                    // 右边依次：播放时间、打开文件、播放模式、歌词按钮
-                    row![
-                        simple_time_view(&self.playback_state),
-                        compact_file_button(),
-                        compact_play_mode_button(self.play_mode.clone()),
-                        compact_view_toggle_button(self.current_view.clone()),
-                    ].spacing(8).align_y(Vertical::Center)
-                ].spacing(8).align_y(Vertical::Center)
-            ].spacing(8)
-        )
-        .style(AppTheme::glass_card_container())
-        .padding(8)
-        .height(Length::Fixed(88.0));
-
-        column![
-            main_content, 
-            bottom_section
+        // 顶部：导航 + 左右面板（右侧固定宽度，左侧自适应）
+        let top_row = row![
+            // 导航侧边栏
+            nav,
+            // 左侧面板（播放列表网格）
+            StyledContainer::new(left_panel)
+                .style(super::widgets::styled_container::ContainerStyle::Card)
+                .width(Length::Fill)
+                .height(Length::Fill)
+                .padding(constants::PADDING_LARGE)
+                .build(),
+            // 右侧面板（主内容）
+            StyledContainer::new(right_panel)
+                .style(super::widgets::styled_container::ContainerStyle::Card)
+                .width(Length::Fixed(RIGHT_PANEL_WIDTH))
+                .height(Length::Fill)
+                .padding(constants::PADDING_LARGE)
+                .build(),
         ]
-        .spacing(8)
-        .height(Length::Fill) // 确保主列填满可用高度
+        .spacing(constants::SPACING_LARGE);
+
+        // 左侧固定宽度：封面 + 歌曲信息
+        let left_info = StyledContainer::new(
+            row![
+                compact_album_cover_view(self.audio_info.as_ref()),
+                compact_song_info_view(self.audio_info.as_ref(), &self.file_path),
+            ]
+            .spacing(constants::SPACING_SMALL)
+            .align_y(Vertical::Center)
+        )
+        .style(super::widgets::styled_container::ContainerStyle::Transparent)
+        .width(Length::Fixed(LEFT_INFO_WIDTH))
+        .build();
+
+        // 右侧功能按钮组（时间 + 文件打开 + 模式切换 + 歌词切换）
+        let right_controls = row![
+            simple_time_view(&self.playback_state),
+            compact_file_button(),
+            compact_play_mode_button(self.play_mode.clone()),
+            compact_view_toggle_button(self.current_view.clone()),
+        ]
+        .spacing(constants::SPACING_SMALL)
+        .align_y(Vertical::Center);
+
+        // 全局底部栏（跨越全宽）：左固定，中间居中控制，右侧功能组
+        let bottom_bar = StyledContainer::new(
+            row![
+                left_info,
+                container(control_buttons_view(self.is_playing))
+                    .width(Length::Fill)
+                    .align_x(Horizontal::Center),
+                right_controls,
+            ]
+            .spacing(constants::SPACING_MEDIUM)
+            .align_y(Vertical::Center)
+        )
+        .style(super::widgets::styled_container::ContainerStyle::Decorative)
+        .padding([constants::PADDING_SMALL, constants::PADDING_MEDIUM])
+        .width(Length::Fill)
+        .height(Length::Fixed(72.0))
+        .build();
+
+        // 顶部行 + 进度条 + 底部栏
+        StyledContainer::new(
+            column![
+                container(top_row).width(Length::Fill).height(Length::Fill),
+                container(thin_progress_view(&self.playback_state)).height(Length::Fixed(8.0)).width(Length::Fill),
+                bottom_bar,
+            ]
+            .spacing(constants::SPACING_MEDIUM)
+            .height(Length::Fill)
+        )
+        .style(super::widgets::styled_container::ContainerStyle::Background)
+        .padding(constants::PADDING_MEDIUM)
+        .width(Length::Fill)
+        .height(Length::Fill)
+        .build()
         .into()
     }
 
@@ -1100,6 +1218,52 @@ impl PlayerApp {
             .spacing(0)
             .into()
         }
+    }
+
+    fn create_main_player_view(&self) -> Element<Message> {
+        // 先克隆所需状态，避免与后续可变借用冲突
+        let audio_info_local = self.audio_info.clone();
+        let file_path_local = self.file_path.clone();
+        let play_mode_local = self.play_mode.clone();
+        let playback_state_local = self.playback_state.clone();
+        let is_playing_local = self.is_playing;
+
+        // 主内容（不包含底部栏与进度条，由首页统一布局承载）
+        let main_content = self.create_sliding_animation_view();
+
+        StyledContainer::new(container(main_content).height(Length::Fill).width(Length::Fill))
+            .style(super::widgets::styled_container::ContainerStyle::MainSection)
+            .padding(constants::PADDING_MEDIUM)
+            .width(Length::Fill)
+            .height(Length::Fill)
+            .build()
+            .into()
+    }
+
+    fn create_welcome_view(&self) -> Element<Message> {
+        let welcome_main = StyledContainer::new(
+            column![
+                iced::widget::text("🎵").size(32),
+                iced::widget::text("Welcome to Summer Player").size(constants::TEXT_TITLE),
+                iced::widget::text("Click the folder icon to open files").size(constants::TEXT_MEDIUM),
+                compact_file_button(),
+            ]
+            .spacing(constants::SPACING_MEDIUM)
+            .align_x(Horizontal::Center)
+        )
+        .style(super::widgets::styled_container::ContainerStyle::Card)
+        .padding(constants::PADDING_LARGE)
+        .width(Length::Fill)
+        .build();
+
+        // 欢迎内容（不包含底部栏与进度条，由首页统一布局承载）
+        StyledContainer::new(container(welcome_main).height(Length::Fill).width(Length::Fill))
+            .style(super::widgets::styled_container::ContainerStyle::MainSection)
+            .padding(constants::PADDING_MEDIUM)
+            .width(Length::Fill)
+            .height(Length::Fill)
+            .build()
+            .into()
     }
 }
 
