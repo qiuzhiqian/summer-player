@@ -323,9 +323,11 @@ impl AudioInfo {
         
         // 如果标准方法无法获取时长或时长为0，尝试通过解析文件来估算
         // 这对于m4s等流媒体片段文件特别有用
-        if info.duration.is_none() || info.duration == Some(0.0) {
-            info.duration = estimate_audio_duration_by_parsing(file_path);
-        }
+        //if info.duration.is_none() || info.duration == Some(0.0) {
+        // 调用estimate_audio_duration_by_parsing太耗时了，只会导致整个open操作对会有很大的延迟
+        // 因此通过调用open来创建AudioFile可以允许duration就是为none或者0的情况，后续因该通过异步的方式来调用estimate_audio_duration_by_parsing
+        //    info.duration = estimate_audio_duration_by_parsing(file_path);
+        //}
         
         info
     }
