@@ -175,8 +175,8 @@ pub struct Playlist {
     current_index: Option<usize>,
     /// 播放列表名称
     name: Option<String>,
-    /// AudioFile缓存
-    audio_cache: AudioFileCache,
+    /// 每个文件路径的额外信息（如名称、时长等）
+    extra_infos: HashMap<String, PlaylistExtraInfo>,
     /// 播放列表文件路径（临时播放列表为None）
     file_path: Option<String>,
 }
@@ -188,7 +188,7 @@ impl Playlist {
             file_paths: Vec::new(),
             current_index: None,
             name: None,
-            audio_cache: AudioFileCache::new(),
+            extra_infos: HashMap::new(),
             file_path: None,
         }
     }
@@ -202,7 +202,7 @@ impl Playlist {
             file_paths: Vec::new(),
             current_index: None,
             name: Some(name),
-            audio_cache: AudioFileCache::new(),
+            extra_infos: HashMap::new(),
             file_path: None,
         }
     }
@@ -483,7 +483,7 @@ impl Playlist {
             file_paths: Vec::new(),
             current_index: None,
             name: None,
-            audio_cache: AudioFileCache::new(),
+            extra_infos: HashMap::new(),
             file_path: None, // 临时播放列表没有文件路径
         };
         
@@ -514,7 +514,7 @@ impl Playlist {
             file_paths: Vec::new(),
             current_index: None,
             name: Some(name),
-            audio_cache: AudioFileCache::new(),
+            extra_infos: HashMap::new(),
             file_path: Some(file_path),
         }
     }
@@ -552,93 +552,21 @@ impl Playlist {
         }
     }
     
-    /// 获取或加载指定文件路径的AudioFile
-    /// 
-    /// # 参数
-    /// * `file_path` - 音频文件路径
-    /// 
-    /// # 返回
-    /// AudioFile的引用
-    pub fn get_audio_file(&mut self, file_path: &str) -> Result<&PlaylistItem> {
-        // 创建默认的PlaylistExtraInfo
-        let extra_info = PlaylistExtraInfo::new(file_path.to_string());
-        self.audio_cache.get_or_load(file_path, extra_info)
+    /// 设置或更新指定文件的额外信息
+    pub fn set_extra_info(&mut self, extra_info: PlaylistExtraInfo) {
+        self.extra_infos.insert(extra_info.path.clone(), extra_info);
     }
 
-    /// 获取缓存中的AudioFile（只读，不会触发加载）
-    pub fn get_cached_audio_file(&self, file_path: &str) -> Option<&PlaylistItem> {
-        self.audio_cache.get_ref(file_path)
-    }
-
-    /// 获取当前播放文件的AudioFile
-    /// 
-    /// # 返回
-    /// 当前播放文件的AudioFile引用
-    pub fn get_current_audio_file(&mut self) -> Result<Option<&PlaylistItem>> {
-        if let Some(current_index) = self.current_index {
-            if let Some(file_path) = self.file_paths.get(current_index) {
-                let path = file_path.clone(); // 克隆路径避免借用问题
-                Ok(Some(self.get_audio_file(&path)?))
-            } else {
-                Ok(None)
-            }
-        } else {
-            Ok(None)
-        }
-    }
-    
-    /// 获取指定索引文件的AudioFile
-    /// 
-    /// # 参数
-    /// * `index` - 文件索引
-    /// 
-    /// # 返回
-    /// AudioFile的引用
-    pub fn get_audio_file_by_index(&mut self, index: usize) -> Result<Option<&PlaylistItem>> {
-        if let Some(file_path) = self.file_paths.get(index) {
-            let path = file_path.clone(); // 克隆路径避免借用问题
-            Ok(Some(self.get_audio_file(&path)?))
-        } else {
-            Ok(None)
-        }
-    }
-    
-    /// 根据文件路径获取AudioFile（便于从外部访问缓存）
-    /// 
-    /// # 参数
-    /// * `file_path` - 音频文件路径
-    /// 
-    /// # 返回
-    /// AudioFile的引用
-    pub fn get_audio_file_by_path(&mut self, file_path: &str) -> Result<Option<&PlaylistItem>> {
-        // 首先尝试从缓存中获取
-        if self.audio_cache.contains(file_path) {
-            Ok(Some(self.get_audio_file(file_path)?))
-        } else {
-            // 如果缓存中没有，尝试加载
-            match self.get_audio_file(file_path) {
-                Ok(audio_file) => Ok(Some(audio_file)),
-                Err(_) => Ok(None), // 加载失败时返回None而不是错误
-            }
-        }
-    }
-    
-    /// 检查缓存中是否包含指定文件
-    /// 
-    /// # 参数
-    /// * `file_path` - 音频文件路径
-    /// 
-    /// # 返回
-    /// 如果缓存中包含指定文件返回true，否则返回false
-    pub fn contains_audio_file(&self, file_path: &str) -> bool {
-        self.audio_cache.contains(file_path)
+    /// 获取指定文件的额外信息
+    pub fn extra_info_for(&self, file_path: &str) -> Option<&PlaylistExtraInfo> {
+        self.extra_infos.get(file_path)
     }
     
     /// 清空播放列表和缓存
     pub fn clear(&mut self) {
         self.file_paths.clear();
         self.current_index = None;
-        self.audio_cache.clear();
+        self.extra_infos.clear();
     }
 }
 
@@ -652,6 +580,8 @@ pub struct PlaylistManager {
     current_playlist_path: Option<String>,
     /// 临时播放列表（单个音频文件）
     temporary_playlist: Option<Playlist>,
+    /// 全局共享的AudioFile缓存（所有播放列表共享）
+    audio_cache: HashMap<String, AudioFile>,
 }
 
 impl PlaylistManager {
@@ -661,6 +591,7 @@ impl PlaylistManager {
             playlists: HashMap::new(),
             current_playlist_path: None,
             temporary_playlist: None,
+            audio_cache: HashMap::new(),
         }
     }
     
@@ -844,6 +775,20 @@ impl PlaylistManager {
     pub fn is_current_temporary(&self) -> bool {
         self.temporary_playlist.is_some()
     }
+
+    /// 检查全局缓存中是否已存在指定音频文件
+    pub fn contains_audio_file(&self, file_path: &str) -> bool {
+        self.audio_cache.contains_key(file_path)
+    }
+
+    /// 获取或加载全局共享的AudioFile（返回克隆以便安全使用）
+    pub fn get_or_load_audio_file(&mut self, file_path: &str) -> Result<AudioFile> {
+        if !self.audio_cache.contains_key(file_path) {
+            let audio_file = AudioFile::open(file_path)?;
+            self.audio_cache.insert(file_path.to_string(), audio_file);
+        }
+        Ok(self.audio_cache.get(file_path).unwrap().clone())
+    }
     
     /// 加载配置目录下的所有播放列表文件
     /// 
@@ -959,8 +904,8 @@ pub fn parse_m3u_playlist(file_path: &str) -> Result<Playlist> {
             PlaylistExtraInfo::new(file_path.clone())
         };
         
-        // 预加载文件到缓存
-        let _ = playlist.audio_cache.get_or_load(&file_path, extra_info);
+        // 记录额外信息（不在此处加载音频文件，避免重复加载）
+        playlist.set_extra_info(extra_info);
     }
     
     Ok(playlist)

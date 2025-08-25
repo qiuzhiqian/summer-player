@@ -586,10 +586,12 @@ pub fn playlist_view(playlist: &Playlist, playlist_loaded: bool, is_playing: boo
         paths_ref.to_vec()
     };
     let display_items: Vec<_> = file_paths.iter().enumerate().map(|(index, file_path)| {
-        // 只用只读缓存，避免需要可变借用
-        let maybe_info = playlist.get_cached_audio_file(file_path);
-        let display_name = maybe_info.map(|i| i.display_name()).unwrap_or_else(|| extract_filename(file_path));
-        let duration = maybe_info.and_then(|i| i.duration());
+        // 使用播放列表中存储的额外信息（避免每个播放列表独立缓存AudioFile）
+        let extra = playlist.extra_info_for(file_path);
+        let display_name = extra
+            .and_then(|e| e.name.clone())
+            .unwrap_or_else(|| extract_filename(file_path));
+        let duration = extra.and_then(|e| e.duration);
         (index, display_name, duration, file_path.clone())
     }).collect();
 

@@ -17,7 +17,7 @@ use iced::{
 use tokio::sync::mpsc;
 
 use crate::audio::{AudioInfo, PlaybackState, PlaybackCommand, start_audio_playback, AudioSource, AudioFile};
-use crate::playlist::{Playlist, PlaylistManager};
+use crate::playlist::{Playlist, PlaylistManager, PlaylistExtraInfo};
 use crate::lyrics::Lyrics;
 use crate::utils::is_m3u_playlist;
 use crate::config::AppConfig;
@@ -821,15 +821,19 @@ impl PlayerApp {
     fn handle_audio_file_loaded(&mut self, file_path: String, success: bool) -> Task<Message> {
         if success {
             println!("AudioFile loaded successfully: {}", file_path);
-            // 将AudioFile添加到当前播放列表的缓存中，并更新PlaylistItem的时长信息
-            if let Some(playlist) = self.playlist_manager.current_playlist() {
-                // 尝试通过AudioFileCache加载文件（如果还没有缓存的话）
-                if let Ok(audio_file) = playlist.get_audio_file(&file_path) {
-                    println!("AudioFile {} cached successfully", file_path);
-                    
-                    // 更新PlaylistItem的时长信息
-                    let duration = audio_file.duration();
-
+            // 确保加入全局缓存，并尝试更新当前播放列表中的额外信息（如时长）
+            if let Ok(audio_file) = self.playlist_manager.get_or_load_audio_file(&file_path) {
+                if let Some(playlist) = self.playlist_manager.current_playlist() {
+                    let duration = audio_file.info.duration;
+                    if let Some(existing) = playlist.extra_info_for(&file_path) {
+                        let mut updated = PlaylistExtraInfo::new(existing.path.clone());
+                        if let Some(name) = existing.name.clone() { updated = updated.with_name(name); }
+                        let updated = updated.with_duration(duration);
+                        playlist.set_extra_info(updated);
+                    } else {
+                        let info = PlaylistExtraInfo::new(file_path.clone()).with_duration(duration);
+                        playlist.set_extra_info(info);
+                    }
                 }
             }
         } else {
@@ -897,40 +901,29 @@ impl PlayerApp {
         }
     }
 
-    /// 启动音频播放，优先使用缓存的AudioFile实例
+    /// 启动音频播放，优先使用全局缓存的AudioFile实例
     fn start_audio_playback_task(&mut self, file_path: String) -> Task<Message> {
-        // 获取已缓存的AudioFile实例
-        if let Some(playlist) = self.playlist_manager.current_playlist() {
-            if let Ok(Some(audio_file)) = playlist.get_audio_file_by_path(&file_path) {
-                return Task::perform(
-                    start_audio_playback(AudioSource::AudioFile(audio_file.audio_file().clone()), None),
-                    |(sender, _handle)| Message::AudioSessionStarted(sender)
-                );
-            }
+        if let Ok(audio_file) = self.playlist_manager.get_or_load_audio_file(&file_path) {
+            return Task::perform(
+                start_audio_playback(AudioSource::AudioFile(audio_file), None),
+                |(sender, _handle)| Message::AudioSessionStarted(sender)
+            );
         }
-        
-        // 回退到原来的方式
+        // 回退到路径方式
         Task::perform(
             start_audio_playback(AudioSource::FilePath(file_path), None),
             |(sender, _handle)| Message::AudioSessionStarted(sender)
         )
     }
 
-    /// 启动后台AudioFile加载任务（只加载尚未缓存的文件）
+    /// 启动后台AudioFile加载任务（只加载全局缓存中尚未缓存的文件）
     fn start_background_audio_loading(&mut self) -> Task<Message> {
         if let Some(playlist) = self.playlist_manager.current_playlist() {
-            // 只加载尚未缓存的文件
-            let file_paths: Vec<String> = playlist.file_paths()
-                .iter()
-                .filter_map(|file_path| {
-                    // 检查文件是否已缓存
-                    if !playlist.contains_audio_file(file_path) {
-                        println!("Loading file: {}", file_path);
-                        Some(file_path.clone())
-                    } else {
-                        None
-                    }
-                })
+            // 预先克隆需要的路径，避免在闭包中借用self.playlist_manager
+            let paths: Vec<String> = playlist.file_paths().to_vec();
+            // 只加载全局缓存中尚未缓存的文件
+            let file_paths: Vec<String> = paths.into_iter()
+                .filter(|file_path| !self.playlist_manager.contains_audio_file(file_path))
                 .collect();
             
             if file_paths.is_empty() {
@@ -955,7 +948,7 @@ impl PlayerApp {
         }
     }
 
-    /// 仅更新UI信息，使用播放列表缓存，避免重复打开AudioFile
+    /// 仅更新UI信息，使用全局缓存，避免重复打开AudioFile
     fn update_ui_for_track(&mut self, file_path: &str) {
         self.file_path = file_path.to_string();
         
@@ -963,34 +956,28 @@ impl PlayerApp {
         self.playback_state.current_time = 0.0;
         self.playback_state.current_samples = 0;
         
-        // 从播放列表缓存获取AudioFile信息
-        if self.playlist_loaded {
-            if let Some(playlist) = self.playlist_manager.current_playlist() {
-                if let Ok(Some(audio_file)) = playlist.get_audio_file_by_path(file_path) {
-                    // 从缓存中获取音频信息
-                    let info = &audio_file.audio_file().info;
-                    self.audio_info = Some(info.clone());
-                    self.playback_state.total_duration = info.duration.unwrap_or(0.0);
-                    self.playback_state.sample_rate = info.sample_rate;
-                    
-                    // 使用AudioFile的内置歌词加载方法
-                    match audio_file.audio_file().load_lyrics() {
-                        Ok(lyrics) => {
-                            self.current_lyrics = lyrics;
-                            if self.current_lyrics.is_some() {
-                                println!("歌词加载成功: {}", file_path);
-                            }
-                        }
-                        Err(e) => {
-                            eprintln!("加载歌词失败: {}", e);
-                            self.current_lyrics = None;
-                        }
+        // 从全局缓存获取AudioFile信息
+        if let Ok(audio_file) = self.playlist_manager.get_or_load_audio_file(file_path) {
+            let info = &audio_file.info;
+            self.audio_info = Some(info.clone());
+            self.playback_state.total_duration = info.duration.unwrap_or(0.0);
+            self.playback_state.sample_rate = info.sample_rate;
+            // 使用AudioFile的内置歌词加载方法
+            match audio_file.load_lyrics() {
+                Ok(lyrics) => {
+                    self.current_lyrics = lyrics;
+                    if self.current_lyrics.is_some() {
+                        println!("歌词加载成功: {}", file_path);
                     }
-                } else {
-                    eprintln!("无法从播放列表缓存中获取音频文件: {}", file_path);
+                }
+                Err(e) => {
+                    eprintln!("加载歌词失败: {}", e);
                     self.current_lyrics = None;
                 }
             }
+        } else {
+            eprintln!("无法从全局缓存中获取音频文件: {}", file_path);
+            self.current_lyrics = None;
         }
         
         // 保存最后播放的文件到配置
