@@ -19,8 +19,6 @@ pub enum Message {
     MultipleAudioFilesSelected(Vec<String>),
     /// 播放列表项目选择
     PlaylistItemSelected(usize),
-    /// 播放列表文件选择
-    PlaylistFileSelected(String),
     /// 播放列表卡片选中切换（用于视觉选中效果）
     PlaylistCardToggled(String),
 
@@ -58,4 +56,6 @@ pub enum Message {
     ResetConfig,
     /// AudioFile 后台加载完成（文件路径，加载是否成功）
     AudioFileLoaded(String, bool),
+    /// 异步估算时长完成（文件路径，估算的时长）
+    AudioDurationEstimated(String, Option<f64>),
 } 

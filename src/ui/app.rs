@@ -3,6 +3,7 @@
 //! 包含PlayerApp的实现和主要的应用程序逻辑。
 
 use std::time::Duration;
+use std::collections::HashSet;
 use iced::{
     widget::{column, row, container},
     window::Event as WindowEvent,
@@ -17,6 +18,7 @@ use iced::{
 use tokio::sync::mpsc;
 
 use crate::audio::{AudioInfo, PlaybackState, PlaybackCommand, start_audio_playback, AudioSource, AudioFile};
+use crate::audio::file::estimate_duration_by_parsing;
 use crate::playlist::{Playlist, PlaylistManager, PlaylistExtraInfo};
 use crate::lyrics::Lyrics;
 use crate::utils::is_m3u_playlist;
@@ -174,10 +176,8 @@ impl PlayerApp {
         match message {
             Message::PlayPause => self.handle_play_pause(),
             Message::OpenFile => self.handle_open_file(),
-
             Message::MultipleAudioFilesSelected(file_paths) => self.handle_multiple_audio_files_selected(file_paths),
             Message::PlaylistItemSelected(index) => self.handle_playlist_item_selected(index),
-            Message::PlaylistFileSelected(playlist_path) => self.handle_playlist_file_selected(playlist_path),
             Message::PlaylistCardToggled(playlist_path) => self.handle_playlist_card_toggled(playlist_path),
             Message::NextTrack => self.handle_next_track(),
             Message::PreviousTrack => self.handle_previous_track(),
@@ -196,6 +196,7 @@ impl PlayerApp {
             Message::LanguageChanged(lang) => self.handle_language_changed(lang),
             Message::ResetConfig => self.handle_reset_config(),
             Message::AudioFileLoaded(file_path, success) => self.handle_audio_file_loaded(file_path, success),
+            Message::AudioDurationEstimated(file_path, duration) => self.handle_audio_duration_estimated(file_path, duration),
         }
     }
 
@@ -554,7 +555,7 @@ impl PlayerApp {
         self.app_config.ui.current_view = self.current_view.clone().into();
         self.app_config.save_safe();
         //self.playlist_manager.set_current_playlist(new_playlist.file_path())
-        let background_task = self.start_background_audio_loading();
+        let background_task = self.start_background_audio_duration_loading();
         self.stop_current_playback();
         let playback_task = self.start_audio_playback_task(audio_file_path.clone());
         return Task::batch([background_task, playback_task]);
@@ -573,46 +574,6 @@ impl PlayerApp {
                     // 启动新的音频播放会话
                     return self.start_audio_playback_task(file_path);
                 }
-            }
-        }
-        Task::none()
-    }
-
-    fn handle_playlist_file_selected(&mut self, playlist_path: String) -> Task<Message> {
-        // 使用播放列表管理器加载播放列表文件
-        match self.playlist_manager.set_current_playlist(&playlist_path) {
-            Ok(_) => {
-                self.playlist_loaded = true;
-                // 进入播放列表后默认显示播放列表视图
-                self.view_animation.cancel();
-                self.current_view = ViewType::Playlist;
-                self.app_config.ui.current_view = self.current_view.clone().into();
-                self.app_config.save_safe();
-                // 更新选中状态，确保选中状态与当前播放列表同步
-                self.selected_playlist_path = Some(playlist_path);
-                
-                // 启动后台AudioFile加载任务
-                let background_task = self.start_background_audio_loading();
-                
-                // 如果有播放列表项目，选择第一个开始播放
-                if let Some(playlist) = self.playlist_manager.current_playlist() {
-                    if let Some(first_item) = playlist.set_current_index(0) {
-                        let file_path = first_item.clone();
-                        self.update_ui_for_track(&file_path);
-                        
-                        // 停止当前播放，然后立即启动新歌曲的播放
-                        self.stop_current_playback();
-                        
-                        // 启动新的音频播放会话
-                        let playback_task = self.start_audio_playback_task(file_path);
-                        return Task::batch([background_task, playback_task]);
-                    } else {
-                        return background_task;
-                    }
-                }
-            }
-            Err(e) => {
-                eprintln!("加载播放列表失败: {}", e);
             }
         }
         Task::none()
@@ -848,6 +809,42 @@ impl PlayerApp {
         Task::none()
     }
 
+    fn handle_audio_duration_estimated(&mut self, file_path: String, duration: Option<f64>) -> Task<Message> {
+        // 更新全局缓存中的 AudioFile 时长
+        let updated = self.playlist_manager.update_audio_file_duration(&file_path, duration);
+
+        // 更新当前播放列表的额外信息（用于列表显示）
+        if let Some(playlist) = self.playlist_manager.current_playlist() {
+            if let Some(existing) = playlist.extra_info_for(&file_path) {
+                let mut updated_info = PlaylistExtraInfo::new(existing.path.clone());
+                if let Some(name) = existing.name.clone() { updated_info = updated_info.with_name(name); }
+                let updated_info = updated_info.with_duration(duration);
+                playlist.set_extra_info(updated_info);
+            } else {
+                let info = PlaylistExtraInfo::new(file_path.clone()).with_duration(duration);
+                playlist.set_extra_info(info);
+            }
+        }
+
+        // 如果是当前正在显示/播放的文件，刷新UI中的时长
+        if self.file_path == file_path {
+            if let Some(mut info) = self.audio_info.clone() {
+                info.duration = duration;
+                self.playback_state.total_duration = duration.unwrap_or(0.0);
+                self.audio_info = Some(info);
+            } else if updated {
+                // 从缓存回读最新信息
+                if let Ok(af) = self.playlist_manager.get_or_load_audio_file(&file_path) {
+                    let info = af.info.clone();
+                    self.playback_state.total_duration = info.duration.unwrap_or(0.0);
+                    self.audio_info = Some(info);
+                }
+            }
+        }
+
+        Task::none()
+    }
+
     fn handle_playlist_card_toggled(&mut self, playlist_path: String) -> Task<Message> {
         // 实现播放列表卡片选中逻辑：单击选中，选中其他卡片时切换
         if let Some(ref current_selected) = self.selected_playlist_path {
@@ -876,7 +873,7 @@ impl PlayerApp {
                 self.app_config.ui.current_view = self.current_view.clone().into();
                 self.app_config.save_safe();
                 // 启动后台AudioFile加载任务，但不自动开始播放
-                self.start_background_audio_loading()
+                self.start_background_audio_duration_loading()
             }
             Err(e) => {
                 eprintln!("加载播放列表失败: {}", e);
@@ -922,32 +919,61 @@ impl PlayerApp {
         )
     }
 
-    /// 启动后台AudioFile加载任务（只加载全局缓存中尚未缓存的文件）
-    fn start_background_audio_loading(&mut self) -> Task<Message> {
+    /// 启动后台来刷新AudioInfo中的duration信息
+    fn start_background_audio_duration_loading(&mut self) -> Task<Message> {
         if let Some(playlist) = self.playlist_manager.current_playlist() {
-            // 预先克隆需要的路径，避免在闭包中借用self.playlist_manager
+            // 克隆路径，避免借用冲突
             let paths: Vec<String> = playlist.file_paths().to_vec();
-            // 只加载全局缓存中尚未缓存的文件
-            let file_paths: Vec<String> = paths.into_iter()
-                .filter(|file_path| !self.playlist_manager.contains_audio_file(file_path))
-                .collect();
-            
-            if file_paths.is_empty() {
+
+            // 先预计算播放列表中缺少时长的条目集合，然后释放对playlist的后续使用
+            let missing_in_playlist: HashSet<String> = {
+                let mut set = HashSet::new();
+                for p in playlist.file_paths() {
+                    let missing = playlist.extra_info_for(p).map_or(true, |ei| ei.duration.is_none());
+                    if missing {
+                        set.insert(p.clone());
+                    }
+                }
+                set
+            };
+
+            // 选择需要异步估算时长的文件：
+            // 条件：已经在全局缓存中，且其时长为None或0.0；
+            // 或者不在缓存中，但播放列表extra_infos中缺少时长。
+            let mut candidates: Vec<String> = Vec::new();
+            for file_path in paths.into_iter() {
+                if self.playlist_manager.contains_audio_file(&file_path) {
+                    if let Ok(af) = self.playlist_manager.get_or_load_audio_file(&file_path) {
+                        if af.info.duration.unwrap_or(0.0) <= 0.0 {
+                            candidates.push(file_path);
+                        }
+                    } else {
+                        candidates.push(file_path);
+                    }
+                } else {
+                    if missing_in_playlist.contains(&file_path) {
+                        candidates.push(file_path);
+                    }
+                }
+            }
+
+            if candidates.is_empty() {
                 return Task::none();
             }
-            
-            println!("启动后台加载任务，需要加载 {} 个文件", file_paths.len());
-            
-            // 创建多个并发的异步任务，每个加载一个文件
-            let tasks: Vec<Task<Message>> = file_paths.into_iter()
+
+            println!("启动后台时长估算任务，需要估算 {} 个文件", candidates.len());
+
+            // 为每个候选文件并发启动耗时的估算任务
+            let tasks: Vec<Task<Message>> = candidates
+                .into_iter()
                 .map(|file_path| {
-                    Task::perform(
-                        background_load_single_audio_file(file_path.clone()),
-                        move |success| Message::AudioFileLoaded(file_path.clone(), success)
-                    )
+                    Task::perform(async move {
+                        let dur = estimate_duration_by_parsing(&file_path);
+                        (file_path, dur)
+                    }, |(fp, dur)| Message::AudioDurationEstimated(fp, dur))
                 })
                 .collect();
-            
+
             Task::batch(tasks)
         } else {
             Task::none()

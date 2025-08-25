@@ -854,6 +854,16 @@ impl PlaylistManager {
         }
         Ok(self.audio_cache.get(file_path).unwrap().clone())
     }
+
+    /// 更新已缓存的AudioFile的时长，并返回是否更新成功
+    pub fn update_audio_file_duration(&mut self, file_path: &str, duration: Option<f64>) -> bool {
+        if let Some(audio_file) = self.audio_cache.get_mut(file_path) {
+            audio_file.info.duration = duration;
+            true
+        } else {
+            false
+        }
+    }
     
     /// 加载配置目录下的所有播放列表文件
     /// 

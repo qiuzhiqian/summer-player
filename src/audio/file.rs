@@ -604,6 +604,13 @@ fn estimate_audio_duration_by_parsing(file_path: &str) -> Option<f64> {
     None
 }
 
+/// 对外暴露：通过解析整个文件来估算时长
+///
+/// 注意：这是一个耗时操作，应在后台异步执行。
+pub fn estimate_duration_by_parsing(file_path: &str) -> Option<f64> {
+    estimate_audio_duration_by_parsing(file_path)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
