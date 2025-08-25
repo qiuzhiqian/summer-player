@@ -507,16 +507,81 @@ impl Playlist {
     /// * `name` - 播放列表名称
     /// 
     /// # 返回
-    /// 持久播放列表实例
-    pub fn create_from_playlist_file(file_path: String) -> Self {
+    /// 成功时返回Playlist实例，失败时返回错误
+    pub fn create_from_playlist_file(file_path: String) -> Result<Self> {
         let name = extract_filename(&file_path);
-        Self {
+        // 打开并读取播放列表文件
+        let file = fs::File::open(&file_path)
+            .map_err(|e| PlayerError::PlaylistError(format!("Failed to open playlist file: {}", e)))?;
+
+        let reader = BufReader::new(file);
+        let mut playlist = Self {
             file_paths: Vec::new(),
             current_index: None,
             name: Some(name),
             extra_infos: HashMap::new(),
-            file_path: Some(file_path),
+            file_path: Some(file_path.clone()),
+        };
+
+        let playlist_dir = Path::new(&file_path).parent()
+            .ok_or_else(|| PlayerError::PlaylistError("Invalid playlist path".to_string()))?;
+
+        let mut current_track_info: Option<(f64, String)> = None; // (duration, title)
+
+        for (line_num, line) in reader.lines().enumerate() {
+            let line = line.map_err(|e| PlayerError::PlaylistError(format!("Failed to read line {}: {}", line_num + 1, e)))?;
+            let line = line.trim();
+
+            // 跳过空行
+            if line.is_empty() {
+                continue;
+            }
+
+            // 处理M3U指令
+            if line.starts_with('#') {
+                if line.starts_with("#EXTINF:") {
+                    // 解析 #EXTINF: 指令
+                    if let Some(info_part) = line.strip_prefix("#EXTINF:") {
+                        if let Some(comma_pos) = info_part.find(',') {
+                            let duration_str = &info_part[..comma_pos];
+                            let title = &info_part[comma_pos + 1..];
+
+                            if let Ok(duration) = duration_str.parse::<f64>() {
+                                current_track_info = Some((duration, title.to_string()));
+                            }
+                        }
+                    }
+                }
+                // 跳过其他注释行
+                continue;
+            }
+
+            // 处理文件路径
+            let file_path = normalize_path(line, Some(playlist_dir));
+
+            // 检查文件是否存在
+            if !Path::new(&file_path).exists() {
+                eprintln!("Warning: File not found: {}", file_path);
+                continue;
+            }
+
+            // 添加文件到播放列表
+            playlist.add_file(file_path.clone());
+
+            // 如果有EXTINF信息，创建包含元数据的PlaylistExtraInfo
+            let extra_info = if let Some((duration, title)) = current_track_info.take() {
+                PlaylistExtraInfo::new(file_path.clone())
+                    .with_duration(Some(duration))
+                    .with_name(title)
+            } else {
+                PlaylistExtraInfo::new(file_path.clone())
+            };
+
+            // 记录额外信息（不在此处加载音频文件，避免重复加载）
+            playlist.set_extra_info(extra_info);
         }
+
+        Ok(playlist)
     }
     
     /// 移除指定索引的文件
@@ -606,7 +671,7 @@ impl PlaylistManager {
         if !self.playlists.contains_key(playlist_path) {
             // 首次加载播放列表
             let playlist = if playlist_path.ends_with(".m3u") || playlist_path.ends_with(".m3u8") {
-                parse_m3u_playlist(playlist_path)?
+                Playlist::create_from_playlist_file(playlist_path.to_string())?
             } else {
                 // 单个音频文件创建播放列表
                 Playlist::create_from_audio_files(vec![playlist_path.to_string()])
@@ -820,7 +885,7 @@ impl PlaylistManager {
                             // 检查是否已经加载过
                             if !self.playlists.contains_key(path_str) {
                                 // 尝试加载播放列表
-                                if let Ok(playlist) = parse_m3u_playlist(path_str) {
+                                if let Ok(playlist) = Playlist::create_from_playlist_file(path_str.to_string()) {
                                     self.playlists.insert(path_str.to_string(), playlist);
                                     loaded_count += 1;
                                 }
@@ -833,82 +898,6 @@ impl PlaylistManager {
         
         loaded_count
     }
-}
-
-/// 解析M3U播放列表
-/// 
-/// # 参数
-/// * `file_path` - M3U文件路径
-/// 
-/// # 返回
-/// 成功时返回Playlist实例，失败时返回错误
-pub fn parse_m3u_playlist(file_path: &str) -> Result<Playlist> {
-    let file = fs::File::open(file_path)
-        .map_err(|e| PlayerError::PlaylistError(format!("Failed to open playlist file: {}", e)))?;
-    
-    let reader = BufReader::new(file);
-    let mut playlist = Playlist::create_from_playlist_file(
-        file_path.to_string(),
-    );
-    let playlist_dir = Path::new(file_path).parent()
-        .ok_or_else(|| PlayerError::PlaylistError("Invalid playlist path".to_string()))?;
-    
-    let mut current_track_info: Option<(f64, String)> = None; // (duration, title)
-    
-    for (line_num, line) in reader.lines().enumerate() {
-        let line = line.map_err(|e| PlayerError::PlaylistError(format!("Failed to read line {}: {}", line_num + 1, e)))?;
-        let line = line.trim();
-        
-        // 跳过空行
-        if line.is_empty() {
-            continue;
-        }
-        
-        // 处理M3U指令
-        if line.starts_with('#') {
-            if line.starts_with("#EXTINF:") {
-                // 解析 #EXTINF: 指令
-                if let Some(info_part) = line.strip_prefix("#EXTINF:") {
-                    if let Some(comma_pos) = info_part.find(',') {
-                        let duration_str = &info_part[..comma_pos];
-                        let title = &info_part[comma_pos + 1..];
-                        
-                        if let Ok(duration) = duration_str.parse::<f64>() {
-                            current_track_info = Some((duration, title.to_string()));
-                        }
-                    }
-                }
-            }
-            // 跳过其他注释行
-            continue;
-        }
-        
-        // 处理文件路径
-        let file_path = normalize_path(line, Some(playlist_dir));
-        
-        // 检查文件是否存在
-        if !Path::new(&file_path).exists() {
-            eprintln!("Warning: File not found: {}", file_path);
-            continue;
-        }
-        
-        // 添加文件到播放列表
-        playlist.add_file(file_path.clone());
-        
-        // 如果有EXTINF信息，创建包含元数据的PlaylistExtraInfo
-        let extra_info = if let Some((duration, title)) = current_track_info.take() {
-            PlaylistExtraInfo::new(file_path.clone())
-                .with_duration(Some(duration))
-                .with_name(title)
-        } else {
-            PlaylistExtraInfo::new(file_path.clone())
-        };
-        
-        // 记录额外信息（不在此处加载音频文件，避免重复加载）
-        playlist.set_extra_info(extra_info);
-    }
-    
-    Ok(playlist)
 }
 
 #[cfg(test)]

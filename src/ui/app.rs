@@ -530,7 +530,13 @@ impl PlayerApp {
                 // switch to playlist
                 return Task::none();
             }
-            Playlist::create_from_playlist_file(playlist_path)
+            match Playlist::create_from_playlist_file(playlist_path) {
+                Ok(pl) => pl,
+                Err(err) => {
+                    eprintln!("加载播放列表失败: {:?}", err);
+                    return Task::none();
+                }
+            }
         } else if audio_files.len() > 0 {
             // 创建临时播放列表
             Playlist::create_from_audio_files(audio_files.clone())
