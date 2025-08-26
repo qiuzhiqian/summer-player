@@ -945,7 +945,7 @@ pub fn compact_song_info_view(audio_info: Option<&AudioInfo>, file_path: &str) -
 
 /// 播放列表文件展示控件（网格布局）
 /// 显示配置目录下的所有m3u播放列表文件
-pub fn playlist_files_grid_view(playlist_manager: &crate::playlist::PlaylistManager, selected_playlist_path: &Option<String>) -> Element<'static, Message> {
+pub fn playlist_files_grid_view(playlist_manager: &crate::playlist::PlaylistManager) -> Element<'static, Message> {
     // 从PlaylistManager获取播放列表文件信息
     let playlist_infos = get_playlist_files_info_from_manager(playlist_manager);
     
@@ -964,9 +964,10 @@ pub fn playlist_files_grid_view(playlist_manager: &crate::playlist::PlaylistMana
     let mut grid_rows = Vec::<Element<Message>>::new();
     let mut current_row = Vec::<Element<Message>>::new();
     
+    let current_path = playlist_manager.current_playlist_path();
     for (index, playlist_info) in playlist_infos.iter().enumerate() {
-        // 检查当前卡片是否被选中
-        let is_selected = selected_playlist_path.as_ref() == Some(&playlist_info.path);
+        // 检查当前卡片是否被选中（由 PlaylistManager 提供）
+        let is_selected = current_path == Some(playlist_info.path.as_str());
         
         // 使用新的PlaylistCard控件
         let playlist_card = PlaylistCard::builder()
