@@ -229,7 +229,7 @@ impl PlayerApp {
                 let settings = StyledContainer::new(
                     settings_page(&self.current_theme, &self.current_language)
                 )
-                .style(super::widgets::styled_container::ContainerStyle::MainSection)
+                .style(super::widgets::styled_container::ContainerStyle::Card)
                 .padding(constants::PADDING_MEDIUM)
                 .width(Length::Fill)
                 .height(Length::Fill)
@@ -237,12 +237,7 @@ impl PlayerApp {
 
                 row![
                     nav,
-                    StyledContainer::new(settings)
-                        .style(super::widgets::styled_container::ContainerStyle::Card)
-                        .width(Length::Fill)
-                        .height(Length::Fill)
-                        .padding(constants::PADDING_LARGE)
-                        .build(),
+                    settings,
                 ]
                 .spacing(constants::SPACING_LARGE)
                 .height(Length::Fill)
@@ -298,8 +293,7 @@ impl PlayerApp {
             .spacing(constants::SPACING_MEDIUM)
             .height(Length::Fill)
         )
-        .style(super::widgets::styled_container::ContainerStyle::Background)
-        .padding(constants::PADDING_MEDIUM)
+        .style(super::widgets::styled_container::ContainerStyle::Transparent)
         .width(Length::Fill)
         .height(Length::Fill)
         .build()
