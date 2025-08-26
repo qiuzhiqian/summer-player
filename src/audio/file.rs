@@ -318,8 +318,8 @@ impl AudioInfo {
     }
     
     /// 从音频轨道和文件路径创建音频信息（包含时长估算）
-    pub fn from_track_with_file_path(track: &Track, file_path: &str) -> Self {
-        let mut info = Self::from_track(track);
+    pub fn from_track_with_file_path(track: &Track, _file_path: &str) -> Self {
+        let info = Self::from_track(track);
         
         // 如果标准方法无法获取时长或时长为0，尝试通过解析文件来估算
         // 这对于m4s等流媒体片段文件特别有用

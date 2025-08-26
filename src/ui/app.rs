@@ -17,7 +17,7 @@ use iced::{
 };
 use tokio::sync::mpsc;
 
-use crate::audio::{AudioInfo, PlaybackState, PlaybackCommand, start_audio_playback, AudioSource, AudioFile};
+use crate::audio::{AudioInfo, PlaybackState, PlaybackCommand, start_audio_playback, AudioSource};
 use crate::audio::file::estimate_duration_by_parsing;
 use crate::playlist::{Playlist, PlaylistManager, PlaylistExtraInfo};
 use crate::lyrics::Lyrics;
@@ -25,26 +25,11 @@ use crate::utils::is_m3u_playlist;
 use crate::config::AppConfig;
 use super::Message;
 use super::components::*;
-use super::animation::ViewTransitionAnimation;
 use super::theme::{AppThemeVariant};
 use super::widgets::StyledContainer;
 
 const RIGHT_PANEL_WIDTH: f32 = 720.0;
 const LEFT_INFO_WIDTH: f32 = 260.0;
-
-/// 后台加载单个AudioFile
-async fn background_load_single_audio_file(file_path: String) -> bool {
-    match AudioFile::open(&file_path) {
-        Ok(_) => {
-            println!("Successfully loaded AudioFile in background: {}", file_path);
-            true
-        }
-        Err(e) => {
-            eprintln!("Failed to load AudioFile in background: {} - {}", file_path, e);
-            false
-        }
-    }
-}
 
 /// 主应用程序结构
 pub struct PlayerApp {
@@ -68,8 +53,6 @@ pub struct PlayerApp {
     current_page: PageType,
     /// 当前视图类型（主页面内的视图切换）
     current_view: ViewType,
-    /// 动画状态（使用 anim-rs）
-    view_animation: ViewTransitionAnimation,
     /// 当前歌词
     current_lyrics: Option<Lyrics>,
     /// 当前窗口大小
@@ -97,7 +80,6 @@ impl Default for PlayerApp {
             playlist_loaded: false,
             current_page: PageType::default(),
             current_view: ViewType::default(),
-            view_animation: ViewTransitionAnimation::new(),
             current_lyrics: None,
             window_size: (1000.0, 700.0),
             current_theme: AppThemeVariant::default(),
@@ -123,7 +105,7 @@ impl PlayerApp {
     }
 
     /// 使用指定配置创建新的应用程序实例
-    pub fn new_with_config(initial_file: Option<String>, config: AppConfig) -> (Self, Task<Message>) {
+    pub fn new_with_config(_initial_file: Option<String>, config: AppConfig) -> (Self, Task<Message>) {
 
         let mut app = Self {
             window_size: (config.window.width, config.window.height),
@@ -183,7 +165,6 @@ impl PlayerApp {
             Message::AudioSessionStarted(sender) => self.handle_audio_session_started(sender),
             Message::EventOccurred(event) => self.handle_event_occurred(event),
             Message::ToggleView => self.handle_toggle_view(),
-            Message::AnimationTick => self.handle_animation_tick(),
             Message::WindowResized(width, height) => self.handle_window_resized(width, height),
             Message::ProgressChanged(progress) => self.handle_progress_changed(progress),
             Message::ToggleTheme => self.handle_toggle_theme(),
@@ -326,7 +307,7 @@ impl PlayerApp {
     pub fn subscription(&self) -> Subscription<Message> {
         use crate::config::ui::PROGRESS_UPDATE_INTERVAL;
         
-        let mut subscriptions = vec![
+        let subscriptions = vec![
             time::every(Duration::from_millis(PROGRESS_UPDATE_INTERVAL)).map(|_| Message::Tick),
             event::listen().map(|event| {
                 match event {
@@ -337,13 +318,6 @@ impl PlayerApp {
                 }
             }),
         ];
-        
-        // 如果正在动画中，添加动画定时器
-        if self.view_animation.is_active() {
-            subscriptions.push(
-                time::every(Duration::from_millis(16)).map(|_| Message::AnimationTick) // ~60 FPS
-            );
-        }
         
         Subscription::batch(subscriptions)
     }
@@ -547,7 +521,6 @@ impl PlayerApp {
         let audio_file_path = new_playlist.set_current_index(0).unwrap().clone();
         self.playlist_manager.insert_and_set_current_playlist(new_playlist);
         // 选择/创建播放列表后，强制切换到播放列表视图
-        self.view_animation.cancel();
         self.current_view = ViewType::Playlist;
         self.app_config.ui.current_view = self.current_view.clone().into();
         self.app_config.save_safe();
@@ -659,38 +632,20 @@ impl PlayerApp {
     }
 
     fn handle_toggle_view(&mut self) -> Task<Message> {
-        // 如果已经在动画中，忽略新的切换请求
-        if self.view_animation.is_active() {
-            return Task::none();
-        }
-        
-        // 确定目标视图
+        // 直接切换视图并保存配置（去除动画逻辑）
         let target_view = match self.current_view {
             ViewType::Playlist => ViewType::Lyrics,
             ViewType::Lyrics => ViewType::Playlist,
         };
-        
-        // 启动动画
-        self.view_animation.start_transition(target_view);
-        
+
+        self.current_view = target_view.clone();
+        self.app_config.ui.current_view = target_view.into();
+        self.app_config.save_safe();
+
         Task::none()
     }
 
-    fn handle_animation_tick(&mut self) -> Task<Message> {
-        // 在更新动画之前先获取目标视图，因为动画完成时会清空target_view
-        let target_view = self.view_animation.target_view().cloned();
-        
-        if self.view_animation.update() {
-            // 动画完成时切换视图
-            if let Some(target_view) = target_view {
-                self.current_view = target_view.clone();
-                // 更新配置
-                self.app_config.ui.current_view = target_view.into();
-                self.app_config.save_safe();
-            }
-        }
-        Task::none()
-    }
+    
 
     fn handle_window_resized(&mut self, width: f32, height: f32) -> Task<Message> {
         self.window_size = (width, height);
@@ -850,7 +805,6 @@ impl PlayerApp {
                 self.stop_current_playback();
                 self.playlist_loaded = true;
                 // 切换播放列表时默认显示播放列表视图
-                self.view_animation.cancel();
                 self.current_view = ViewType::Playlist;
                 self.app_config.ui.current_view = self.current_view.clone().into();
                 self.app_config.save_safe();
@@ -1058,6 +1012,7 @@ impl PlayerApp {
     }
 
     /// 创建主页面内容
+    #[allow(dead_code)]
     fn create_home_page(&self) -> Element<Message> {
         // 左侧面板：播放列表文件网格视图（自适应宽度和高度）
         let left_panel = column![
@@ -1159,10 +1114,6 @@ impl PlayerApp {
     }
 
     fn create_sliding_animation_view(&self) -> Element<Message> {
-        // 获取动画进度（已经通过 anim-rs 进行了缓动处理）
-        let progress = self.view_animation.progress();
-        
-        // 获取播放列表和歌词视图内容
         let playlist_content = if let Some(playlist) = self.playlist_manager.current_playlist_ref() {
             playlist_view(playlist, self.playlist_loaded, self.is_playing)
         } else {
@@ -1171,87 +1122,13 @@ impl PlayerApp {
         };
         let lyrics_content = lyrics_view(&self.file_path, self.is_playing, self.playback_state.current_time, self.current_lyrics.clone(), self.window_size.1);
 
-        // 如果没有动画进行中，直接根据当前视图显示静态内容
-        if !self.view_animation.is_active() {
-            return match self.current_view {
-                ViewType::Playlist => playlist_content,
-                ViewType::Lyrics => lyrics_content,
-            };
-        }
-        
-        // 判断滑动方向：Playlist -> Lyrics (歌词从下方向上滑动), Lyrics -> Playlist (歌词向下滑出)
-        let is_switching_to_lyrics = matches!(
-            (&self.current_view, self.view_animation.target_view()),
-            (ViewType::Playlist, Some(ViewType::Lyrics))
-        );
-        
-        // 使用线性进度，确保动画均匀变化
-        let adjusted_progress = progress.clamp(0.0, 1.0);
-        
-        // 调试：打印动画进度（可以在需要时启用）
-        // println!("Animation progress: {:.3} -> {:.3}", progress, adjusted_progress);
-        
-        if is_switching_to_lyrics {
-            // 切换到歌词视图：歌词从下方向上滑入
-            let slide_in_progress = adjusted_progress; // 滑入进度从0到1
-            
-            // 使用column布局实现滑入效果
-            let visible_height_percent = slide_in_progress * 100.0;
-            let hidden_height_percent = 100.0 - visible_height_percent;
-            
-            // 调试输出
-            // println!("Slide IN: visible={:.1}%, hidden={:.1}%", visible_height_percent, hidden_height_percent);
-            
-            column![
-                // 播放列表区域，高度逐渐减少
-                container(playlist_content)
-                    .height(Length::FillPortion((hidden_height_percent + 1.0) as u16))
-                    .width(Length::Fill),
-                // 歌词区域，从底部向上增长
-                container(lyrics_content)
-                    .height(Length::FillPortion((visible_height_percent + 1.0) as u16))
-                    .width(Length::Fill),
-            ]
-            .spacing(0)
-            .into()
-        } else {
-            // 切换到播放列表：歌词从上向下滑出视图区域
-            let slide_out_progress = adjusted_progress; // 滑出进度从0到1
-            
-            // 关键改变：使用上方空白空间来"推动"歌词向下滑出
-            let top_spacer_percent = slide_out_progress * 100.0; // 上方空白空间逐渐增加
-            let lyrics_visible_percent = (1.0 - slide_out_progress) * 100.0; // 歌词可见高度逐渐减少
-            
-            // 调试输出
-            // println!("Slide OUT: spacer={:.1}%, lyrics_visible={:.1}%", top_spacer_percent, lyrics_visible_percent);
-            
-            // 始终使用三层布局，确保动画连续性，避免突然跳转
-            column![
-                // 上方空白空间，逐渐增加，"推动"歌词向下
-                container(iced::widget::Space::new(Length::Fill, Length::FillPortion((top_spacer_percent + 1.0) as u16)))
-                    .width(Length::Fill),
-                // 歌词内容，被推向下方，逐渐减少直到完全消失
-                container(lyrics_content)
-                    .height(Length::FillPortion((lyrics_visible_percent + 1.0) as u16))
-                    .width(Length::Fill),
-                // 播放列表在底部作为背景，始终存在
-                container(playlist_content)
-                    .height(Length::Fill)
-                    .width(Length::Fill),
-            ]
-            .spacing(0)
-            .into()
+        match self.current_view {
+            ViewType::Playlist => playlist_content,
+            ViewType::Lyrics => lyrics_content,
         }
     }
 
     fn create_main_player_view(&self) -> Element<Message> {
-        // 先克隆所需状态，避免与后续可变借用冲突
-        let audio_info_local = self.audio_info.clone();
-        let file_path_local = self.file_path.clone();
-        let play_mode_local = self.play_mode.clone();
-        let playback_state_local = self.playback_state.clone();
-        let is_playing_local = self.is_playing;
-
         // 主内容（不包含底部栏与进度条，由首页统一布局承载）
         let main_content = self.create_sliding_animation_view();
 

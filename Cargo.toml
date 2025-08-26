@@ -22,7 +22,6 @@ symphonia = { version = "0.5", features = ["mp3", "aac", "isomp4", "flac", "ogg"
 iced = { version = "0.13", features = ["tokio", "advanced", "image", "svg"] }
 tokio = { version = "1.0", features = ["full"] }
 rfd = "0.14"
-anim = { version = "0.1", default-features = false, features = ["iced-backend"] }
 rust-i18n = "3"
 sys-locale = "0.3.2"
 rand = "0.8"

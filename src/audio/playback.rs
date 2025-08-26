@@ -123,7 +123,7 @@ pub async fn start_audio_playback(
 pub async fn run_audio_playback_with_control(
     file_path: &str,
     device_index: Option<usize>,
-    mut command_receiver: mpsc::UnboundedReceiver<PlaybackCommand>,
+    command_receiver: mpsc::UnboundedReceiver<PlaybackCommand>,
 ) -> Result<()> {
     let audio_file = AudioFile::open(file_path)?;
     run_audio_playback_with_file_control(audio_file, device_index, command_receiver).await

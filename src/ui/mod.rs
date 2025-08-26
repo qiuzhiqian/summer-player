@@ -5,7 +5,6 @@
 pub mod app;
 pub mod messages;
 pub mod components;
-pub mod animation;
 pub mod theme;
 pub mod widgets;
 

@@ -36,8 +36,6 @@ pub enum Message {
     EventOccurred(Event),
     /// 切换播放列表/歌词显示视图
     ToggleView,
-    /// 动画更新
-    AnimationTick,
     /// 窗口大小变化
     WindowResized(f32, f32),
     /// 进度条变化（值为0.0-1.0的比例）
