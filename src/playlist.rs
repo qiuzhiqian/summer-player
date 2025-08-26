@@ -5,7 +5,7 @@
 use std::{
     fs,
     io::{BufRead, BufReader},
-    path::Path,
+    path::{Path, PathBuf},
     collections::HashMap,
 };
 
@@ -926,6 +926,52 @@ impl PlaylistManager {
                 }
             }
         }
+    }
+
+    /// 在配置目录中新建一个空的持久播放列表（.m3u）并缓存
+    /// 返回创建后的播放列表文件完整路径
+    pub fn create_empty_playlist(&mut self, name: &str) -> Result<String> {
+        // 计算配置目录
+        let config_dir = dirs::config_dir()
+            .map(|d| d.join("summer-player"))
+            .ok_or_else(|| PlayerError::PlaylistError("Config dir not available".to_string()))?;
+        // 确保目录存在
+        if !config_dir.exists() {
+            fs::create_dir_all(&config_dir)
+                .map_err(|e| PlayerError::IoError(e))?;
+        }
+
+        // 生成文件名，确保以 .m3u 结尾
+        let mut base = name.trim();
+        if base.is_empty() {
+            base = "New Playlist";
+        }
+        let mut file_name = format!("{}.m3u", base);
+        // 处理重名：追加 (n)
+        let mut counter = 1usize;
+        let path_for = |fname: &str| -> PathBuf { config_dir.join(fname) };
+        let mut full_path = path_for(&file_name);
+        while full_path.exists() {
+            file_name = format!("{} ({}).m3u", base, counter);
+            full_path = path_for(&file_name);
+            counter += 1;
+        }
+
+        // 写入包含 M3U 头的空文件
+        let content = "#EXTM3U\n";
+        fs::write(&full_path, content)
+            .map_err(|e| PlayerError::IoError(e))?;
+
+        let full_path_str = full_path
+            .to_str()
+            .ok_or_else(|| PlayerError::PlaylistError("Invalid playlist path".to_string()))?
+            .to_string();
+
+        // 加载并插入到缓存
+        let playlist = Playlist::create_from_playlist_file(full_path_str.clone())?;
+        self.playlists.insert(full_path_str.clone(), playlist);
+
+        Ok(full_path_str)
     }
 }
 

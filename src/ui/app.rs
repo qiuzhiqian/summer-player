@@ -68,6 +68,10 @@ pub struct PlayerApp {
     play_mode: PlayMode,
     /// 应用程序配置
     app_config: AppConfig,
+    /// 是否正在创建播放列表
+    creating_playlist: bool,
+    /// 创建播放列表的名称
+    creating_playlist_name: String,
 }
 
 impl Default for PlayerApp {
@@ -89,6 +93,8 @@ impl Default for PlayerApp {
             current_language: "en".to_string(),
             play_mode: PlayMode::default(),
             app_config: AppConfig::default(),
+            creating_playlist: false,
+            creating_playlist_name: String::new(),
         }
     }
 }
@@ -161,6 +167,10 @@ impl PlayerApp {
             Message::MultipleAudioFilesSelected(file_paths) => self.handle_multiple_audio_files_selected(file_paths),
             Message::PlaylistItemSelected(index) => self.handle_playlist_item_selected(index),
             Message::PlaylistCardToggled(playlist_path) => self.handle_playlist_card_toggled(playlist_path),
+            Message::StartCreatePlaylist => { self.creating_playlist = true; Task::none() },
+            Message::CreatePlaylistNameChanged(name) => { self.creating_playlist_name = name; Task::none() },
+            Message::ConfirmCreatePlaylist => self.handle_confirm_create_playlist(),
+            Message::CancelCreatePlaylist => { self.creating_playlist = false; self.creating_playlist_name.clear(); Task::none() },
             Message::NextTrack => self.handle_next_track(),
             Message::PreviousTrack => self.handle_previous_track(),
             Message::Tick => self.handle_tick(),
@@ -194,7 +204,7 @@ impl PlayerApp {
             PageType::Home => {
                 // 左侧面板：播放列表文件网格视图（自适应宽度和高度）
                 let left_panel = column![
-                    playlist_files_grid_view(&self.playlist_manager),
+                    playlist_files_grid_view(&self.playlist_manager, self.creating_playlist, &self.creating_playlist_name),
                 ].spacing(16)
                  .width(Length::Fill)
                  .height(Length::Fill);
@@ -791,6 +801,29 @@ impl PlayerApp {
         Task::none()
     }
 
+    fn handle_confirm_create_playlist(&mut self) -> Task<Message> {
+        let name = self.creating_playlist_name.trim().to_string();
+        if name.is_empty() {
+            // 空名则忽略
+            self.creating_playlist = false;
+            self.creating_playlist_name.clear();
+            return Task::none();
+        }
+        match self.playlist_manager.create_empty_playlist(&name) {
+            Ok(path) => {
+                // 重置创建状态
+                self.creating_playlist = false;
+                self.creating_playlist_name.clear();
+                // 立即选中该播放列表以便显示
+                self.handle_playlist_card_toggled(path)
+            }
+            Err(e) => {
+                eprintln!("创建播放列表失败: {}", e);
+                Task::none()
+            }
+        }
+    }
+
     fn handle_playlist_card_toggled(&mut self, playlist_path: String) -> Task<Message> {
         // 直接通过 PlaylistManager 管理当前激活的播放列表
         // 总是加载选中的播放列表到右侧显示（但不开始播放）
@@ -1013,7 +1046,7 @@ impl PlayerApp {
     fn create_home_page(&self) -> Element<Message> {
         // 左侧面板：播放列表文件网格视图（自适应宽度和高度）
         let left_panel = column![
-            playlist_files_grid_view(&self.playlist_manager),
+            playlist_files_grid_view(&self.playlist_manager, self.creating_playlist, &self.creating_playlist_name),
         ].spacing(16)
          .width(Length::Fill)
          .height(Length::Fill); // 确保填满可用高度

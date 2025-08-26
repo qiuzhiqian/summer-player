@@ -22,6 +22,15 @@ pub enum Message {
     /// 播放列表卡片选中切换（用于视觉选中效果）
     PlaylistCardToggled(String),
 
+    /// 开始创建播放列表（显示输入框）
+    StartCreatePlaylist,
+    /// 创建播放列表名称变化
+    CreatePlaylistNameChanged(String),
+    /// 确认创建播放列表
+    ConfirmCreatePlaylist,
+    /// 取消创建播放列表
+    CancelCreatePlaylist,
+
     /// 下一首
     NextTrack,
     /// 上一首
