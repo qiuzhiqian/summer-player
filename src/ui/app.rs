@@ -15,6 +15,7 @@ use iced::{
     event::{self, Event},
     alignment::{Horizontal, Vertical},
 };
+use iced::advanced::text::Shaping;
 use tokio::sync::mpsc;
 
 use crate::audio::{AudioInfo, PlaybackState, PlaybackCommand, start_audio_playback, AudioSource};
@@ -27,6 +28,8 @@ use super::Message;
 use super::components::*;
 use super::theme::{AppThemeVariant};
 use super::widgets::StyledContainer;
+use super::widgets::StyledText;
+use super::widgets::styled_text::TextStyle;
 
 const RIGHT_PANEL_WIDTH: f32 = 720.0;
 const LEFT_INFO_WIDTH: f32 = 260.0;
@@ -1144,10 +1147,9 @@ impl PlayerApp {
     fn create_welcome_view(&self) -> Element<Message> {
         let welcome_main = StyledContainer::new(
             column![
-                iced::widget::text("🎵").size(32),
-                iced::widget::text("Welcome to Summer Player").size(constants::TEXT_TITLE),
-                iced::widget::text("Click the folder icon to open files").size(constants::TEXT_MEDIUM),
-                compact_file_button(),
+                StyledText::new("🎵").size(32).style(TextStyle::Primary).shaping(Shaping::Advanced).build(),
+                StyledText::new("Welcome to Summer Player").size(constants::TEXT_TITLE).style(TextStyle::Primary).build(),
+                StyledText::new("Click the playlist card to load playlist").size(constants::TEXT_MEDIUM).style(TextStyle::Hint).build(),
             ]
             .spacing(constants::SPACING_MEDIUM)
             .align_x(Horizontal::Center)
