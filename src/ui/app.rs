@@ -335,10 +335,7 @@ impl PlayerApp {
         
         if should_start_new_session {
             self.cleanup_playback_state();
-            return Task::perform(
-                start_audio_playback(AudioSource::FilePath(self.file_path.clone()), None),
-                |(sender, _handle)| Message::AudioSessionStarted(sender)
-            );
+            return self.start_audio_playback_task(self.file_path.clone());
         }
         
         if let Some(sender) = &self.command_sender {
@@ -808,7 +805,8 @@ impl PlayerApp {
                 self.current_view = ViewType::Playlist;
                 self.app_config.ui.current_view = self.current_view.clone().into();
                 self.app_config.save_safe();
-                // 启动后台AudioFile加载任务，但不自动开始播放
+                // 先将播放列表中的音频加载到全局缓存中，再启动后台时长估算
+                self.playlist_manager.preload_current_playlist_audio_to_cache();
                 self.start_background_audio_duration_loading()
             }
             Err(e) => {
@@ -915,6 +913,8 @@ impl PlayerApp {
             Task::none()
         }
     }
+
+    
 
     /// 仅更新UI信息，使用全局缓存，避免重复打开AudioFile
     fn update_ui_for_track(&mut self, file_path: &str) {
@@ -1115,10 +1115,10 @@ impl PlayerApp {
 
     fn create_sliding_animation_view(&self) -> Element<Message> {
         let playlist_content = if let Some(playlist) = self.playlist_manager.current_playlist_ref() {
-            playlist_view(playlist, self.playlist_loaded, self.is_playing)
+            playlist_view(playlist, self.playlist_loaded, self.is_playing, &self.playlist_manager)
         } else {
             let empty_playlist = Playlist::new();
-            playlist_view(&empty_playlist, false, self.is_playing)
+            playlist_view(&empty_playlist, false, self.is_playing, &self.playlist_manager)
         };
         let lyrics_content = lyrics_view(&self.file_path, self.is_playing, self.playback_state.current_time, self.current_lyrics.clone(), self.window_size.1);
 

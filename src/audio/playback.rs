@@ -120,7 +120,7 @@ pub async fn start_audio_playback(
 /// * `file_path` - 音频文件路径  
 /// * `device_index` - 音频设备索引
 /// * `command_receiver` - 命令接收器
-pub async fn run_audio_playback_with_control(
+async fn run_audio_playback_with_control(
     file_path: &str,
     device_index: Option<usize>,
     command_receiver: mpsc::UnboundedReceiver<PlaybackCommand>,
@@ -135,7 +135,7 @@ pub async fn run_audio_playback_with_control(
 /// * `audio_file` - 已打开的AudioFile实例
 /// * `device_index` - 音频设备索引
 /// * `command_receiver` - 命令接收器
-pub async fn run_audio_playback_with_file_control(
+async fn run_audio_playback_with_file_control(
     audio_file: AudioFile,
     device_index: Option<usize>,
     mut command_receiver: mpsc::UnboundedReceiver<PlaybackCommand>,
@@ -222,7 +222,7 @@ pub async fn run_audio_playback_with_file_control(
 /// * `device_index` - 音频设备索引
 /// * `command_receiver` - 命令接收器
 /// * `state_sender` - 播放状态发送器
-pub async fn run_audio_playback_with_control_and_state(
+async fn run_audio_playback_with_control_and_state(
     file_path: &str,
     device_index: Option<usize>,
     mut command_receiver: mpsc::UnboundedReceiver<PlaybackCommand>,
@@ -370,7 +370,7 @@ pub async fn run_audio_playback_with_control_and_state(
 /// * `device_index` - 音频设备索引
 /// * `command_receiver` - 命令接收器
 /// * `state_sender` - 播放状态发送器
-pub async fn run_audio_playback_with_file_and_state(
+async fn run_audio_playback_with_file_and_state(
     audio_file: AudioFile,
     device_index: Option<usize>,
     mut command_receiver: mpsc::UnboundedReceiver<PlaybackCommand>,

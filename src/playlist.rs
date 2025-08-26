@@ -846,6 +846,11 @@ impl PlaylistManager {
         self.audio_cache.contains_key(file_path)
     }
 
+    /// 读取全局缓存中已存在的音频文件时长（只读，不触发加载）
+    pub fn get_cached_audio_duration(&self, file_path: &str) -> Option<f64> {
+        self.audio_cache.get(file_path).and_then(|af| af.info.duration)
+    }
+
     /// 获取或加载全局共享的AudioFile（返回克隆以便安全使用）
     pub fn get_or_load_audio_file(&mut self, file_path: &str) -> Result<AudioFile> {
         if !self.audio_cache.contains_key(file_path) {
@@ -907,6 +912,20 @@ impl PlaylistManager {
         }
         
         loaded_count
+    }
+
+    /// 预加载当前播放列表中的音频到全局缓存
+    pub fn preload_current_playlist_audio_to_cache(&mut self) {
+        if let Some(playlist) = self.current_playlist_ref() {
+            let paths: Vec<String> = playlist.file_paths().to_vec();
+            for file_path in paths.into_iter() {
+                if !self.contains_audio_file(&file_path) {
+                    if let Err(e) = self.get_or_load_audio_file(&file_path) {
+                        eprintln!("预加载音频到缓存失败: {} -> {}", file_path, e);
+                    }
+                }
+            }
+        }
     }
 }
 

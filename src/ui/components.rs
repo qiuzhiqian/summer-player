@@ -558,7 +558,7 @@ pub fn simple_time_view(playback_state: &PlaybackState) -> Element<'static, Mess
 }
 
 /// 播放列表视图
-pub fn playlist_view(playlist: &Playlist, playlist_loaded: bool, is_playing: bool) -> Element<'static, Message> {
+pub fn playlist_view(playlist: &Playlist, playlist_loaded: bool, is_playing: bool, playlist_manager: &crate::playlist::PlaylistManager) -> Element<'static, Message> {
     if !playlist_loaded {
         return StyledContainer::new(
             column![
@@ -591,7 +591,12 @@ pub fn playlist_view(playlist: &Playlist, playlist_loaded: bool, is_playing: boo
         let display_name = extra
             .and_then(|e| e.name.clone())
             .unwrap_or_else(|| extract_filename(file_path));
-        let duration = extra.and_then(|e| e.duration);
+        let duration = extra
+            .and_then(|e| e.duration)
+            .or_else(|| {
+                // 当播放列表中的额外信息没有时长时，回退到读取缓存中的AudioFile时长（不触发加载）
+                playlist_manager.get_cached_audio_duration(file_path)
+            });
         (index, display_name, duration, file_path.clone())
     }).collect();
 
