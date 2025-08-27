@@ -16,7 +16,7 @@ use crate::utils::{extract_filename, format_duration};
 
 use super::Message;
 use super::theme::{AppTheme, AppThemeVariant};
-use super::widgets::{StyledContainer, StyledButton, StyledText, IconButton, PlaylistCard};
+use super::widgets::{StyledContainer, StyledButton, StyledText, IconButton, PlaylistCard, CreatePlaylistCard};
 use rust_i18n::t;
 
 // use dirs;
@@ -969,12 +969,12 @@ pub fn playlist_files_grid_view(
         ).style(super::widgets::styled_container::ContainerStyle::Transparent).padding(constants::PADDING_SMALL).width(Length::Fill).height(Length::Fill).build().into();
     }
     
-    // 创建网格布局，每行显示3个播放列表
+    // 创建网格布局，每行显示3个卡片（包括创建卡片）
     let mut grid_rows = Vec::<Element<Message>>::new();
     let mut current_row = Vec::<Element<Message>>::new();
     
     let current_path = playlist_manager.current_playlist_path();
-    for (index, playlist_info) in playlist_infos.iter().enumerate() {
+    for playlist_info in playlist_infos.iter() {
         // 检查当前卡片是否被选中（由 PlaylistManager 提供）
         let is_selected = current_path == Some(playlist_info.path.as_str());
         
@@ -990,8 +990,8 @@ pub fn playlist_files_grid_view(
         
         current_row.push(playlist_card);
         
-        // 每行3个项目或到达最后一个项目时创建行
-        if current_row.len() == 3 || index == playlist_infos.len() - 1 {
+        // 满3个则落一行
+        if current_row.len() == 3 {
             // 填充不足3个的行
             while current_row.len() < 3 {
                 current_row.push(Space::new(Length::Fixed(140.0), Length::Fixed(150.0)).into());
@@ -1006,161 +1006,8 @@ pub fn playlist_files_grid_view(
         }
     }
 
-    // 追加“创建播放列表”卡片，占位在末尾
-    let create_card: Element<Message> = if !creating {
-        // 展示一个“+”卡片
-        let plus = text("+")
-            .size(54)
-            .style(|theme: &iced::Theme| {
-                let color = theme.extended_palette().primary.strong.text;
-                iced::widget::text::Style { color: Some(color) }
-            })
-            .shaping(Shaping::Advanced);
-
-        let title = text(t!("Create Playlist")).size(constants::TEXT_MEDIUM);
-
-        let content = StyledContainer::new(
-            column![
-                StyledContainer::new(svg_icon(icons::CD_ICON, 64.0, constants::ICON_COLOR))
-                    .style(super::widgets::styled_container::ContainerStyle::Transparent)
-                    .align_x(Horizontal::Center)
-                    .build(),
-                StyledContainer::new(plus)
-                    .style(super::widgets::styled_container::ContainerStyle::Transparent)
-                    .align_x(Horizontal::Center)
-                    .build(),
-                StyledContainer::new(title)
-                    .style(super::widgets::styled_container::ContainerStyle::Transparent)
-                    .align_x(Horizontal::Center)
-                    .build(),
-            ]
-            .spacing(constants::SPACING_MEDIUM)
-            .align_x(Horizontal::Center)
-        )
-        .style(super::widgets::styled_container::ContainerStyle::Card)
-        .width(Length::Fixed(170.0))
-        .height(Length::Fixed(230.0))
-        .align_x(Horizontal::Center)
-        .align_y(Vertical::Center)
-        .padding([constants::PADDING_MEDIUM, constants::PADDING_SMALL])
-        .build();
-
-        button(content)
-            .on_press(Message::StartCreatePlaylist)
-            .style(|theme: &iced::Theme, status| {
-                let palette = theme.extended_palette();
-                match status {
-                    iced::widget::button::Status::Active => iced::widget::button::Style {
-                        background: Some(Background::Color(Color::TRANSPARENT)),
-                        text_color: palette.background.base.text,
-                        border: Border {
-                            radius: Radius::from(8.0),
-                            width: 0.0,
-                            color: Color::TRANSPARENT,
-                        },
-                        shadow: Shadow::default(),
-                    },
-                    iced::widget::button::Status::Hovered => iced::widget::button::Style {
-                        background: Some(Background::Color(Color { a: 0.15, ..palette.primary.base.color })),
-                        text_color: palette.primary.strong.color,
-                        border: Border {
-                            radius: Radius::from(8.0),
-                            width: 0.0,
-                            color: Color::TRANSPARENT,
-                        },
-                        shadow: Shadow {
-                            color: Color::from_rgba(0.0, 0.0, 0.0, 0.2),
-                            offset: iced::Vector::new(0.0, 4.0),
-                            blur_radius: 10.0,
-                        },
-                    },
-                    iced::widget::button::Status::Pressed => iced::widget::button::Style {
-                        background: Some(Background::Color(Color { a: 0.25, ..palette.primary.base.color })),
-                        text_color: palette.primary.strong.color,
-                        border: Border {
-                            radius: Radius::from(8.0),
-                            width: 0.0,
-                            color: Color::TRANSPARENT,
-                        },
-                        shadow: Shadow {
-                            color: Color::from_rgba(0.0, 0.0, 0.0, 0.25),
-                            offset: iced::Vector::new(0.0, 2.0),
-                            blur_radius: 6.0,
-                        },
-                    },
-                    iced::widget::button::Status::Disabled => iced::widget::button::Style {
-                        background: Some(Background::Color(Color { a: 0.05, ..palette.background.strong.color })),
-                        text_color: Color { a: 0.5, ..palette.background.base.text },
-                        border: Border {
-                            radius: Radius::from(8.0),
-                            width: 0.0,
-                            color: Color::TRANSPARENT,
-                        },
-                        shadow: Shadow::default(),
-                    },
-                }
-            })
-            .into()
-    } else {
-        // 展示输入框 + 确认/取消
-        let input = text_input::<Message, iced::Theme, iced::Renderer>(t!("Playlist Name").as_ref(), creating_name)
-            .on_input(Message::CreatePlaylistNameChanged)
-            .size(constants::TEXT_NORMAL)
-            .padding(8)
-            .width(Length::Fill);
-
-        StyledContainer::new(
-            column![
-                StyledContainer::new(svg_icon(icons::CD_ICON, 56.0, constants::ICON_COLOR))
-                    .style(super::widgets::styled_container::ContainerStyle::Decorative)
-                    .align_x(Horizontal::Center)
-                    .build(),
-                StyledText::new(t!("New Playlist")).size(constants::TEXT_MEDIUM).build(),
-                {
-                    let elem: Element<Message> = input.into();
-                    elem
-                },
-                {
-                    let confirm_btn = StyledButton::new(
-                        StyledText::new("✔").shaping(Shaping::Advanced).size(constants::TEXT_MEDIUM).build()
-                    )
-                    .on_press(Message::ConfirmCreatePlaylist)
-                    .style(super::widgets::styled_button::ButtonStyle::File)
-                    .build();
-
-                    let cancel_btn = StyledButton::new(
-                        StyledText::new("✖").shaping(Shaping::Advanced).size(constants::TEXT_MEDIUM).build()
-                    )
-                    .on_press(Message::CancelCreatePlaylist)
-                    .style(super::widgets::styled_button::ButtonStyle::File)
-                    .build();
-
-                    let actions = row![
-                        confirm_btn,
-                        Space::with_width(Length::Fixed(8.0)),
-                        cancel_btn,
-                    ]
-                    .spacing(constants::SPACING_SMALL)
-                    .align_y(Vertical::Center);
-
-                    let elem: Element<Message> = actions.into();
-                    elem
-                },
-            ]
-            .spacing(constants::SPACING_SMALL)
-            .align_x(Horizontal::Center)
-        )
-        .style(super::widgets::styled_container::ContainerStyle::Card)
-        .width(Length::Fixed(170.0))
-        .height(Length::Fixed(230.0))
-        .align_x(Horizontal::Center)
-        .align_y(Vertical::Center)
-        .padding([constants::PADDING_MEDIUM, constants::PADDING_SMALL])
-        .build()
-        .into()
-    };
-
-    current_row.push(create_card);
+    // 追加“创建播放列表”卡片，计入布局
+    current_row.push(if !creating { CreatePlaylistCard::display_card() } else { CreatePlaylistCard::input_card(creating_name) });
 
     while current_row.len() < 3 {
         current_row.push(Space::new(Length::Fixed(140.0), Length::Fixed(150.0)).into());
