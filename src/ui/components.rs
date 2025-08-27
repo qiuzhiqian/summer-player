@@ -958,17 +958,6 @@ pub fn playlist_files_grid_view(
     // 从PlaylistManager获取播放列表文件信息
     let playlist_infos = get_playlist_files_info_from_manager(playlist_manager);
     
-    if playlist_infos.is_empty() {
-        // 没有播放列表文件时的显示
-        return StyledContainer::new(
-            column![
-                text("📁").size(48).align_x(Horizontal::Center).shaping(Shaping::Advanced),
-                text(t!("No Playlists")).size(constants::TEXT_LARGE).align_x(Horizontal::Center).style(AppTheme::subtitle_text()),
-                text(t!("No M3U playlists found in config directory")).size(constants::TEXT_NORMAL).align_x(Horizontal::Center).style(AppTheme::hint_text()),
-            ].spacing(constants::SPACING_MEDIUM).align_x(Horizontal::Center)
-        ).style(super::widgets::styled_container::ContainerStyle::Transparent).padding(constants::PADDING_SMALL).width(Length::Fill).height(Length::Fill).build().into();
-    }
-    
     // 创建网格布局，每行显示3个卡片（包括创建卡片）
     let mut grid_rows = Vec::<Element<Message>>::new();
     let mut current_row = Vec::<Element<Message>>::new();
