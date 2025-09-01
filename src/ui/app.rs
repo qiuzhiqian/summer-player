@@ -297,7 +297,7 @@ impl PlayerApp {
         StyledContainer::new(
             column![
                 container(top_row).width(Length::Fill).height(Length::Fill),
-                container(thin_progress_view(&self.playback_state)).height(Length::Fixed(8.0)).width(Length::Fill),
+                container(thin_progress_view(&self.playback_state)).padding([0_u16, constants::PADDING_MEDIUM]).height(Length::Fixed(8.0)).width(Length::Fill),
                 bottom_bar,
             ]
             .spacing(constants::SPACING_MEDIUM)
@@ -1129,7 +1129,7 @@ impl PlayerApp {
         StyledContainer::new(
             column![
                 container(top_row).width(Length::Fill).height(Length::Fill),
-                container(thin_progress_view(&self.playback_state)).height(Length::Fixed(8.0)).width(Length::Fill),
+                container(thin_progress_view(&self.playback_state)).padding([0_u16, constants::PADDING_MEDIUM]).height(Length::Fixed(8.0)).width(Length::Fill),
                 bottom_bar,
             ]
             .spacing(constants::SPACING_MEDIUM)
