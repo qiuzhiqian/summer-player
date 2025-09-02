@@ -146,6 +146,7 @@ fn primary_button_style(theme: &iced::Theme, status: iced::widget::button::Statu
                 offset: iced::Vector::new(0.0, 4.0),
                 blur_radius: 12.0,
             },
+            snap: false,
         },
         iced::widget::button::Status::Hovered => iced::widget::button::Style {
             background: Some(Background::Color(Color {
@@ -168,6 +169,7 @@ fn primary_button_style(theme: &iced::Theme, status: iced::widget::button::Statu
                 offset: iced::Vector::new(0.0, 6.0),
                 blur_radius: 16.0,
             },
+            snap: false,
         },
         iced::widget::button::Status::Pressed => iced::widget::button::Style {
             background: Some(Background::Color(Color {
@@ -190,6 +192,7 @@ fn primary_button_style(theme: &iced::Theme, status: iced::widget::button::Statu
                 offset: iced::Vector::new(0.0, 2.0),
                 blur_radius: 6.0,
             },
+            snap: false,
         },
         iced::widget::button::Status::Disabled => iced::widget::button::Style {
             background: Some(Background::Color(palette.background.weak.color)),
@@ -200,6 +203,7 @@ fn primary_button_style(theme: &iced::Theme, status: iced::widget::button::Statu
                 color: palette.background.strong.color,
             },
             shadow: Shadow::default(),
+            snap: false,
         },
     }
 }
@@ -229,6 +233,7 @@ fn control_button_style(theme: &iced::Theme, status: iced::widget::button::Statu
                 offset: iced::Vector::new(0.0, 4.0),
                 blur_radius: 12.0,
             },
+            snap: false,
         },
         iced::widget::button::Status::Hovered => iced::widget::button::Style {
             background: Some(Background::Color(secondary)),
@@ -246,6 +251,7 @@ fn control_button_style(theme: &iced::Theme, status: iced::widget::button::Statu
                 offset: iced::Vector::new(0.0, 6.0),
                 blur_radius: 16.0,
             },
+            snap: false,
         },
         iced::widget::button::Status::Pressed => iced::widget::button::Style {
             background: Some(Background::Color(Color {
@@ -268,6 +274,7 @@ fn control_button_style(theme: &iced::Theme, status: iced::widget::button::Statu
                 offset: iced::Vector::new(0.0, 2.0),
                 blur_radius: 6.0,
             },
+            snap: false,
         },
         iced::widget::button::Status::Disabled => iced::widget::button::Style {
             background: Some(Background::Color(palette.background.weak.color)),
@@ -278,6 +285,7 @@ fn control_button_style(theme: &iced::Theme, status: iced::widget::button::Statu
                 color: palette.background.strong.color,
             },
             shadow: Shadow::default(),
+            snap: false,
         },
     }
 }
@@ -307,6 +315,7 @@ fn file_button_style(theme: &iced::Theme, status: iced::widget::button::Status) 
                 offset: iced::Vector::new(0.0, 4.0),
                 blur_radius: 12.0,
             },
+            snap: false,
         },
         iced::widget::button::Status::Hovered => iced::widget::button::Style {
             background: Some(Background::Color(Color {
@@ -327,6 +336,7 @@ fn file_button_style(theme: &iced::Theme, status: iced::widget::button::Status) 
                 offset: iced::Vector::new(0.0, 6.0),
                 blur_radius: 16.0,
             },
+            snap: false,
         },
         iced::widget::button::Status::Pressed => iced::widget::button::Style {
             background: Some(Background::Color(Color {
@@ -345,8 +355,9 @@ fn file_button_style(theme: &iced::Theme, status: iced::widget::button::Status) 
             shadow: Shadow {
                 color: Color::from_rgba(primary.r, primary.g, primary.b, 0.15),
                 offset: iced::Vector::new(0.0, 2.0),
-                blur_radius: 6.0,
+                blur_radius: 8.0,
             },
+            snap: false,
         },
         iced::widget::button::Status::Disabled => iced::widget::button::Style {
             background: Some(Background::Color(palette.background.weak.color)),
@@ -357,6 +368,7 @@ fn file_button_style(theme: &iced::Theme, status: iced::widget::button::Status) 
                 color: palette.background.strong.color,
             },
             shadow: Shadow::default(),
+            snap: false,
         },
     }
 }
@@ -394,6 +406,7 @@ fn playlist_item_button_style(
                     offset: iced::Vector::new(0.0, 1.0),
                     blur_radius: 3.0,
                 },
+                snap: false,
             },
             iced::widget::button::Status::Hovered => iced::widget::button::Style {
                 background: Some(Background::Color(Color {
@@ -411,6 +424,7 @@ fn playlist_item_button_style(
                     offset: iced::Vector::new(0.0, 2.0),
                     blur_radius: 4.0,
                 },
+                snap: false,
             },
             _ => iced::widget::button::Style::default(),
         }
@@ -436,6 +450,7 @@ fn playlist_item_button_style(
                     offset: iced::Vector::new(0.0, 1.0),
                     blur_radius: 2.0,
                 },
+                snap: false,
             },
             iced::widget::button::Status::Hovered => iced::widget::button::Style {
                 background: Some(Background::Color(Color {
@@ -453,6 +468,7 @@ fn playlist_item_button_style(
                     offset: iced::Vector::new(0.0, 2.0),
                     blur_radius: 4.0,
                 },
+                snap: false,
             },
             _ => iced::widget::button::Style::default(),
         }
@@ -472,6 +488,7 @@ fn playlist_item_button_style(
                     offset: iced::Vector::new(0.0, 1.0),
                     blur_radius: 2.0,
                 },
+                snap: false,
             },
             _ => iced::widget::button::Style {
                 background: Some(Background::Color(Color::TRANSPARENT)),
@@ -482,6 +499,7 @@ fn playlist_item_button_style(
                     color: Color::TRANSPARENT,
                 },
                 shadow: Shadow::default(),
+                snap: false,
             },
         }
     }
@@ -512,6 +530,7 @@ fn theme_toggle_button_style(theme: &iced::Theme, status: iced::widget::button::
                 offset: iced::Vector::new(0.0, 2.0),
                 blur_radius: 4.0,
             },
+            snap: false,
         },
         iced::widget::button::Status::Hovered => iced::widget::button::Style {
             background: Some(Background::Color(Color {
@@ -529,6 +548,7 @@ fn theme_toggle_button_style(theme: &iced::Theme, status: iced::widget::button::
                 offset: iced::Vector::new(0.0, 4.0),
                 blur_radius: 8.0,
             },
+            snap: false,
         },
         iced::widget::button::Status::Pressed => iced::widget::button::Style {
             background: Some(Background::Color(Color {
@@ -546,6 +566,7 @@ fn theme_toggle_button_style(theme: &iced::Theme, status: iced::widget::button::
                 offset: iced::Vector::new(0.0, 1.0),
                 blur_radius: 2.0,
             },
+            snap: false,
         },
         iced::widget::button::Status::Disabled => iced::widget::button::Style {
             background: Some(Background::Color(palette.background.weak.color)),
@@ -556,6 +577,7 @@ fn theme_toggle_button_style(theme: &iced::Theme, status: iced::widget::button::
                 color: palette.background.strong.color,
             },
             shadow: Shadow::default(),
+            snap: false,
         },
     }
 }
@@ -585,6 +607,7 @@ fn view_toggle_button_style(theme: &iced::Theme, status: iced::widget::button::S
                 offset: iced::Vector::new(0.0, 1.0),
                 blur_radius: 3.0,
             },
+            snap: false,
         },
         iced::widget::button::Status::Hovered => iced::widget::button::Style {
             background: Some(Background::Color(Color {
@@ -605,6 +628,7 @@ fn view_toggle_button_style(theme: &iced::Theme, status: iced::widget::button::S
                 offset: iced::Vector::new(0.0, 3.0),
                 blur_radius: 6.0,
             },
+            snap: false,
         },
         iced::widget::button::Status::Pressed => iced::widget::button::Style {
             background: Some(Background::Color(Color {
@@ -625,6 +649,7 @@ fn view_toggle_button_style(theme: &iced::Theme, status: iced::widget::button::S
                 offset: iced::Vector::new(0.0, 1.0),
                 blur_radius: 2.0,
             },
+            snap: false,
         },
         iced::widget::button::Status::Disabled => iced::widget::button::Style {
             background: Some(Background::Color(palette.background.weak.color)),
@@ -635,6 +660,7 @@ fn view_toggle_button_style(theme: &iced::Theme, status: iced::widget::button::S
                 color: palette.background.strong.color,
             },
             shadow: Shadow::default(),
+            snap: false,
         },
     }
 }

@@ -16,7 +16,7 @@ use crate::ui::theme::AppColors;
 /// 样式化文本组件
 pub struct StyledText {
     content: String,
-    size: u16,
+    size: u32,
     style: TextStyle,
     width: Length,
     align: Option<iced::alignment::Horizontal>,
@@ -58,7 +58,7 @@ impl StyledText {
     }
 
     /// 设置文本大小
-    pub fn size(mut self, size: u16) -> Self {
+    pub fn size(mut self, size: u32) -> Self {
         self.size = size;
         self
     }

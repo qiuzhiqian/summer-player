@@ -39,20 +39,20 @@ pub mod constants {
     pub const ICON_SIZE_XLARGE: f32 = 35.0;
     
     // 间距常量
-    pub const SPACING_SMALL: u16 = 6;
-    pub const SPACING_MEDIUM: u16 = 12;
-    pub const SPACING_LARGE: u16 = 20;
+    pub const SPACING_SMALL: u32 = 6;
+    pub const SPACING_MEDIUM: u32 = 12;
+    pub const SPACING_LARGE: u32 = 20;
     
     pub const PADDING_SMALL: u16 = 8;
     pub const PADDING_MEDIUM: u16 = 16;
     pub const PADDING_LARGE: u16 = 24;
     
     // 文本大小
-    pub const TEXT_SMALL: u16 = 10;
-    pub const TEXT_NORMAL: u16 = 12;
-    pub const TEXT_MEDIUM: u16 = 14;
-    pub const TEXT_LARGE: u16 = 16;
-    pub const TEXT_TITLE: u16 = 20;
+    pub const TEXT_SMALL: u32 = 10;
+    pub const TEXT_NORMAL: u32 = 12;
+    pub const TEXT_MEDIUM: u32 = 14;
+    pub const TEXT_LARGE: u32 = 16;
+    pub const TEXT_TITLE: u32 = 20;
     
     // 截断长度
     pub const TEXT_TRUNCATE_DEFAULT: usize = 30;
@@ -136,7 +136,7 @@ pub fn svg_icon(content: &str, size: f32, color: Color) -> Element<'static, Mess
 fn truncated_text(
     full_text: String, 
     max_len: usize, 
-    size: u16,
+    size: u32,
     color: Color
 ) -> Element<'static, Message> {
     let display_text = if full_text.chars().count() > max_len {
@@ -152,7 +152,7 @@ fn truncated_text(
     
     if full_text.chars().count() > max_len {
         tooltip(text_elem, text(full_text).size(constants::TEXT_NORMAL), tooltip::Position::Top)
-            .style(tooltip_style()).padding(constants::PADDING_SMALL).into()
+            .style(tooltip_style()).padding(constants::PADDING_SMALL as u32).into()
     } else {
         text_elem.into()
     }
@@ -175,6 +175,7 @@ fn tooltip_style() -> impl Fn(&iced::Theme) -> container::Style {
                 offset: iced::Vector::new(0.0, 2.0),
                 blur_radius: 8.0,
             },
+            snap: false,
         }
     }
 }
@@ -442,6 +443,7 @@ pub fn settings_page(current_theme: &AppThemeVariant, current_language: &str) ->
         .padding(constants::PADDING_LARGE)
     )
     .style(super::widgets::styled_container::ContainerStyle::Background)
+    .width(Length::Fill)
     .build()
 }
 
@@ -657,7 +659,7 @@ pub fn playlist_view(playlist: &Playlist, playlist_loaded: bool, is_playing: boo
                 ].spacing(constants::SPACING_MEDIUM).align_y(Vertical::Center),
             //).padding(constants::PADDING_SMALL).build(),
             scrollable(
-                column(items).spacing(constants::SPACING_SMALL).padding([constants::SPACING_MEDIUM, constants::PADDING_SMALL])
+                column(items).spacing(constants::SPACING_SMALL).padding([constants::PADDING_SMALL, constants::PADDING_SMALL])
             ).height(Length::Fill).width(Length::Fill),
         ].spacing(constants::SPACING_LARGE)
     )
@@ -1028,7 +1030,7 @@ pub fn playlist_files_grid_view(
             scrollable(
                 column(grid_rows)
                     .spacing(constants::SPACING_MEDIUM)
-                    .padding([constants::SPACING_MEDIUM, constants::PADDING_SMALL])
+                    .padding([constants::PADDING_SMALL, constants::PADDING_SMALL])
             ).height(Length::Fill).width(Length::Fill), // 高度填满可用空间，超出时自动滚动
         ].spacing(constants::SPACING_LARGE).height(Length::Fill) // 确保列也填满高度
     )

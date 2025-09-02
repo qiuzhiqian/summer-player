@@ -156,6 +156,7 @@ fn main_section_style(theme: &iced::Theme) -> Style {
             blur_radius: 20.0, // 与AppTheme::main_section_container保持一致
         },
         text_color: Some(crate::ui::theme::AppColors::text_primary(theme)),
+        snap: false,
     }
 }
 
@@ -174,6 +175,7 @@ fn card_style(theme: &iced::Theme) -> Style {
             blur_radius: 16.0,
         },
         text_color: Some(crate::ui::theme::AppColors::text_primary(theme)),
+        snap: false,
     }
 }
 
@@ -188,6 +190,7 @@ fn background_style(theme: &iced::Theme) -> Style {
         },
         shadow: Shadow::default(),
         text_color: Some(crate::ui::theme::AppColors::text_primary(theme)),
+        snap: false,
     }
 }
 
@@ -207,6 +210,7 @@ fn emphasis_style(theme: &iced::Theme) -> Style {
             blur_radius: 6.0,
         },
         text_color: Some(crate::ui::theme::AppColors::text_primary(theme)),
+        snap: false,
     }
 }
 
@@ -226,6 +230,7 @@ fn decorative_style(theme: &iced::Theme) -> Style {
             blur_radius: 4.0,
         },
         text_color: None,
+        snap: false,
     }
 }
 
@@ -240,5 +245,6 @@ fn transparent_style(_theme: &iced::Theme) -> Style {
         },
         shadow: Shadow::default(),
         text_color: None,
+        snap: false,
     }
 }

@@ -45,6 +45,7 @@ impl AppThemeVariant {
                     text: Color::from_rgb(0.95, 0.95, 0.97),                 // #F2F2F7 - 浅色文本
                     primary: Color::from_rgb(0.0, 0.48, 1.0),                // #007AFF - 蓝色主色
                     success: Color::from_rgb(0.20, 0.78, 0.35),              // #34C759 - 绿色
+                    warning: Color::from_rgb(1.0, 0.58, 0.0),               // #FF9500 - 警告色（新增）
                     danger: Color::from_rgb(1.0, 0.23, 0.19),                // #FF3B30 - 红色
                 }
             ),
@@ -255,6 +256,7 @@ impl AppTheme {
                     blur_radius: 16.0, // 增加模糊半径
                 },
                 text_color: Some(AppColors::text_primary(theme)),
+                snap: false,
             }
         }
     }
@@ -275,6 +277,7 @@ impl AppTheme {
                     blur_radius: 24.0,
                 },
                 text_color: Some(AppColors::text_primary(theme)),
+                snap: false,
             }
         }
     }
@@ -295,6 +298,7 @@ impl AppTheme {
                     blur_radius: 20.0,
                 },
                 text_color: Some(AppColors::text_primary(theme)),
+                snap: false,
             }
         }
     }
@@ -311,6 +315,7 @@ impl AppTheme {
                 },
                 shadow: Shadow::default(),
                 text_color: Some(AppColors::text_primary(theme)),
+                snap: false,
             }
         }
     }
@@ -338,6 +343,7 @@ impl AppTheme {
                     blur_radius: 3.0,
                 },
                 text_color: Some(AppColors::text_primary(theme)),
+                snap: false,
             }
         }
     }
@@ -366,6 +372,7 @@ impl AppTheme {
                         offset: iced::Vector::new(0.0, 6.0),
                         blur_radius: 16.0,
                     },
+                    snap: false,
                 },
                 button::Status::Hovered => button::Style {
                     background: Some(Background::Color(Color {
@@ -388,6 +395,7 @@ impl AppTheme {
                         offset: iced::Vector::new(0.0, 8.0),
                         blur_radius: 20.0,
                     },
+                    snap: false,
                 },
                 button::Status::Pressed => button::Style {
                     background: Some(Background::Color(Color {
@@ -410,6 +418,7 @@ impl AppTheme {
                         offset: iced::Vector::new(0.0, 3.0),
                         blur_radius: 8.0,
                     },
+                    snap: false,
                 },
                 button::Status::Disabled => button::Style {
                     background: Some(Background::Color(AppColors::surface(theme))),
@@ -420,6 +429,7 @@ impl AppTheme {
                         color: AppColors::border(theme),
                     },
                     shadow: Shadow::default(),
+                    snap: false,
                 },
             }
         }
@@ -449,6 +459,7 @@ impl AppTheme {
                         offset: iced::Vector::new(0.0, 4.0),
                         blur_radius: 12.0,
                     },
+                    snap: false,
                 },
                 button::Status::Hovered => button::Style {
                     background: Some(Background::Color(secondary)),
@@ -466,6 +477,7 @@ impl AppTheme {
                         offset: iced::Vector::new(0.0, 6.0),
                         blur_radius: 16.0,
                     },
+                    snap: false,
                 },
                 button::Status::Pressed => button::Style {
                     background: Some(Background::Color(Color {
@@ -488,6 +500,7 @@ impl AppTheme {
                         offset: iced::Vector::new(0.0, 2.0),
                         blur_radius: 6.0,
                     },
+                    snap: false,
                 },
                 button::Status::Disabled => button::Style {
                     background: Some(Background::Color(AppColors::surface(theme))),
@@ -498,6 +511,7 @@ impl AppTheme {
                         color: AppColors::border(theme),
                     },
                     shadow: Shadow::default(),
+                    snap: false,
                 },
             }
         }
@@ -527,6 +541,7 @@ impl AppTheme {
                         offset: iced::Vector::new(0.0, 4.0),
                         blur_radius: 12.0,
                     },
+                    snap: false,
                 },
                 button::Status::Hovered => button::Style {
                     background: Some(Background::Color(Color {
@@ -547,6 +562,7 @@ impl AppTheme {
                         offset: iced::Vector::new(0.0, 6.0),
                         blur_radius: 16.0,
                     },
+                    snap: false,
                 },
                 button::Status::Pressed => button::Style {
                     background: Some(Background::Color(Color {
@@ -567,6 +583,7 @@ impl AppTheme {
                         offset: iced::Vector::new(0.0, 2.0),
                         blur_radius: 8.0,
                     },
+                    snap: false,
                 },
                 button::Status::Disabled => button::Style {
                     background: Some(Background::Color(AppColors::surface(theme))),
@@ -577,6 +594,7 @@ impl AppTheme {
                         color: AppColors::border(theme),
                     },
                     shadow: Shadow::default(),
+                    snap: false,
                 },
             }
         }
@@ -606,6 +624,7 @@ impl AppTheme {
                         offset: iced::Vector::new(0.0, 1.0),
                         blur_radius: 3.0,
                     },
+                    snap: false,
                 },
                 button::Status::Hovered => button::Style {
                     background: Some(Background::Color(Color {
@@ -626,6 +645,7 @@ impl AppTheme {
                         offset: iced::Vector::new(0.0, 3.0),
                         blur_radius: 6.0,
                     },
+                    snap: false,
                 },
                 button::Status::Pressed => button::Style {
                     background: Some(Background::Color(Color {
@@ -646,6 +666,7 @@ impl AppTheme {
                         offset: iced::Vector::new(0.0, 1.0),
                         blur_radius: 2.0,
                     },
+                    snap: false,
                 },
                 button::Status::Disabled => button::Style {
                     background: Some(Background::Color(AppColors::surface(theme))),
@@ -656,6 +677,7 @@ impl AppTheme {
                         color: AppColors::border(theme),
                     },
                     shadow: Shadow::default(),
+                    snap: false,
                 },
             }
         }
@@ -685,6 +707,7 @@ impl AppTheme {
                         offset: iced::Vector::new(0.0, 2.0),
                         blur_radius: 4.0,
                     },
+                    snap: false,
                 },
                 button::Status::Hovered => button::Style {
                     background: Some(Background::Color(Color {
@@ -702,6 +725,7 @@ impl AppTheme {
                         offset: iced::Vector::new(0.0, 4.0),
                         blur_radius: 8.0,
                     },
+                    snap: false,
                 },
                 button::Status::Pressed => button::Style {
                     background: Some(Background::Color(Color {
@@ -719,6 +743,7 @@ impl AppTheme {
                         offset: iced::Vector::new(0.0, 1.0),
                         blur_radius: 2.0,
                     },
+                    snap: false,
                 },
                 button::Status::Disabled => button::Style {
                     background: Some(Background::Color(AppColors::surface(theme))),
@@ -729,6 +754,7 @@ impl AppTheme {
                         color: AppColors::border(theme),
                     },
                     shadow: Shadow::default(),
+                    snap: false,
                 },
             }
         }
@@ -762,6 +788,7 @@ impl AppTheme {
                             offset: iced::Vector::new(0.0, 1.0),
                             blur_radius: 3.0,
                         },
+                        snap: false,
                     },
                     button::Status::Hovered => button::Style {
                         background: Some(Background::Color(Color {
@@ -779,6 +806,7 @@ impl AppTheme {
                             offset: iced::Vector::new(0.0, 2.0),
                             blur_radius: 4.0,
                         },
+                        snap: false,
                     },
                     _ => button::Style::default(),
                 }
@@ -804,6 +832,7 @@ impl AppTheme {
                             offset: iced::Vector::new(0.0, 1.0),
                             blur_radius: 2.0,
                         },
+                        snap: false,
                     },
                     button::Status::Hovered => button::Style {
                         background: Some(Background::Color(Color {
@@ -821,6 +850,7 @@ impl AppTheme {
                             offset: iced::Vector::new(0.0, 2.0),
                             blur_radius: 4.0,
                         },
+                        snap: false,
                     },
                     _ => button::Style::default(),
                 }
@@ -840,6 +870,7 @@ impl AppTheme {
                             offset: iced::Vector::new(0.0, 1.0),
                             blur_radius: 2.0,
                         },
+                        snap: false,
                     },
                     _ => button::Style {
                         background: Some(Background::Color(Color::TRANSPARENT)),
@@ -850,6 +881,7 @@ impl AppTheme {
                             color: Color::TRANSPARENT,
                         },
                         shadow: Shadow::default(),
+                        snap: false,
                     },
                 }
             }
@@ -990,6 +1022,7 @@ impl AppTheme {
                 border: Border::default(),
                 shadow: Shadow::default(),
                 text_color: None,
+                snap: false,
             }
         }
     }

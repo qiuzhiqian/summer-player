@@ -136,8 +136,8 @@ impl PlaylistCard {
                     .style(|theme: &iced::Theme, status: iced::widget::button::Status| {
                         let palette = theme.extended_palette();
                         match status {
-                            iced::widget::button::Status::Hovered => iced::widget::button::Style { background: Some(Background::Color(Color { a: 0.15, ..palette.primary.base.color })), text_color: palette.primary.base.text, border: Border { radius: Radius::from(8.0), width: 0.0, color: Color::TRANSPARENT }, shadow: Shadow::default() },
-                            _ => iced::widget::button::Style { background: Some(Background::Color(Color { a: 0.1, ..palette.primary.base.color })), text_color: palette.primary.base.text, border: Border { radius: Radius::from(8.0), width: 0.0, color: Color::TRANSPARENT }, shadow: Shadow::default() },
+                            iced::widget::button::Status::Hovered => iced::widget::button::Style { background: Some(Background::Color(Color { a: 0.15, ..palette.primary.base.color })), text_color: palette.primary.base.text, border: Border { radius: Radius::from(8.0), width: 0.0, color: Color::TRANSPARENT }, shadow: Shadow::default(), snap: false },
+                            _ => iced::widget::button::Style { background: Some(Background::Color(Color { a: 0.1, ..palette.primary.base.color })), text_color: palette.primary.base.text, border: Border { radius: Radius::from(8.0), width: 0.0, color: Color::TRANSPARENT }, shadow: Shadow::default(), snap: false },
                         }
                     }),
                 Space::with_width(Length::Fixed(8.0)),
@@ -146,8 +146,8 @@ impl PlaylistCard {
                     .style(|theme: &iced::Theme, status: iced::widget::button::Status| {
                         let palette = theme.extended_palette();
                         match status {
-                            iced::widget::button::Status::Hovered => iced::widget::button::Style { background: Some(Background::Color(Color { a: 0.15, ..palette.background.weak.color })), text_color: palette.background.base.text, border: Border { radius: Radius::from(8.0), width: 0.0, color: Color::TRANSPARENT }, shadow: Shadow::default() },
-                            _ => iced::widget::button::Style { background: Some(Background::Color(Color { a: 0.1, ..palette.background.weak.color })), text_color: palette.background.base.text, border: Border { radius: Radius::from(8.0), width: 0.0, color: Color::TRANSPARENT }, shadow: Shadow::default() },
+                            iced::widget::button::Status::Hovered => iced::widget::button::Style { background: Some(Background::Color(Color { a: 0.15, ..palette.background.weak.color })), text_color: palette.background.base.text, border: Border { radius: Radius::from(8.0), width: 0.0, color: Color::TRANSPARENT }, shadow: Shadow::default(), snap: false },
+                            _ => iced::widget::button::Style { background: Some(Background::Color(Color { a: 0.1, ..palette.background.weak.color })), text_color: palette.background.base.text, border: Border { radius: Radius::from(8.0), width: 0.0, color: Color::TRANSPARENT }, shadow: Shadow::default(), snap: false },
                         }
                     }),
             ]
@@ -174,8 +174,8 @@ impl PlaylistCard {
                 .style(|theme: &iced::Theme, status: iced::widget::button::Status| {
                     let palette = theme.extended_palette();
                     match status {
-                        iced::widget::button::Status::Hovered => iced::widget::button::Style { background: Some(Background::Color(Color { a: 0.12, ..palette.primary.base.color })), text_color: palette.primary.strong.color, border: Border { radius: Radius::from(8.0), width: 0.0, color: Color::TRANSPARENT }, shadow: Shadow::default() },
-                        _ => iced::widget::button::Style { background: Some(Background::Color(Color::TRANSPARENT)), text_color: palette.primary.strong.color, border: Border { radius: Radius::from(8.0), width: 0.0, color: Color::TRANSPARENT }, shadow: Shadow::default() },
+                        iced::widget::button::Status::Hovered => iced::widget::button::Style { background: Some(Background::Color(Color { a: 0.12, ..palette.primary.base.color })), text_color: palette.primary.strong.color, border: Border { radius: Radius::from(8.0), width: 0.0, color: Color::TRANSPARENT }, shadow: Shadow::default(), snap: false },
+                        _ => iced::widget::button::Style { background: Some(Background::Color(Color::TRANSPARENT)), text_color: palette.primary.strong.color, border: Border { radius: Radius::from(8.0), width: 0.0, color: Color::TRANSPARENT }, shadow: Shadow::default(), snap: false },
                     }
                 });
             let add_btn = button(text(t!("Add Music")).size(constants::TEXT_MEDIUM))
@@ -183,8 +183,8 @@ impl PlaylistCard {
                 .style(|theme: &iced::Theme, status: iced::widget::button::Status| {
                     let palette = theme.extended_palette();
                     match status {
-                        iced::widget::button::Status::Hovered => iced::widget::button::Style { background: Some(Background::Color(Color { a: 0.12, ..palette.primary.base.color })), text_color: palette.primary.strong.color, border: Border { radius: Radius::from(8.0), width: 0.0, color: Color::TRANSPARENT }, shadow: Shadow::default() },
-                        _ => iced::widget::button::Style { background: Some(Background::Color(Color::TRANSPARENT)), text_color: palette.primary.strong.color, border: Border { radius: Radius::from(8.0), width: 0.0, color: Color::TRANSPARENT }, shadow: Shadow::default() },
+                        iced::widget::button::Status::Hovered => iced::widget::button::Style { background: Some(Background::Color(Color { a: 0.12, ..palette.primary.base.color })), text_color: palette.primary.strong.color, border: Border { radius: Radius::from(8.0), width: 0.0, color: Color::TRANSPARENT }, shadow: Shadow::default(), snap: false },
+                        _ => iced::widget::button::Style { background: Some(Background::Color(Color::TRANSPARENT)), text_color: palette.primary.strong.color, border: Border { radius: Radius::from(8.0), width: 0.0, color: Color::TRANSPARENT }, shadow: Shadow::default(), snap: false },
                     }
                 });
             let delete_btn = button(text(t!("Delete")).size(constants::TEXT_MEDIUM))
@@ -192,8 +192,8 @@ impl PlaylistCard {
                 .style(|theme: &iced::Theme, status: iced::widget::button::Status| {
                     let palette = theme.extended_palette();
                     match status {
-                        iced::widget::button::Status::Hovered => iced::widget::button::Style { background: Some(Background::Color(Color { a: 0.12, ..palette.background.strong.color })), text_color: palette.background.base.text, border: Border { radius: Radius::from(8.0), width: 0.0, color: Color::TRANSPARENT }, shadow: Shadow::default() },
-                        _ => iced::widget::button::Style { background: Some(Background::Color(Color::TRANSPARENT)), text_color: palette.background.base.text, border: Border { radius: Radius::from(8.0), width: 0.0, color: Color::TRANSPARENT }, shadow: Shadow::default() },
+                        iced::widget::button::Status::Hovered => iced::widget::button::Style { background: Some(Background::Color(Color { a: 0.12, ..palette.background.strong.color })), text_color: palette.background.base.text, border: Border { radius: Radius::from(8.0), width: 0.0, color: Color::TRANSPARENT }, shadow: Shadow::default(), snap: false },
+                        _ => iced::widget::button::Style { background: Some(Background::Color(Color::TRANSPARENT)), text_color: palette.background.base.text, border: Border { radius: Radius::from(8.0), width: 0.0, color: Color::TRANSPARENT }, shadow: Shadow::default(), snap: false },
                     }
                 });
             StyledContainer::new(
@@ -250,9 +250,9 @@ impl PlaylistCard {
                                 .style(move |theme: &iced::Theme, status: iced::widget::button::Status| {
                                     let palette = theme.extended_palette();
                                     match status {
-                                        iced::widget::button::Status::Hovered => iced::widget::button::Style { background: Some(Background::Color(Color { a: 0.12, ..palette.primary.base.color })), text_color: palette.primary.strong.color, border: Border { radius: Radius::from(6.0), width: 0.0, color: Color::TRANSPARENT }, shadow: Shadow::default() },
-                                        iced::widget::button::Status::Pressed => iced::widget::button::Style { background: Some(Background::Color(Color { a: 0.2, ..palette.primary.base.color })), text_color: palette.primary.strong.color, border: Border { radius: Radius::from(6.0), width: 0.0, color: Color::TRANSPARENT }, shadow: Shadow::default() },
-                                        _ => iced::widget::button::Style { background: Some(Background::Color(Color::TRANSPARENT)), text_color: palette.primary.strong.color, border: Border { radius: Radius::from(6.0), width: 0.0, color: Color::TRANSPARENT }, shadow: Shadow::default() },
+                                        iced::widget::button::Status::Hovered => iced::widget::button::Style { background: Some(Background::Color(Color { a: 0.12, ..palette.primary.base.color })), text_color: palette.primary.strong.color, border: Border { radius: Radius::from(6.0), width: 0.0, color: Color::TRANSPARENT }, shadow: Shadow::default(), snap: false },
+                                        iced::widget::button::Status::Pressed => iced::widget::button::Style { background: Some(Background::Color(Color { a: 0.2, ..palette.primary.base.color })), text_color: palette.primary.strong.color, border: Border { radius: Radius::from(6.0), width: 0.0, color: Color::TRANSPARENT }, shadow: Shadow::default(), snap: false },
+                                        _ => iced::widget::button::Style { background: Some(Background::Color(Color::TRANSPARENT)), text_color: palette.primary.strong.color, border: Border { radius: Radius::from(6.0), width: 0.0, color: Color::TRANSPARENT }, shadow: Shadow::default(), snap: false },
                                     }
                                 });
                             StyledContainer::new(more_btn)
@@ -326,6 +326,7 @@ impl PlaylistCard {
                 } else {
                     Shadow::default()
                 },
+                snap: false,
             },
             iced::widget::button::Status::Hovered => iced::widget::button::Style {
                 background: if is_selected {
@@ -344,6 +345,7 @@ impl PlaylistCard {
                     offset: iced::Vector::new(0.0, 4.0),
                     blur_radius: 10.0,
                 },
+                snap: false,
             },
             iced::widget::button::Status::Pressed => iced::widget::button::Style {
                 background: if is_selected {
@@ -362,6 +364,7 @@ impl PlaylistCard {
                     offset: iced::Vector::new(0.0, 2.0),
                     blur_radius: 6.0,
                 },
+                snap: false,
             },
             iced::widget::button::Status::Disabled => iced::widget::button::Style {
                 background: Some(Background::Color(Color { a: 0.05, ..palette.background.strong.color })),
@@ -372,6 +375,7 @@ impl PlaylistCard {
                     color: Color::TRANSPARENT,
                 },
                 shadow: Shadow::default(),
+                snap: false,
             },
         }
     }

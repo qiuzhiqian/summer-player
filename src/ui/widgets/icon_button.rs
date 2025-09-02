@@ -121,6 +121,7 @@ impl IconButton {
                     offset: iced::Vector::new(0.0, 2.0),
                     blur_radius: 8.0,
                 },
+                snap: false,
             }
         })
         .padding(8)

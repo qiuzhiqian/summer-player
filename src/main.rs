@@ -107,14 +107,17 @@ fn main() {
     let mut final_config = config;
     final_config.ui.language = locale.clone();
     
-    let (app, initial_task) = PlayerApp::new_with_config(initial_file, final_config);
-    
-    iced::application("Summer Audio Player", PlayerApp::update, PlayerApp::view)
+    // 将初始参数移动到闭包内以在运行时创建应用实例，避免 FnOnce
+    let boot_initial_file = initial_file.clone();
+    let boot_config = final_config.clone();
+
+    iced::application(move || PlayerApp::new_with_config(boot_initial_file.clone(), boot_config.clone()), PlayerApp::update, PlayerApp::view)
+        .title("Summer Audio Player")
         .subscription(PlayerApp::subscription)
         .theme(PlayerApp::theme)
         .window(window_settings)
         .default_font(Font::with_name(fonts::get_chinese_font()))
-        .run_with(|| (app, initial_task))
+        .run()
         .unwrap();
 }
 
