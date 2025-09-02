@@ -24,6 +24,21 @@ pub enum Message {
     /// 播放列表卡片的更多菜单按钮被点击（占位，后续实现）
     PlaylistCardMoreClicked(String),
 
+    /// 开始重命名指定播放列表
+    PlaylistCardActionRenameStart(String),
+    /// 重命名输入内容变化
+    PlaylistCardRenameNameChanged(String),
+    /// 确认重命名
+    PlaylistCardRenameConfirm,
+    /// 取消重命名
+    PlaylistCardRenameCancel,
+    /// 删除播放列表
+    PlaylistCardActionDelete(String),
+    /// 为播放列表添加音乐（打开文件对话框）
+    PlaylistCardActionAddMusic(String),
+    /// 添加音乐选择完成（携带播放列表路径和所选文件）
+    PlaylistAddMusicFilesSelected(String, Vec<String>),
+
     /// 开始创建播放列表（显示输入框）
     StartCreatePlaylist,
     /// 创建播放列表名称变化

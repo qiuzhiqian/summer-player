@@ -3,7 +3,7 @@
 //! 用于显示播放列表信息的可重用卡片组件
 
 use iced::{
-    widget::{button, column, row, text},
+    widget::{button, column, row, text, text_input, Space},
     Element, Length, Border, Shadow, Background, Color,
     alignment::{Horizontal, Vertical},
     border::Radius,
@@ -29,6 +29,12 @@ pub struct PlaylistCardConfig {
     pub width: f32,
     /// 卡片高度
     pub height: f32,
+    /// 是否显示更多菜单
+    pub show_menu: bool,
+    /// 是否处于重命名输入模式
+    pub renaming: bool,
+    /// 重命名输入中的名称
+    pub renaming_name: String,
 }
 
 impl Default for PlaylistCardConfig {
@@ -40,6 +46,9 @@ impl Default for PlaylistCardConfig {
             is_selected: false,
             width: 170.0,
             height: 240.0,
+            show_menu: false,
+            renaming: false,
+            renaming_name: String::new(),
         }
     }
 }
@@ -112,24 +121,109 @@ impl PlaylistCard {
             }
         });
 
-        // 创建卡片内容
-        let card_content = StyledContainer::new(
-            column![
-                // 播放列表图标（方形）
+        // 根据状态创建顶部区域：图标、菜单或重命名输入
+        let top_area: Element<Message> = if config.renaming {
+            let input: Element<Message> = text_input::<Message, iced::Theme, iced::Renderer>(t!("Playlist Name").as_ref(), &config.renaming_name)
+                .on_input(Message::PlaylistCardRenameNameChanged)
+                .size(constants::TEXT_NORMAL)
+                .padding(8)
+                .width(Length::Fill)
+                .into();
+
+            let actions: Element<Message> = row![
+                button(text("✔").shaping(Shaping::Advanced).size(constants::TEXT_MEDIUM))
+                    .on_press(Message::PlaylistCardRenameConfirm)
+                    .style(|theme: &iced::Theme, status: iced::widget::button::Status| {
+                        let palette = theme.extended_palette();
+                        match status {
+                            iced::widget::button::Status::Hovered => iced::widget::button::Style { background: Some(Background::Color(Color { a: 0.15, ..palette.primary.base.color })), text_color: palette.primary.base.text, border: Border { radius: Radius::from(8.0), width: 0.0, color: Color::TRANSPARENT }, shadow: Shadow::default() },
+                            _ => iced::widget::button::Style { background: Some(Background::Color(Color { a: 0.1, ..palette.primary.base.color })), text_color: palette.primary.base.text, border: Border { radius: Radius::from(8.0), width: 0.0, color: Color::TRANSPARENT }, shadow: Shadow::default() },
+                        }
+                    }),
+                Space::with_width(Length::Fixed(8.0)),
+                button(text("✖").shaping(Shaping::Advanced).size(constants::TEXT_MEDIUM))
+                    .on_press(Message::PlaylistCardRenameCancel)
+                    .style(|theme: &iced::Theme, status: iced::widget::button::Status| {
+                        let palette = theme.extended_palette();
+                        match status {
+                            iced::widget::button::Status::Hovered => iced::widget::button::Style { background: Some(Background::Color(Color { a: 0.15, ..palette.background.weak.color })), text_color: palette.background.base.text, border: Border { radius: Radius::from(8.0), width: 0.0, color: Color::TRANSPARENT }, shadow: Shadow::default() },
+                            _ => iced::widget::button::Style { background: Some(Background::Color(Color { a: 0.1, ..palette.background.weak.color })), text_color: palette.background.base.text, border: Border { radius: Radius::from(8.0), width: 0.0, color: Color::TRANSPARENT }, shadow: Shadow::default() },
+                        }
+                    }),
+            ]
+            .spacing(constants::SPACING_SMALL)
+            .align_y(Vertical::Center)
+            .into();
+
+            StyledContainer::new(
+                column![input, actions]
+                    .spacing(constants::SPACING_SMALL)
+                    .width(Length::Fill)
+                    .align_x(Horizontal::Center)
+            )
+            .style(ContainerStyle::Decorative)
+            .width(Length::Fixed(160.0))
+            .height(Length::Fixed(160.0))
+            .align_x(Horizontal::Center)
+            .align_y(Vertical::Center)
+            .build()
+        } else if config.show_menu {
+            // 三个按钮：重命名、添加音乐、删除
+            let rename_btn = button(text(t!("Rename")).size(constants::TEXT_MEDIUM))
+                .on_press(Message::PlaylistCardActionRenameStart(config.path.clone()))
+                .style(|theme: &iced::Theme, status: iced::widget::button::Status| {
+                    let palette = theme.extended_palette();
+                    match status {
+                        iced::widget::button::Status::Hovered => iced::widget::button::Style { background: Some(Background::Color(Color { a: 0.12, ..palette.primary.base.color })), text_color: palette.primary.strong.color, border: Border { radius: Radius::from(8.0), width: 0.0, color: Color::TRANSPARENT }, shadow: Shadow::default() },
+                        _ => iced::widget::button::Style { background: Some(Background::Color(Color::TRANSPARENT)), text_color: palette.primary.strong.color, border: Border { radius: Radius::from(8.0), width: 0.0, color: Color::TRANSPARENT }, shadow: Shadow::default() },
+                    }
+                });
+            let add_btn = button(text(t!("Add Music")).size(constants::TEXT_MEDIUM))
+                .on_press(Message::PlaylistCardActionAddMusic(config.path.clone()))
+                .style(|theme: &iced::Theme, status: iced::widget::button::Status| {
+                    let palette = theme.extended_palette();
+                    match status {
+                        iced::widget::button::Status::Hovered => iced::widget::button::Style { background: Some(Background::Color(Color { a: 0.12, ..palette.primary.base.color })), text_color: palette.primary.strong.color, border: Border { radius: Radius::from(8.0), width: 0.0, color: Color::TRANSPARENT }, shadow: Shadow::default() },
+                        _ => iced::widget::button::Style { background: Some(Background::Color(Color::TRANSPARENT)), text_color: palette.primary.strong.color, border: Border { radius: Radius::from(8.0), width: 0.0, color: Color::TRANSPARENT }, shadow: Shadow::default() },
+                    }
+                });
+            let delete_btn = button(text(t!("Delete")).size(constants::TEXT_MEDIUM))
+                .on_press(Message::PlaylistCardActionDelete(config.path.clone()))
+                .style(|theme: &iced::Theme, status: iced::widget::button::Status| {
+                    let palette = theme.extended_palette();
+                    match status {
+                        iced::widget::button::Status::Hovered => iced::widget::button::Style { background: Some(Background::Color(Color { a: 0.12, ..palette.background.strong.color })), text_color: palette.background.base.text, border: Border { radius: Radius::from(8.0), width: 0.0, color: Color::TRANSPARENT }, shadow: Shadow::default() },
+                        _ => iced::widget::button::Style { background: Some(Background::Color(Color::TRANSPARENT)), text_color: palette.background.base.text, border: Border { radius: Radius::from(8.0), width: 0.0, color: Color::TRANSPARENT }, shadow: Shadow::default() },
+                    }
+                });
+            StyledContainer::new(
+                column![rename_btn, add_btn, delete_btn]
+                    .spacing(constants::SPACING_SMALL)
+                    .width(Length::Fill)
+                    .align_x(Horizontal::Center)
+            )
+            .style(ContainerStyle::Decorative)
+            .width(Length::Fixed(160.0))
+            .height(Length::Fixed(160.0))
+            .align_x(Horizontal::Center)
+            .align_y(Vertical::Center)
+            .build()
+        } else {
                 StyledContainer::new(
-                    svg_icon(icons::CD_ICON, 90.0, if is_selected {
-                        Color { a: 0.9, ..constants::ICON_COLOR }
-                    } else {
-                        constants::ICON_COLOR
-                    })
+                svg_icon(icons::CD_ICON, 90.0, if is_selected { Color { a: 0.9, ..constants::ICON_COLOR } } else { constants::ICON_COLOR })
                 )
                 .style(ContainerStyle::Decorative)
                 .width(Length::Fixed(160.0))
                 .height(Length::Fixed(160.0))
                 .align_x(Horizontal::Center)
                 .align_y(Vertical::Center)
-                .build(),
+            .build()
+        };
                 
+        // 创建卡片内容
+        let card_content = StyledContainer::new(
+            column![
+                top_area,
                 // 播放列表信息
                 column![
                     // 使用一个行布局来实现左右对齐
@@ -146,35 +240,19 @@ impl PlaylistCard {
                             .width(Length::Shrink)
                             .align_x(Horizontal::Right)
                             .build(),
-                        // 右侧的更多操作按钮（暂不绑定事件）
+                        // 右侧的更多操作按钮（切换菜单/图标）
                         {
                             let playlist_path_for_more = config.path.clone();
                             let more_btn = button(text("⋮").shaping(Shaping::Advanced).size(constants::TEXT_LARGE))
                                 .padding(constants::PADDING_SMALL)
-                                //.height(Length::Fixed(32.0))
                                 .width(Length::Fill)
                                 .on_press(Message::PlaylistCardMoreClicked(playlist_path_for_more))
                                 .style(move |theme: &iced::Theme, status: iced::widget::button::Status| {
                                     let palette = theme.extended_palette();
                                     match status {
-                                        iced::widget::button::Status::Hovered => iced::widget::button::Style {
-                                            background: Some(Background::Color(Color { a: 0.12, ..palette.primary.base.color })),
-                                            text_color: palette.primary.strong.color,
-                                            border: Border { radius: Radius::from(6.0), width: 0.0, color: Color::TRANSPARENT },
-                                            shadow: Shadow::default(),
-                                        },
-                                        iced::widget::button::Status::Pressed => iced::widget::button::Style {
-                                            background: Some(Background::Color(Color { a: 0.2, ..palette.primary.base.color })),
-                                            text_color: palette.primary.strong.color,
-                                            border: Border { radius: Radius::from(6.0), width: 0.0, color: Color::TRANSPARENT },
-                                            shadow: Shadow::default(),
-                                        },
-                                        _ => iced::widget::button::Style {
-                                            background: Some(Background::Color(Color::TRANSPARENT)),
-                                            text_color: palette.primary.strong.color,
-                                            border: Border { radius: Radius::from(6.0), width: 0.0, color: Color::TRANSPARENT },
-                                            shadow: Shadow::default(),
-                                        },
+                                        iced::widget::button::Status::Hovered => iced::widget::button::Style { background: Some(Background::Color(Color { a: 0.12, ..palette.primary.base.color })), text_color: palette.primary.strong.color, border: Border { radius: Radius::from(6.0), width: 0.0, color: Color::TRANSPARENT }, shadow: Shadow::default() },
+                                        iced::widget::button::Status::Pressed => iced::widget::button::Style { background: Some(Background::Color(Color { a: 0.2, ..palette.primary.base.color })), text_color: palette.primary.strong.color, border: Border { radius: Radius::from(6.0), width: 0.0, color: Color::TRANSPARENT }, shadow: Shadow::default() },
+                                        _ => iced::widget::button::Style { background: Some(Background::Color(Color::TRANSPARENT)), text_color: palette.primary.strong.color, border: Border { radius: Radius::from(6.0), width: 0.0, color: Color::TRANSPARENT }, shadow: Shadow::default() },
                                     }
                                 });
                             StyledContainer::new(more_btn)
@@ -345,6 +423,24 @@ impl PlaylistCardBuilder {
     /// 设置卡片高度
     pub fn height(mut self, height: f32) -> Self {
         self.config.height = height;
+        self
+    }
+
+    /// 设置是否显示更多菜单
+    pub fn show_menu(mut self, show: bool) -> Self {
+        self.config.show_menu = show;
+        self
+    }
+
+    /// 设置是否处于重命名模式
+    pub fn renaming(mut self, renaming: bool) -> Self {
+        self.config.renaming = renaming;
+        self
+    }
+
+    /// 设置重命名输入中的名称
+    pub fn renaming_name<S: Into<String>>(mut self, name: S) -> Self {
+        self.config.renaming_name = name.into();
         self
     }
 

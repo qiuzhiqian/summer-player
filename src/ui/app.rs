@@ -22,7 +22,7 @@ use crate::audio::{AudioInfo, PlaybackState, PlaybackCommand, start_audio_playba
 use crate::audio::file::estimate_duration_by_parsing;
 use crate::playlist::{Playlist, PlaylistManager, PlaylistExtraInfo};
 use crate::lyrics::Lyrics;
-use crate::utils::is_m3u_playlist;
+use crate::utils::{is_m3u_playlist, is_supported_audio_file};
 use crate::config::AppConfig;
 use super::Message;
 use super::components::*;
@@ -72,6 +72,12 @@ pub struct PlayerApp {
     creating_playlist: bool,
     /// 创建播放列表的名称
     creating_playlist_name: String,
+    /// 卡片菜单显示的播放列表路径（None为全部隐藏）
+    menu_playlist_path: Option<String>,
+    /// 当前正在重命名的播放列表路径
+    renaming_playlist_path: Option<String>,
+    /// 重命名输入内容
+    renaming_playlist_name: String,
 }
 
 impl Default for PlayerApp {
@@ -95,11 +101,94 @@ impl Default for PlayerApp {
             app_config: AppConfig::default(),
             creating_playlist: false,
             creating_playlist_name: String::new(),
+            menu_playlist_path: None,
+            renaming_playlist_path: None,
+            renaming_playlist_name: String::new(),
         }
     }
 }
 
 impl PlayerApp {
+    fn handle_playlist_card_more_clicked(&mut self, playlist_path: String) -> Task<Message> {
+        // 切换菜单显示/隐藏
+        if self.menu_playlist_path.as_deref() == Some(playlist_path.as_str()) {
+            self.menu_playlist_path = None;
+        } else {
+            self.menu_playlist_path = Some(playlist_path);
+            // 退出重命名状态
+            self.renaming_playlist_path = None;
+            self.renaming_playlist_name.clear();
+        }
+        Task::none()
+    }
+
+    fn handle_playlist_card_rename_start(&mut self, playlist_path: String) -> Task<Message> {
+        // 进入重命名模式
+        let default_name = std::path::Path::new(&playlist_path)
+            .file_stem()
+            .and_then(|s| s.to_str())
+            .unwrap_or("")
+            .to_string();
+        self.renaming_playlist_path = Some(playlist_path);
+        self.renaming_playlist_name = default_name;
+        Task::none()
+    }
+
+    fn handle_playlist_card_rename_confirm(&mut self) -> Task<Message> {
+        let Some(old_path_ref) = self.renaming_playlist_path.as_ref() else { return Task::none(); };
+        let old_path = old_path_ref.clone();
+        let new_name = self.renaming_playlist_name.trim().to_string();
+        if new_name.is_empty() { return Task::none(); }
+        match self.playlist_manager.rename_playlist(&old_path, &new_name) {
+            Ok(new_path) => {
+                // 清理状态并刷新选择
+                self.renaming_playlist_path = None;
+                self.renaming_playlist_name.clear();
+                // 同时关闭菜单
+                self.menu_playlist_path = None;
+                // 若当前显示该播放列表，更新为新路径
+                if self.playlist_manager.current_playlist_path().is_some() {
+                    if self.playlist_manager.current_playlist_path() == Some(old_path.as_str()) {
+                        self.handle_playlist_card_toggled(new_path)
+                    } else { Task::none() }
+                } else { Task::none() }
+            }
+            Err(e) => { eprintln!("重命名失败: {}", e); Task::none() }
+        }
+    }
+
+    fn handle_playlist_card_delete(&mut self, playlist_path: String) -> Task<Message> {
+        if let Err(e) = self.playlist_manager.delete_playlist(&playlist_path) {
+            eprintln!("删除播放列表失败: {}", e);
+        }
+        // 关闭菜单与重命名
+        if self.menu_playlist_path.as_deref() == Some(playlist_path.as_str()) { self.menu_playlist_path = None; }
+        if self.renaming_playlist_path.as_deref() == Some(playlist_path.as_str()) { self.renaming_playlist_path = None; self.renaming_playlist_name.clear(); }
+        Task::none()
+    }
+
+    fn handle_playlist_card_add_music(&mut self, playlist_path: String) -> Task<Message> {
+        // 先关闭编辑菜单以恢复卡片为图标模式
+        self.menu_playlist_path = None;
+        // 打开文件对话框（仅音频，多选），回传所选文件
+        Task::perform(open_audio_only_files_dialog(), move |files| Message::PlaylistAddMusicFilesSelected(playlist_path.clone(), files))
+    }
+
+    fn handle_playlist_add_music_files_selected(&mut self, playlist_path: String, file_paths: Vec<String>) -> Task<Message> {
+        if file_paths.is_empty() { return Task::none(); }
+        // 过滤支持的音频格式并排除m3u
+        let valid_files: Vec<String> = file_paths
+            .into_iter()
+            .filter(|p| !is_m3u_playlist(p) && is_supported_audio_file(p))
+            .collect();
+        if valid_files.is_empty() { return Task::none(); }
+        if let Err(e) = self.playlist_manager.append_files_to_playlist(&playlist_path, &valid_files) {
+            eprintln!("添加音乐失败: {}", e);
+        }
+        // 关闭菜单
+        if self.menu_playlist_path.as_deref() == Some(playlist_path.as_str()) { self.menu_playlist_path = None; }
+        Task::none()
+    }
     /// 创建新的应用程序实例
     pub fn new(initial_file: Option<String>, current_language: String) -> (Self, Task<Message>) {
         // 加载配置
@@ -167,10 +256,14 @@ impl PlayerApp {
             Message::MultipleAudioFilesSelected(file_paths) => self.handle_multiple_audio_files_selected(file_paths),
             Message::PlaylistItemSelected(index) => self.handle_playlist_item_selected(index),
             Message::PlaylistCardToggled(playlist_path) => self.handle_playlist_card_toggled(playlist_path),
-            Message::PlaylistCardMoreClicked(_playlist_path) => {
-                // 预留：后续在这里弹出编辑菜单
-                Task::none()
-            }
+            Message::PlaylistCardMoreClicked(playlist_path) => self.handle_playlist_card_more_clicked(playlist_path),
+            Message::PlaylistCardActionRenameStart(playlist_path) => self.handle_playlist_card_rename_start(playlist_path),
+            Message::PlaylistCardRenameNameChanged(name) => { self.renaming_playlist_name = name; Task::none() },
+            Message::PlaylistCardRenameConfirm => self.handle_playlist_card_rename_confirm(),
+            Message::PlaylistCardRenameCancel => { self.renaming_playlist_path = None; self.renaming_playlist_name.clear(); Task::none() },
+            Message::PlaylistCardActionDelete(playlist_path) => self.handle_playlist_card_delete(playlist_path),
+            Message::PlaylistCardActionAddMusic(playlist_path) => self.handle_playlist_card_add_music(playlist_path),
+            Message::PlaylistAddMusicFilesSelected(playlist_path, files) => self.handle_playlist_add_music_files_selected(playlist_path, files),
             Message::StartCreatePlaylist => { self.creating_playlist = true; Task::none() },
             Message::CreatePlaylistNameChanged(name) => { self.creating_playlist_name = name; Task::none() },
             Message::ConfirmCreatePlaylist => self.handle_confirm_create_playlist(),
@@ -208,7 +301,7 @@ impl PlayerApp {
             PageType::Home => {
                 // 左侧面板：播放列表文件网格视图（自适应宽度和高度）
                 let left_panel = column![
-                    playlist_files_grid_view(&self.playlist_manager, self.creating_playlist, &self.creating_playlist_name),
+                    playlist_files_grid_view(&self.playlist_manager, self.creating_playlist, &self.creating_playlist_name, self.menu_playlist_path.as_deref(), self.renaming_playlist_path.as_deref(), &self.renaming_playlist_name),
                 ].spacing(16)
                  .width(Length::Fill)
                  .height(Length::Fill);
@@ -300,7 +393,7 @@ impl PlayerApp {
 
         StyledContainer::new(
             column![
-                container(top_row).width(Length::Fill).height(Length::Fill),
+                container(top_row).padding([0_u16, constants::PADDING_MEDIUM]).width(Length::Fill).height(Length::Fill),
                 container(thin_progress_view(&self.playback_state)).padding([0_u16, constants::PADDING_MEDIUM]).height(Length::Fixed(8.0)).width(Length::Fill),
                 bottom_bar,
             ]
@@ -1050,7 +1143,7 @@ impl PlayerApp {
     fn create_home_page(&self) -> Element<Message> {
         // 左侧面板：播放列表文件网格视图（自适应宽度和高度）
         let left_panel = column![
-            playlist_files_grid_view(&self.playlist_manager, self.creating_playlist, &self.creating_playlist_name),
+            playlist_files_grid_view(&self.playlist_manager, self.creating_playlist, &self.creating_playlist_name, self.menu_playlist_path.as_deref(), self.renaming_playlist_path.as_deref(), &self.renaming_playlist_name),
         ].spacing(16)
          .width(Length::Fill)
          .height(Length::Fill); // 确保填满可用高度
@@ -1215,6 +1308,21 @@ async fn open_audio_files_dialog() -> Vec<String> {
         .await;
     
     files.map(|files_vec| 
+        files_vec.into_iter()
+            .map(|f| f.path().to_string_lossy().to_string())
+            .collect()
+    ).unwrap_or_default()
+}
+
+/// 打开仅限音频文件的多选对话框
+async fn open_audio_only_files_dialog() -> Vec<String> {
+    let files = rfd::AsyncFileDialog::new()
+        .add_filter("Audio Files", &["mp3", "flac", "wav", "ogg", "aac", "m4a", "m4s", "wma", "opus"])
+        .add_filter("All Files", &["*"])
+        .pick_files()
+        .await;
+
+    files.map(|files_vec|
         files_vec.into_iter()
             .map(|f| f.path().to_string_lossy().to_string())
             .collect()

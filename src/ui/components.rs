@@ -3,7 +3,7 @@
 //! 包含可重用的UI组件和通用样式。
 
 use iced::{
-    widget::{column, row, text, slider, scrollable, Space, container, tooltip, svg, text_input, button},
+    widget::{column, row, text, slider, scrollable, Space, container, tooltip, svg},
     Element, Length, Border, Shadow, Background, Color,
     alignment::{Horizontal, Vertical},
     border::Radius,
@@ -293,7 +293,6 @@ pub fn navigation_sidebar(current_page: &PageType) -> Element<'static, Message> 
             StyledContainer::new(
                 column![
                     text("🎵").size(constants::TEXT_TITLE).shaping(Shaping::Advanced),
-                    text("Summer").size(constants::TEXT_SMALL).style(alpha_text_style(0.7)),
                 ].align_x(Horizontal::Center).spacing(4)
             ).width(Length::Fill).align_x(Horizontal::Center).padding(constants::PADDING_SMALL).build(),
         ]
@@ -954,6 +953,9 @@ pub fn playlist_files_grid_view(
     playlist_manager: &crate::playlist::PlaylistManager,
     creating: bool,
     creating_name: &str,
+    menu_playlist_path: Option<&str>,
+    renaming_playlist_path: Option<&str>,
+    renaming_playlist_name: &str,
 ) -> Element<'static, Message> {
     // 从PlaylistManager获取播放列表文件信息
     let playlist_infos = get_playlist_files_info_from_manager(playlist_manager);
@@ -973,6 +975,9 @@ pub fn playlist_files_grid_view(
             .name(playlist_info.name.clone())
             .song_count(playlist_info.song_count)
             .selected(is_selected)
+            .show_menu(menu_playlist_path == Some(playlist_info.path.as_str()))
+            .renaming(renaming_playlist_path == Some(playlist_info.path.as_str()))
+            .renaming_name(renaming_playlist_name)
             .width(170.0)
             .height(240.0)
             .build();

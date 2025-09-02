@@ -973,6 +973,65 @@ impl PlaylistManager {
 
         Ok(full_path_str)
     }
+
+    /// 通过重命名文件来重命名播放列表，并更新缓存键
+    pub fn rename_playlist(&mut self, old_path: &str, new_name: &str) -> Result<String> {
+        let old = PathBuf::from(old_path);
+        if !old.exists() {
+            return Err(PlayerError::PlaylistError("Playlist file not found".to_string()));
+        }
+        let parent = old.parent().ok_or_else(|| PlayerError::PlaylistError("Invalid playlist path".to_string()))?;
+        let mut base = new_name.trim();
+        if base.is_empty() { base = "New Playlist"; }
+        let mut candidate = parent.join(format!("{}.m3u", base));
+        let mut counter = 1usize;
+        while candidate.exists() {
+            candidate = parent.join(format!("{} ({}).m3u", base, counter));
+            counter += 1;
+        }
+        fs::rename(&old, &candidate).map_err(|e| PlayerError::IoError(e))?;
+        let new_path = candidate.to_string_lossy().to_string();
+        let _ = self.playlists.remove(old_path);
+        // 重新加载，确保名称等信息更新
+        if let Ok(new_pl) = Playlist::create_from_playlist_file(new_path.clone()) {
+            self.playlists.insert(new_path.clone(), new_pl);
+        }
+        if self.current_playlist_path.as_deref() == Some(old_path) {
+            self.current_playlist_path = Some(new_path.clone());
+        }
+        Ok(new_path)
+    }
+
+    /// 删除播放列表文件并从缓存中移除
+    pub fn delete_playlist(&mut self, playlist_path: &str) -> Result<()> {
+        let path = PathBuf::from(playlist_path);
+        if path.exists() {
+            fs::remove_file(&path).map_err(|e| PlayerError::IoError(e))?;
+        }
+        self.remove_playlist(playlist_path);
+        Ok(())
+    }
+
+    /// 追加文件到指定的m3u播放列表文件，并更新缓存
+    pub fn append_files_to_playlist(&mut self, playlist_path: &str, files: &[String]) -> Result<()> {
+        if files.is_empty() { return Ok(()); }
+        // 只支持持久播放列表
+        let mut file = std::fs::OpenOptions::new()
+            .append(true)
+            .create(false)
+            .open(playlist_path)
+            .map_err(|e| PlayerError::IoError(e))?;
+        use std::io::Write;
+        for f in files {
+            // 写入相对路径或绝对路径，保持简单使用绝对路径
+            writeln!(file, "{}", f).map_err(|e| PlayerError::IoError(e))?;
+        }
+        // 刷新缓存中的该播放列表
+        if let Ok(pl) = Playlist::create_from_playlist_file(playlist_path.to_string()) {
+            self.playlists.insert(playlist_path.to_string(), pl);
+        }
+        Ok(())
+    }
 }
 
 #[cfg(test)]
