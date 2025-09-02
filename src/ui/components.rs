@@ -274,9 +274,9 @@ impl PlayMode {
 pub fn navigation_sidebar(current_page: &PageType) -> Element<'static, Message> {
     let nav_button = |icon: &'static str, label: String, page: PageType, is_active: bool| {
         let style = if is_active { 
-            super::widgets::styled_button::ButtonStyle::Control
+            super::widgets::styled_button::ButtonStyle::Primary
         } else { 
-            super::widgets::styled_button::ButtonStyle::File
+            super::widgets::styled_button::ButtonStyle::Control
         };
         IconButton::new(icon, label)
             .on_press(Message::PageChanged(page))
