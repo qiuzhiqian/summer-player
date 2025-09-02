@@ -167,6 +167,10 @@ impl PlayerApp {
             Message::MultipleAudioFilesSelected(file_paths) => self.handle_multiple_audio_files_selected(file_paths),
             Message::PlaylistItemSelected(index) => self.handle_playlist_item_selected(index),
             Message::PlaylistCardToggled(playlist_path) => self.handle_playlist_card_toggled(playlist_path),
+            Message::PlaylistCardMoreClicked(_playlist_path) => {
+                // 预留：后续在这里弹出编辑菜单
+                Task::none()
+            }
             Message::StartCreatePlaylist => { self.creating_playlist = true; Task::none() },
             Message::CreatePlaylistNameChanged(name) => { self.creating_playlist_name = name; Task::none() },
             Message::ConfirmCreatePlaylist => self.handle_confirm_create_playlist(),

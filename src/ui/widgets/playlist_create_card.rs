@@ -126,7 +126,7 @@ impl CreatePlaylistCard {
         )
         .style(ContainerStyle::Card)
         .width(Length::Fixed(170.0))
-        .height(Length::Fixed(230.0))
+        .height(Length::Fixed(240.0))
         .align_x(Horizontal::Center)
         .align_y(Vertical::Center)
         .padding([constants::PADDING_MEDIUM, constants::PADDING_SMALL])

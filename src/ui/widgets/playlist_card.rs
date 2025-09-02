@@ -8,7 +8,7 @@ use iced::{
     alignment::{Horizontal, Vertical},
     border::Radius,
 };
-
+use iced::advanced::text::Shaping;
 use crate::ui::Message;
 use crate::ui::components::{constants, icons, svg_icon};
 use crate::ui::widgets::{StyledContainer, styled_container::ContainerStyle};
@@ -39,7 +39,7 @@ impl Default for PlaylistCardConfig {
             song_count: 0,
             is_selected: false,
             width: 170.0,
-            height: 230.0,
+            height: 240.0,
         }
     }
 }
@@ -145,7 +145,44 @@ impl PlaylistCard {
                             .style(ContainerStyle::Transparent)
                             .width(Length::Shrink)
                             .align_x(Horizontal::Right)
-                            .build()
+                            .build(),
+                        // 右侧的更多操作按钮（暂不绑定事件）
+                        {
+                            let playlist_path_for_more = config.path.clone();
+                            let more_btn = button(text("⋮").shaping(Shaping::Advanced).size(constants::TEXT_LARGE))
+                                .padding(constants::PADDING_SMALL)
+                                //.height(Length::Fixed(32.0))
+                                .width(Length::Fill)
+                                .on_press(Message::PlaylistCardMoreClicked(playlist_path_for_more))
+                                .style(move |theme: &iced::Theme, status: iced::widget::button::Status| {
+                                    let palette = theme.extended_palette();
+                                    match status {
+                                        iced::widget::button::Status::Hovered => iced::widget::button::Style {
+                                            background: Some(Background::Color(Color { a: 0.12, ..palette.primary.base.color })),
+                                            text_color: palette.primary.strong.color,
+                                            border: Border { radius: Radius::from(6.0), width: 0.0, color: Color::TRANSPARENT },
+                                            shadow: Shadow::default(),
+                                        },
+                                        iced::widget::button::Status::Pressed => iced::widget::button::Style {
+                                            background: Some(Background::Color(Color { a: 0.2, ..palette.primary.base.color })),
+                                            text_color: palette.primary.strong.color,
+                                            border: Border { radius: Radius::from(6.0), width: 0.0, color: Color::TRANSPARENT },
+                                            shadow: Shadow::default(),
+                                        },
+                                        _ => iced::widget::button::Style {
+                                            background: Some(Background::Color(Color::TRANSPARENT)),
+                                            text_color: palette.primary.strong.color,
+                                            border: Border { radius: Radius::from(6.0), width: 0.0, color: Color::TRANSPARENT },
+                                            shadow: Shadow::default(),
+                                        },
+                                    }
+                                });
+                            StyledContainer::new(more_btn)
+                                .style(ContainerStyle::Transparent)
+                                .width(Length::Fixed(32.0))
+                                .align_x(Horizontal::Right)
+                                .build()
+                        }
                     ]
                     .spacing(6)
                     .width(Length::Fill)

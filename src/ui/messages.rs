@@ -21,6 +21,8 @@ pub enum Message {
     PlaylistItemSelected(usize),
     /// 播放列表卡片选中切换（用于视觉选中效果）
     PlaylistCardToggled(String),
+    /// 播放列表卡片的更多菜单按钮被点击（占位，后续实现）
+    PlaylistCardMoreClicked(String),
 
     /// 开始创建播放列表（显示输入框）
     StartCreatePlaylist,

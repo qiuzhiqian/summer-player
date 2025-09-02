@@ -974,7 +974,7 @@ pub fn playlist_files_grid_view(
             .song_count(playlist_info.song_count)
             .selected(is_selected)
             .width(170.0)
-            .height(230.0)
+            .height(240.0)
             .build();
         
         current_row.push(playlist_card);
