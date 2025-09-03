@@ -386,37 +386,19 @@ pub fn settings_page(current_theme: &AppThemeVariant, current_language: &str) ->
                     .style(super::widgets::styled_text::TextStyle::Secondary)
                     .build(),
                 StyledContainer::new(
-                    column![
-                        row![
-                            StyledText::new("Config File").size(constants::TEXT_MEDIUM)
-                                .width(Length::Fixed(150.0))
-                                .build(),
-                            {
-                                let config_path = crate::config::AppConfig::get_config_path_string();
-                                let truncated_path = if config_path.len() > 50 {
-                                    format!("...{}", &config_path[config_path.len().saturating_sub(47)..])
-                                } else {
-                                    config_path
-                                };
-                                StyledText::new(truncated_path).size(constants::TEXT_SMALL)
-                                    .style(super::widgets::styled_text::TextStyle::WithAlpha(0.7))
-                                    .build()
-                            }
-                        ].align_y(Vertical::Center).spacing(constants::SPACING_MEDIUM),
-                        row![
-                            StyledText::new("Reset Settings").size(constants::TEXT_MEDIUM)
-                                .width(Length::Fixed(150.0))
-                                .build(),
-                            StyledButton::new(
-                                StyledText::new("Reset to Default").size(constants::TEXT_NORMAL).build()
-                            )
-                            .on_press(Message::ResetConfig)
-                            .button_type(super::widgets::styled_button::ButtonType::Default)
-                            .color(super::widgets::styled_button::ButtonColor::Primary)
-                            .padding(constants::PADDING_SMALL)
-                            .build()
-                        ].align_y(Vertical::Center).spacing(constants::SPACING_MEDIUM),
-                    ].spacing(constants::SPACING_MEDIUM).padding(constants::PADDING_SMALL)
+                    row![
+                        StyledText::new("Reset Settings").size(constants::TEXT_MEDIUM)
+                            .width(Length::Fixed(150.0))
+                            .build(),
+                        StyledButton::new(
+                            StyledText::new("Reset to Default").size(constants::TEXT_NORMAL).build()
+                        )
+                        .on_press(Message::ResetConfig)
+                        .button_type(super::widgets::styled_button::ButtonType::Default)
+                        .color(super::widgets::styled_button::ButtonColor::Primary)
+                        .padding(constants::PADDING_SMALL)
+                        .build()
+                    ].align_y(Vertical::Center).spacing(constants::SPACING_MEDIUM),
                 )
                 .style(super::widgets::styled_container::ContainerStyle::Card)
                 .padding(constants::PADDING_MEDIUM)

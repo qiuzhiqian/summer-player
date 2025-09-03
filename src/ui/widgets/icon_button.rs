@@ -66,22 +66,22 @@ impl IconButton {
     /// 构建图标按钮元素
     pub fn build(self) -> Element<'static, Message> {
         let icon_handle = svg::Handle::from_memory(self.icon.as_bytes().to_vec());
+        let button_type = self.button_type;
         let icon_svg = svg(icon_handle)
             .width(Length::Fixed(self.icon_size))
             .height(Length::Fixed(self.icon_size))
-            .style(|theme: &iced::Theme, _status: svg::Status| {
+            .style(move |theme: &iced::Theme, _status: svg::Status| {
                 // 在深色模式下使用更亮的颜色
                 let is_dark_theme = {
                     let bg = theme.extended_palette().background.base.color;
                     bg.r + bg.g + bg.b < 1.5
                 };
-                
+                // Primary 在浅色主题下使用纯白图标，保证在近似蓝色背景上对比清晰
+                if matches!(button_type, crate::ui::widgets::styled_button::ButtonType::Primary) && !is_dark_theme {
+                    return svg::Style { color: Some(Color::WHITE) };
+                }
                 svg::Style { 
-                    color: Some(if is_dark_theme {
-                        Color { r: 0.8, g: 0.8, b: 0.8, a: 1.0 }  // 更亮的图标颜色
-                    } else {
-                        Color { r: 0.4, g: 0.4, b: 0.4, a: 0.9 }
-                    })
+                    color: Some(if is_dark_theme { Color { r: 0.8, g: 0.8, b: 0.8, a: 1.0 } } else { Color { r: 0.4, g: 0.4, b: 0.4, a: 0.9 } })
                 }
             });
 
