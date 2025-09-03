@@ -14,41 +14,56 @@ use iced::{
 };
 
 use crate::ui::Message;
-use crate::ui::theme::AppTheme;
+use crate::ui::theme::AppColors;
 
 /// 样式化按钮组件
 pub struct StyledButton {
     content: Element<'static, Message>,
-    style: ButtonStyle,
+    button_type: ButtonType,
+    color: ButtonColor,
+    style_override: Option<Box<dyn Fn(&iced::Theme, iced::widget::button::Status) -> iced::widget::button::Style + 'static>>,
     width: Length,
     height: Length,
     on_press: Option<Message>,
     padding: u16,
 }
 
-/// 按钮样式类型
+/// 按钮类型（参考 Ant Design）
 #[derive(Debug, Clone, Copy, PartialEq)]
-pub enum ButtonStyle {
-    /// 主按钮（播放按钮）
-    Primary,
-    /// 控制按钮（上一首、下一首等）
-    Control,
-    /// 文件按钮（打开文件等）
-    File,
-    /// 播放列表项按钮
-    PlaylistItem { is_playing: bool, is_current: bool },
-    /// 主题切换按钮
-    ThemeToggle,
-    /// 视图切换按钮
-    ViewToggle,
+pub enum ButtonType { Primary, Dashed, Link, Text, Default }
+
+impl Default for ButtonType { fn default() -> Self { ButtonType::Default } }
+
+/// 预设颜色（参考 Ant Design）
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum PresetColor {
+    Magenta,
+    Red,
+    Volcano,
+    Orange,
+    Gold,
+    Lime,
+    Green,
+    Cyan,
+    Blue,
+    GeekBlue,
+    Purple,
 }
+
+/// 按钮颜色（参考 Ant Design）
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum ButtonColor { Default, Primary, Danger, Preset(PresetColor) }
+
+impl Default for ButtonColor { fn default() -> Self { ButtonColor::Default } }
 
 impl StyledButton {
     /// 创建新的样式化按钮
     pub fn new(content: impl Into<Element<'static, Message>>) -> Self {
         Self {
             content: content.into(),
-            style: ButtonStyle::Primary,
+            button_type: ButtonType::Default,
+            color: ButtonColor::Default,
+            style_override: None,
             width: Length::Shrink,
             height: Length::Shrink,
             on_press: None,
@@ -56,9 +71,18 @@ impl StyledButton {
         }
     }
 
-    /// 设置按钮样式
-    pub fn style(mut self, style: ButtonStyle) -> Self {
-        self.style = style;
+    /// 设置按钮类型
+    pub fn button_type(mut self, button_type: ButtonType) -> Self { self.button_type = button_type; self }
+
+    /// 设置按钮颜色
+    pub fn color(mut self, color: ButtonColor) -> Self { self.color = color; self }
+
+    /// 提供自定义样式（将覆盖类型+颜色的默认渲染）
+    pub fn style_override(
+        mut self,
+        f: impl 'static + Fn(&iced::Theme, iced::widget::button::Status) -> iced::widget::button::Style,
+    ) -> Self {
+        self.style_override = Some(Box::new(f));
         self
     }
 
@@ -88,14 +112,15 @@ impl StyledButton {
 
     /// 构建按钮元素
     pub fn build(self) -> Element<'static, Message> {
-        let style_fn = self.get_style_fn();
-        let button_widget = button(self.content)
+        let StyledButton { content, button_type, color, style_override, width, height, on_press, padding } = self;
+        let style_fn = Self::resolve_style_fn(button_type, color, style_override);
+        let button_widget = button(content)
             .style(style_fn)
-            .width(self.width)
-            .height(self.height)
-            .padding(self.padding);
+            .width(width)
+            .height(height)
+            .padding(padding);
 
-        if let Some(msg) = self.on_press {
+        if let Some(msg) = on_press {
             button_widget.on_press(msg)
         } else {
             button_widget
@@ -103,563 +128,190 @@ impl StyledButton {
     }
 
     /// 获取对应样式的函数
-    fn get_style_fn(&self) -> Box<dyn Fn(&iced::Theme, iced::widget::button::Status) -> iced::widget::button::Style> {
-        match self.style {
-            ButtonStyle::Primary => Box::new(AppTheme::play_button()),
-            ButtonStyle::Control => Box::new(AppTheme::control_button()),
-            ButtonStyle::File => Box::new(AppTheme::file_button()),
-            ButtonStyle::PlaylistItem { is_playing, is_current } => Box::new(AppTheme::playlist_item_button(is_playing, is_current)),
-            ButtonStyle::ThemeToggle => Box::new(AppTheme::theme_toggle_button()),
-            ButtonStyle::ViewToggle => Box::new(AppTheme::view_toggle_button()),
+    fn resolve_style_fn(
+        button_type: ButtonType,
+        color: ButtonColor,
+        style_override: Option<Box<dyn Fn(&iced::Theme, iced::widget::button::Status) -> iced::widget::button::Style + 'static>>,
+    ) -> Box<dyn Fn(&iced::Theme, iced::widget::button::Status) -> iced::widget::button::Style + 'static> {
+        if let Some(custom) = style_override {
+            return Box::new(move |theme, status| (custom)(theme, status));
         }
-    }
-}
 
-/// 主按钮样式（播放按钮）
-fn primary_button_style(theme: &iced::Theme, status: iced::widget::button::Status) -> iced::widget::button::Style {
-    let palette = theme.extended_palette();
-    let primary = palette.primary.base.color;
-    
-    // 进一步淡化主色调，降低饱和度和亮度
-    let muted_primary = Color {
-        r: primary.r * 0.75,
-        g: primary.g * 0.75,
-        b: primary.b * 0.8,
-        a: 0.8, // 进一步降低不透明度
-    };
-    
-    match status {
-        iced::widget::button::Status::Active => iced::widget::button::Style {
-            background: Some(Background::Color(muted_primary)),
-            text_color: Color::WHITE,
-            border: Border {
-                radius: Radius::from(20.0),
-                width: 1.0,
-                color: Color {
-                    a: 0.3,
-                    ..Color::WHITE
-                },
-            },
-            shadow: Shadow {
-                color: Color::from_rgba(muted_primary.r, muted_primary.g, muted_primary.b, 0.25),
-                offset: iced::Vector::new(0.0, 4.0),
-                blur_radius: 12.0,
-            },
-            snap: false,
-        },
-        iced::widget::button::Status::Hovered => iced::widget::button::Style {
-            background: Some(Background::Color(Color {
-                r: (muted_primary.r * 1.1).min(1.0),
-                g: (muted_primary.g * 1.1).min(1.0),
-                b: (muted_primary.b * 1.1).min(1.0),
-                a: 0.9,
-            })),
-            text_color: Color::WHITE,
-            border: Border {
-                radius: Radius::from(20.0),
-                width: 1.0,
-                color: Color {
-                    a: 0.5,
-                    ..Color::WHITE
-                },
-            },
-            shadow: Shadow {
-                color: Color::from_rgba(muted_primary.r, muted_primary.g, muted_primary.b, 0.35),
-                offset: iced::Vector::new(0.0, 6.0),
-                blur_radius: 16.0,
-            },
-            snap: false,
-        },
-        iced::widget::button::Status::Pressed => iced::widget::button::Style {
-            background: Some(Background::Color(Color {
-                r: muted_primary.r * 0.8,
-                g: muted_primary.g * 0.8,
-                b: muted_primary.b * 0.85,
-                a: 0.9,
-            })),
-            text_color: Color::WHITE,
-            border: Border {
-                radius: Radius::from(20.0),
-                width: 1.0,
-                color: Color {
-                    a: 0.4,
-                    ..Color::WHITE
-                },
-            },
-            shadow: Shadow {
-                color: Color::from_rgba(muted_primary.r, muted_primary.g, muted_primary.b, 0.15),
-                offset: iced::Vector::new(0.0, 2.0),
-                blur_radius: 6.0,
-            },
-            snap: false,
-        },
-        iced::widget::button::Status::Disabled => iced::widget::button::Style {
-            background: Some(Background::Color(palette.background.weak.color)),
-            text_color: palette.background.weak.text,
-            border: Border {
-                radius: Radius::from(20.0),
-                width: 1.0,
-                color: palette.background.strong.color,
-            },
-            shadow: Shadow::default(),
-            snap: false,
-        },
-    }
-}
+        Box::new(move |theme: &iced::Theme, status: iced::widget::button::Status| {
+            let base_text = theme.extended_palette().background.base.text;
+            let neutral_border = AppColors::border(theme);
+            let neutral_bg = AppColors::surface(theme);
+            let disabled_bg = theme.extended_palette().background.weak.color;
+            let disabled_text = theme.extended_palette().background.weak.text;
 
-/// 控制按钮样式（上一首、下一首等）
-fn control_button_style(theme: &iced::Theme, status: iced::widget::button::Status) -> iced::widget::button::Style {
-    let palette = theme.extended_palette();
-    let secondary = palette.secondary.base.color;
-    
-    match status {
-        iced::widget::button::Status::Active => iced::widget::button::Style {
-            background: Some(Background::Color(Color {
-                a: 0.85,
-                ..secondary
-            })),
-            text_color: Color::WHITE,
-            border: Border {
-                radius: Radius::from(20.0),
-                width: 1.0,
-                color: Color {
-                    a: 0.3,
-                    ..Color::WHITE
-                },
-            },
-            shadow: Shadow {
-                color: Color::from_rgba(secondary.r, secondary.g, secondary.b, 0.3),
-                offset: iced::Vector::new(0.0, 4.0),
-                blur_radius: 12.0,
-            },
-            snap: false,
-        },
-        iced::widget::button::Status::Hovered => iced::widget::button::Style {
-            background: Some(Background::Color(secondary)),
-            text_color: Color::WHITE,
-            border: Border {
-                radius: Radius::from(20.0),
-                width: 1.0,
-                color: Color {
-                    a: 0.5,
-                    ..Color::WHITE
-                },
-            },
-            shadow: Shadow {
-                color: Color::from_rgba(secondary.r, secondary.g, secondary.b, 0.4),
-                offset: iced::Vector::new(0.0, 6.0),
-                blur_radius: 16.0,
-            },
-            snap: false,
-        },
-        iced::widget::button::Status::Pressed => iced::widget::button::Style {
-            background: Some(Background::Color(Color {
-                r: secondary.r * 0.85,
-                g: secondary.g * 0.85,
-                b: secondary.b * 0.85,
-                a: 1.0,
-            })),
-            text_color: Color::WHITE,
-            border: Border {
-                radius: Radius::from(20.0),
-                width: 1.0,
-                color: Color {
-                    a: 0.4,
-                    ..Color::WHITE
-                },
-            },
-            shadow: Shadow {
-                color: Color::from_rgba(secondary.r, secondary.g, secondary.b, 0.2),
-                offset: iced::Vector::new(0.0, 2.0),
-                blur_radius: 6.0,
-            },
-            snap: false,
-        },
-        iced::widget::button::Status::Disabled => iced::widget::button::Style {
-            background: Some(Background::Color(palette.background.weak.color)),
-            text_color: palette.background.weak.text,
-            border: Border {
-                radius: Radius::from(20.0),
-                width: 1.0,
-                color: palette.background.strong.color,
-            },
-            shadow: Shadow::default(),
-            snap: false,
-        },
-    }
-}
+            let accent = match color {
+                ButtonColor::Default => AppColors::primary(theme),
+                ButtonColor::Primary => AppColors::primary(theme),
+                ButtonColor::Danger => theme.extended_palette().danger.base.color,
+                ButtonColor::Preset(p) => preset_to_color(theme, p),
+            };
 
-/// 文件按钮样式（打开文件等）
-fn file_button_style(theme: &iced::Theme, status: iced::widget::button::Status) -> iced::widget::button::Style {
-    let palette = theme.extended_palette();
-    let primary = palette.primary.base.color;
-    
-    match status {
-        iced::widget::button::Status::Active => iced::widget::button::Style {
-            background: Some(Background::Color(Color {
-                a: 0.1,
-                ..primary
-            })),
-            text_color: primary,
-            border: Border {
-                radius: Radius::from(16.0),
-                width: 1.5,
-                color: Color {
-                    a: 0.35,
-                    ..primary
-                },
-            },
-            shadow: Shadow {
-                color: Color::from_rgba(primary.r, primary.g, primary.b, 0.15),
-                offset: iced::Vector::new(0.0, 4.0),
-                blur_radius: 12.0,
-            },
-            snap: false,
-        },
-        iced::widget::button::Status::Hovered => iced::widget::button::Style {
-            background: Some(Background::Color(Color {
-                a: 0.15,
-                ..primary
-            })),
-            text_color: primary,
-            border: Border {
-                radius: Radius::from(16.0),
-                width: 1.5,
-                color: Color {
-                    a: 0.55,
-                    ..primary
-                },
-            },
-            shadow: Shadow {
-                color: Color::from_rgba(primary.r, primary.g, primary.b, 0.25),
-                offset: iced::Vector::new(0.0, 6.0),
-                blur_radius: 16.0,
-            },
-            snap: false,
-        },
-        iced::widget::button::Status::Pressed => iced::widget::button::Style {
-            background: Some(Background::Color(Color {
-                a: 0.2,
-                ..primary
-            })),
-            text_color: primary,
-            border: Border {
-                radius: Radius::from(16.0),
-                width: 1.5,
-                color: Color {
-                    a: 0.7,
-                    ..primary
-                },
-            },
-            shadow: Shadow {
-                color: Color::from_rgba(primary.r, primary.g, primary.b, 0.15),
-                offset: iced::Vector::new(0.0, 2.0),
-                blur_radius: 8.0,
-            },
-            snap: false,
-        },
-        iced::widget::button::Status::Disabled => iced::widget::button::Style {
-            background: Some(Background::Color(palette.background.weak.color)),
-            text_color: palette.background.weak.text,
-            border: Border {
-                radius: Radius::from(16.0),
-                width: 1.0,
-                color: palette.background.strong.color,
-            },
-            shadow: Shadow::default(),
-            snap: false,
-        },
-    }
-}
+            let radius = Radius::from(12.0);
 
-/// 播放列表项按钮样式
-fn playlist_item_button_style(
-    theme: &iced::Theme, 
-    status: iced::widget::button::Status, 
-    is_playing: bool, 
-    is_current: bool
-) -> iced::widget::button::Style {
-    let palette = theme.extended_palette();
-    let primary = palette.primary.base.color;
-    let secondary = palette.secondary.base.color;
-    
-    if is_playing {
-        // 正在播放的当前项目
-        match status {
-            iced::widget::button::Status::Active => iced::widget::button::Style {
-                background: Some(Background::Color(Color {
-                    a: 0.25,
-                    ..primary
-                })),
-                text_color: primary,
-                border: Border {
-                    radius: Radius::from(8.0),
-                    width: 1.0,
-                    color: Color {
-                        a: 0.4,
-                        ..primary
+            match button_type {
+                ButtonType::Primary => match status {
+                    iced::widget::button::Status::Disabled => iced::widget::button::Style {
+                        background: Some(Background::Color(disabled_bg)),
+                        text_color: disabled_text,
+                        border: Border { radius, width: 1.0, color: neutral_border },
+                        shadow: Shadow::default(),
+                        snap: false,
+                    },
+                    iced::widget::button::Status::Pressed => iced::widget::button::Style {
+                        background: Some(Background::Color(Color { r: accent.r * 0.9, g: accent.g * 0.9, b: accent.b * 0.9, a: 1.0 })),
+                        text_color: Color::WHITE,
+                        border: Border { radius, width: 1.0, color: Color { a: 0.2, ..accent } },
+                        shadow: Shadow { color: AppColors::shadow(theme), offset: iced::Vector::new(0.0, 2.0), blur_radius: 8.0 },
+                        snap: false,
+                    },
+                    iced::widget::button::Status::Hovered => iced::widget::button::Style {
+                        background: Some(Background::Color(Color { r: (accent.r * 1.05).min(1.0), g: (accent.g * 1.05).min(1.0), b: (accent.b * 1.05).min(1.0), a: 1.0 })),
+                        text_color: Color::WHITE,
+                        border: Border { radius, width: 1.0, color: Color { a: 0.3, ..accent } },
+                        shadow: Shadow { color: AppColors::shadow(theme), offset: iced::Vector::new(0.0, 4.0), blur_radius: 12.0 },
+                        snap: false,
+                    },
+                    _ => iced::widget::button::Style {
+                        background: Some(Background::Color(accent)),
+                        text_color: Color::WHITE,
+                        border: Border { radius, width: 1.0, color: Color { a: 0.15, ..accent } },
+                        shadow: Shadow { color: AppColors::shadow(theme), offset: iced::Vector::new(0.0, 2.0), blur_radius: 8.0 },
+                        snap: false,
                     },
                 },
-                shadow: Shadow {
-                    color: Color::from_rgba(0.0, 0.0, 0.0, 0.1),
-                    offset: iced::Vector::new(0.0, 1.0),
-                    blur_radius: 3.0,
-                },
-                snap: false,
-            },
-            iced::widget::button::Status::Hovered => iced::widget::button::Style {
-                background: Some(Background::Color(Color {
-                    a: 0.35,
-                    ..primary
-                })),
-                text_color: primary,
-                border: Border {
-                    radius: Radius::from(8.0),
-                    width: 1.0,
-                    color: primary,
-                },
-                shadow: Shadow {
-                    color: Color::from_rgba(0.0, 0.0, 0.0, 0.15),
-                    offset: iced::Vector::new(0.0, 2.0),
-                    blur_radius: 4.0,
-                },
-                snap: false,
-            },
-            _ => iced::widget::button::Style::default(),
-        }
-    } else if is_current {
-        // 当前选中的项目
-        match status {
-            iced::widget::button::Status::Active => iced::widget::button::Style {
-                background: Some(Background::Color(Color {
-                    a: 0.1,
-                    ..secondary
-                })),
-                text_color: secondary,
-                border: Border {
-                    radius: Radius::from(8.0),
-                    width: 1.0,
-                    color: Color {
-                        a: 0.2,
-                        ..secondary
+
+                ButtonType::Dashed => match status {
+                    iced::widget::button::Status::Disabled => iced::widget::button::Style {
+                        background: Some(Background::Color(Color::TRANSPARENT)),
+                        text_color: disabled_text,
+                        border: Border { radius, width: 1.0, color: neutral_border },
+                        shadow: Shadow::default(),
+                        snap: false,
+                    },
+                    iced::widget::button::Status::Hovered => iced::widget::button::Style {
+                        background: Some(Background::Color(Color { a: 0.06, ..accent })),
+                        text_color: accent,
+                        border: Border { radius, width: 1.0, color: Color { a: 0.6, ..accent } },
+                        shadow: Shadow { color: AppColors::shadow(theme), offset: iced::Vector::new(0.0, 2.0), blur_radius: 6.0 },
+                        snap: false,
+                    },
+                    iced::widget::button::Status::Pressed => iced::widget::button::Style {
+                        background: Some(Background::Color(Color { a: 0.1, ..accent })),
+                        text_color: accent,
+                        border: Border { radius, width: 1.0, color: Color { a: 0.8, ..accent } },
+                        shadow: Shadow { color: AppColors::shadow(theme), offset: iced::Vector::new(0.0, 1.0), blur_radius: 4.0 },
+                        snap: false,
+                    },
+                    _ => iced::widget::button::Style {
+                        background: Some(Background::Color(Color::TRANSPARENT)),
+                        text_color: accent,
+                        border: Border { radius, width: 1.0, color: Color { a: 0.4, ..accent } },
+                        shadow: Shadow::default(),
+                        snap: false,
                     },
                 },
-                shadow: Shadow {
-                    color: Color::from_rgba(0.0, 0.0, 0.0, 0.1),
-                    offset: iced::Vector::new(0.0, 1.0),
-                    blur_radius: 2.0,
+
+                ButtonType::Link => match status {
+                    iced::widget::button::Status::Disabled => iced::widget::button::Style {
+                        background: Some(Background::Color(Color::TRANSPARENT)),
+                        text_color: disabled_text,
+                        border: Border { radius, width: 0.0, color: Color::TRANSPARENT },
+                        shadow: Shadow::default(),
+                        snap: false,
+                    },
+                    iced::widget::button::Status::Hovered => iced::widget::button::Style {
+                        background: Some(Background::Color(Color { a: 0.04, ..accent })),
+                        text_color: accent,
+                        border: Border { radius, width: 0.0, color: Color::TRANSPARENT },
+                        shadow: Shadow::default(),
+                        snap: false,
+                    },
+                    _ => iced::widget::button::Style {
+                        background: Some(Background::Color(Color::TRANSPARENT)),
+                        text_color: accent,
+                        border: Border { radius, width: 0.0, color: Color::TRANSPARENT },
+                        shadow: Shadow::default(),
+                        snap: false,
+                    },
                 },
-                snap: false,
-            },
-            iced::widget::button::Status::Hovered => iced::widget::button::Style {
-                background: Some(Background::Color(Color {
-                    a: 0.15,
-                    ..secondary
-                })),
-                text_color: secondary,
-                border: Border {
-                    radius: Radius::from(8.0),
-                    width: 1.0,
-                    color: secondary,
+
+                ButtonType::Text => match status {
+                    iced::widget::button::Status::Disabled => iced::widget::button::Style {
+                        background: Some(Background::Color(Color::TRANSPARENT)),
+                        text_color: disabled_text,
+                        border: Border { radius, width: 0.0, color: Color::TRANSPARENT },
+                        shadow: Shadow::default(),
+                        snap: false,
+                    },
+                    iced::widget::button::Status::Hovered => iced::widget::button::Style {
+                        background: Some(Background::Color(Color { a: 0.06, ..neutral_bg })),
+                        text_color: if matches!(color, ButtonColor::Default) { base_text } else { accent },
+                        border: Border { radius, width: 0.0, color: Color::TRANSPARENT },
+                        shadow: Shadow::default(),
+                        snap: false,
+                    },
+                    _ => iced::widget::button::Style {
+                        background: Some(Background::Color(Color::TRANSPARENT)),
+                        text_color: if matches!(color, ButtonColor::Default) { base_text } else { accent },
+                        border: Border { radius, width: 0.0, color: Color::TRANSPARENT },
+                        shadow: Shadow::default(),
+                        snap: false,
+                    },
                 },
-                shadow: Shadow {
-                    color: Color::from_rgba(0.0, 0.0, 0.0, 0.15),
-                    offset: iced::Vector::new(0.0, 2.0),
-                    blur_radius: 4.0,
+
+                ButtonType::Default => match status {
+                    iced::widget::button::Status::Disabled => iced::widget::button::Style {
+                        background: Some(Background::Color(Color::TRANSPARENT)),
+                        text_color: disabled_text,
+                        border: Border { radius, width: 1.0, color: neutral_border },
+                        shadow: Shadow::default(),
+                        snap: false,
+                    },
+                    iced::widget::button::Status::Hovered => iced::widget::button::Style {
+                        background: Some(Background::Color(Color { a: 0.06, ..accent })),
+                        text_color: if matches!(color, ButtonColor::Default) { base_text } else { accent },
+                        border: Border { radius, width: 1.0, color: if matches!(color, ButtonColor::Default) { neutral_border } else { Color { a: 0.5, ..accent } } },
+                        shadow: Shadow { color: AppColors::shadow(theme), offset: iced::Vector::new(0.0, 2.0), blur_radius: 6.0 },
+                        snap: false,
+                    },
+                    iced::widget::button::Status::Pressed => iced::widget::button::Style {
+                        background: Some(Background::Color(Color { a: 0.1, ..accent })),
+                        text_color: if matches!(color, ButtonColor::Default) { base_text } else { accent },
+                        border: Border { radius, width: 1.0, color: if matches!(color, ButtonColor::Default) { neutral_border } else { Color { a: 0.7, ..accent } } },
+                        shadow: Shadow { color: AppColors::shadow(theme), offset: iced::Vector::new(0.0, 1.0), blur_radius: 4.0 },
+                        snap: false,
+                    },
+                    _ => iced::widget::button::Style {
+                        background: Some(Background::Color(Color::TRANSPARENT)),
+                        text_color: if matches!(color, ButtonColor::Default) { base_text } else { accent },
+                        border: Border { radius, width: 1.0, color: if matches!(color, ButtonColor::Default) { neutral_border } else { Color { a: 0.4, ..accent } } },
+                        shadow: Shadow::default(),
+                        snap: false,
+                    },
                 },
-                snap: false,
-            },
-            _ => iced::widget::button::Style::default(),
-        }
-    } else {
-        // 普通项目
-        match status {
-            iced::widget::button::Status::Hovered => iced::widget::button::Style {
-                background: Some(Background::Color(palette.background.weak.color)),
-                text_color: palette.background.base.text,
-                border: Border {
-                    radius: Radius::from(8.0),
-                    width: 1.0,
-                    color: palette.background.strong.color,
-                },
-                shadow: Shadow {
-                    color: Color::from_rgba(0.0, 0.0, 0.0, 0.1),
-                    offset: iced::Vector::new(0.0, 1.0),
-                    blur_radius: 2.0,
-                },
-                snap: false,
-            },
-            _ => iced::widget::button::Style {
-                background: Some(Background::Color(Color::TRANSPARENT)),
-                text_color: palette.background.base.text,
-                border: Border {
-                    radius: Radius::from(8.0),
-                    width: 0.0,
-                    color: Color::TRANSPARENT,
-                },
-                shadow: Shadow::default(),
-                snap: false,
-            },
-        }
+            }
+        })
     }
 }
 
-/// 主题切换按钮样式
-fn theme_toggle_button_style(theme: &iced::Theme, status: iced::widget::button::Status) -> iced::widget::button::Style {
-    let palette = theme.extended_palette();
-    let warning = palette.primary.base.color; // 使用primary替代warning
-    
-    match status {
-        iced::widget::button::Status::Active => iced::widget::button::Style {
-            background: Some(Background::Color(Color {
-                a: 0.1,
-                ..warning
-            })),
-            text_color: warning,
-            border: Border {
-                radius: Radius::from(20.0),
-                width: 1.0,
-                color: Color {
-                    a: 0.3,
-                    ..warning
-                },
-            },
-            shadow: Shadow {
-                color: Color::from_rgba(0.0, 0.0, 0.0, 0.1),
-                offset: iced::Vector::new(0.0, 2.0),
-                blur_radius: 4.0,
-            },
-            snap: false,
-        },
-        iced::widget::button::Status::Hovered => iced::widget::button::Style {
-            background: Some(Background::Color(Color {
-                a: 0.15,
-                ..warning
-            })),
-            text_color: warning,
-            border: Border {
-                radius: Radius::from(20.0),
-                width: 1.0,
-                color: warning,
-            },
-            shadow: Shadow {
-                color: Color::from_rgba(0.0, 0.0, 0.0, 0.15),
-                offset: iced::Vector::new(0.0, 4.0),
-                blur_radius: 8.0,
-            },
-            snap: false,
-        },
-        iced::widget::button::Status::Pressed => iced::widget::button::Style {
-            background: Some(Background::Color(Color {
-                a: 0.2,
-                ..warning
-            })),
-            text_color: warning,
-            border: Border {
-                radius: Radius::from(20.0),
-                width: 1.0,
-                color: warning,
-            },
-            shadow: Shadow {
-                color: Color::from_rgba(0.0, 0.0, 0.0, 0.1),
-                offset: iced::Vector::new(0.0, 1.0),
-                blur_radius: 2.0,
-            },
-            snap: false,
-        },
-        iced::widget::button::Status::Disabled => iced::widget::button::Style {
-            background: Some(Background::Color(palette.background.weak.color)),
-            text_color: palette.background.weak.text,
-            border: Border {
-                radius: Radius::from(20.0),
-                width: 1.0,
-                color: palette.background.strong.color,
-            },
-            shadow: Shadow::default(),
-            snap: false,
-        },
-    }
-}
-
-/// 视图切换按钮样式
-fn view_toggle_button_style(theme: &iced::Theme, status: iced::widget::button::Status) -> iced::widget::button::Style {
-    let palette = theme.extended_palette();
-    let primary = palette.primary.base.color;
-    
-    match status {
-        iced::widget::button::Status::Active => iced::widget::button::Style {
-            background: Some(Background::Color(Color {
-                a: 0.05,
-                ..primary
-            })),
-            text_color: palette.background.base.text,
-            border: Border {
-                radius: Radius::from(12.0),
-                width: 1.0,
-                color: Color {
-                    a: 0.2,
-                    ..primary
-                },
-            },
-            shadow: Shadow {
-                color: Color::from_rgba(0.0, 0.0, 0.0, 0.1),
-                offset: iced::Vector::new(0.0, 1.0),
-                blur_radius: 3.0,
-            },
-            snap: false,
-        },
-        iced::widget::button::Status::Hovered => iced::widget::button::Style {
-            background: Some(Background::Color(Color {
-                a: 0.1,
-                ..primary
-            })),
-            text_color: palette.background.base.text,
-            border: Border {
-                radius: Radius::from(12.0),
-                width: 1.0,
-                color: Color {
-                    a: 0.3,
-                    ..primary
-                },
-            },
-            shadow: Shadow {
-                color: Color::from_rgba(0.0, 0.0, 0.0, 0.15),
-                offset: iced::Vector::new(0.0, 3.0),
-                blur_radius: 6.0,
-            },
-            snap: false,
-        },
-        iced::widget::button::Status::Pressed => iced::widget::button::Style {
-            background: Some(Background::Color(Color {
-                a: 0.15,
-                ..primary
-            })),
-            text_color: palette.background.base.text,
-            border: Border {
-                radius: Radius::from(12.0),
-                width: 1.0,
-                color: Color {
-                    a: 0.4,
-                    ..primary
-                },
-            },
-            shadow: Shadow {
-                color: Color::from_rgba(0.0, 0.0, 0.0, 0.1),
-                offset: iced::Vector::new(0.0, 1.0),
-                blur_radius: 2.0,
-            },
-            snap: false,
-        },
-        iced::widget::button::Status::Disabled => iced::widget::button::Style {
-            background: Some(Background::Color(palette.background.weak.color)),
-            text_color: palette.background.weak.text,
-            border: Border {
-                radius: Radius::from(12.0),
-                width: 1.0,
-                color: palette.background.strong.color,
-            },
-            shadow: Shadow::default(),
-            snap: false,
-        },
+fn preset_to_color(theme: &iced::Theme, preset: PresetColor) -> Color {
+    // 预设颜色常量，尽量贴近 AntD 语义
+    match preset {
+        PresetColor::Magenta => Color::from_rgb(0.91, 0.20, 0.52),
+        PresetColor::Red => theme.extended_palette().danger.base.color,
+        PresetColor::Volcano => Color::from_rgb(0.95, 0.35, 0.18),
+        PresetColor::Orange => Color::from_rgb(1.0, 0.58, 0.0),
+        PresetColor::Gold => Color::from_rgb(1.0, 0.76, 0.20),
+        PresetColor::Lime => Color::from_rgb(0.75, 0.91, 0.30),
+        PresetColor::Green => AppColors::success(theme),
+        PresetColor::Cyan => Color::from_rgb(0.18, 0.80, 0.80),
+        PresetColor::Blue => AppColors::primary(theme),
+        PresetColor::GeekBlue => Color::from_rgb(0.24, 0.34, 0.80),
+        PresetColor::Purple => Color::from_rgb(0.58, 0.34, 0.84),
     }
 }

@@ -273,16 +273,16 @@ impl PlayMode {
 /// 导航侧边栏
 pub fn navigation_sidebar(current_page: &PageType) -> Element<'static, Message> {
     let nav_button = |icon: &'static str, label: String, page: PageType, is_active: bool| {
-        let style = if is_active { 
-            super::widgets::styled_button::ButtonStyle::Primary
-        } else { 
-            super::widgets::styled_button::ButtonStyle::Control
+        let (btn_type, btn_color) = if is_active {
+            (super::widgets::styled_button::ButtonType::Primary, super::widgets::styled_button::ButtonColor::Primary)
+        } else {
+            (super::widgets::styled_button::ButtonType::Default, super::widgets::styled_button::ButtonColor::Default)
         };
         IconButton::new(icon, label)
             .on_press(Message::PageChanged(page))
             .size(constants::BUTTON_SIZE_MEDIUM)
             .icon_size(constants::ICON_SIZE_MEDIUM)
-            .style(style)
+            .style(btn_type, btn_color)
             .build()
     };
 
@@ -316,7 +316,8 @@ pub fn settings_page(current_theme: &AppThemeVariant, current_language: &str) ->
         Space::with_width(Length::Fill),
         StyledButton::new(StyledText::new(t!("Toggle")).size(constants::TEXT_NORMAL).build())
             .on_press(Message::ToggleTheme)
-            .style(super::widgets::styled_button::ButtonStyle::File)
+            .button_type(super::widgets::styled_button::ButtonType::Default)
+            .color(super::widgets::styled_button::ButtonColor::Primary)
             .padding(constants::PADDING_SMALL)
             .build()
     ].align_y(Vertical::Center);
@@ -328,7 +329,8 @@ pub fn settings_page(current_theme: &AppThemeVariant, current_language: &str) ->
         }).size(constants::TEXT_MEDIUM).build(),
         Space::with_width(Length::Fill),
         StyledButton::new(StyledText::new(t!("Change")).size(constants::TEXT_NORMAL).build())
-            .style(super::widgets::styled_button::ButtonStyle::File)
+            .button_type(super::widgets::styled_button::ButtonType::Default)
+            .color(super::widgets::styled_button::ButtonColor::Primary)
             .padding(constants::PADDING_SMALL)
             .build()
     ].align_y(Vertical::Center);
@@ -409,7 +411,8 @@ pub fn settings_page(current_theme: &AppThemeVariant, current_language: &str) ->
                                 StyledText::new("Reset to Default").size(constants::TEXT_NORMAL).build()
                             )
                             .on_press(Message::ResetConfig)
-                            .style(super::widgets::styled_button::ButtonStyle::File)
+                            .button_type(super::widgets::styled_button::ButtonType::Default)
+                            .color(super::widgets::styled_button::ButtonColor::Primary)
                             .padding(constants::PADDING_SMALL)
                             .build()
                         ].align_y(Vertical::Center).spacing(constants::SPACING_MEDIUM),
@@ -460,19 +463,19 @@ pub fn control_buttons_view(is_playing: bool) -> Element<'static, Message> {
             .on_press(Message::PreviousTrack)
             .size(constants::BUTTON_SIZE_SMALL)
             .icon_size(constants::ICON_SIZE_SMALL)
-            .style(super::widgets::styled_button::ButtonStyle::Control)
+            .style(super::widgets::styled_button::ButtonType::Default, super::widgets::styled_button::ButtonColor::Default)
             .build(),
         IconButton::new(play_icon, play_tooltip)
             .on_press(Message::PlayPause)
             .size(constants::BUTTON_SIZE_MEDIUM)
             .icon_size(constants::ICON_SIZE_MEDIUM)
-            .style(super::widgets::styled_button::ButtonStyle::Primary)
+            .style(super::widgets::styled_button::ButtonType::Primary, super::widgets::styled_button::ButtonColor::Primary)
             .build(),
         IconButton::new(icons::NEXT, t!("Next Track").to_string())
             .on_press(Message::NextTrack)
             .size(constants::BUTTON_SIZE_SMALL)
             .icon_size(constants::ICON_SIZE_SMALL)
-            .style(super::widgets::styled_button::ButtonStyle::Control)
+            .style(super::widgets::styled_button::ButtonType::Default, super::widgets::styled_button::ButtonColor::Default)
             .build(),
     ]
     .spacing(constants::SPACING_SMALL)
@@ -629,10 +632,8 @@ pub fn playlist_view(playlist: &Playlist, playlist_loaded: bool, is_playing: boo
         StyledButton::new(content)
             .on_press(Message::PlaylistItemSelected(index))
             .width(Length::Fill)
-            .style(super::widgets::styled_button::ButtonStyle::PlaylistItem { 
-                is_playing: is_playing_current, 
-                is_current 
-            })
+            .button_type(if is_playing_current { super::widgets::styled_button::ButtonType::Default } else if is_current { super::widgets::styled_button::ButtonType::Dashed } else { super::widgets::styled_button::ButtonType::Text })
+            .color(if is_playing_current { super::widgets::styled_button::ButtonColor::Primary } else if is_current { super::widgets::styled_button::ButtonColor::Primary } else { super::widgets::styled_button::ButtonColor::Default })
             .build()
     }).collect();
     

@@ -20,7 +20,8 @@ pub struct IconButton {
     on_press: Option<Message>,
     size: f32,
     icon_size: f32,
-    style: crate::ui::widgets::styled_button::ButtonStyle,
+    button_type: crate::ui::widgets::styled_button::ButtonType,
+    color: crate::ui::widgets::styled_button::ButtonColor,
 }
 
 impl IconButton {
@@ -32,7 +33,8 @@ impl IconButton {
             on_press: None,
             size: 40.0,
             icon_size: 24.0,
-            style: crate::ui::widgets::styled_button::ButtonStyle::File,
+            button_type: crate::ui::widgets::styled_button::ButtonType::Default,
+            color: crate::ui::widgets::styled_button::ButtonColor::Default,
         }
     }
 
@@ -55,8 +57,9 @@ impl IconButton {
     }
 
     /// 设置按钮样式
-    pub fn style(mut self, style: crate::ui::widgets::styled_button::ButtonStyle) -> Self {
-        self.style = style;
+    pub fn style(mut self, button_type: crate::ui::widgets::styled_button::ButtonType, color: crate::ui::widgets::styled_button::ButtonColor) -> Self {
+        self.button_type = button_type;
+        self.color = color;
         self
     }
 
@@ -89,7 +92,8 @@ impl IconButton {
             .align_y(Vertical::Center);
 
         let btn = StyledButton::new(icon_container)
-            .style(self.style)
+            .button_type(self.button_type)
+            .color(self.color)
             .width(Length::Fixed(self.size))
             .height(Length::Fixed(self.size))
             .padding(0);

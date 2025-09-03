@@ -104,14 +104,16 @@ impl CreatePlaylistCard {
                         StyledText::new("✔").shaping(Shaping::Advanced).size(constants::TEXT_MEDIUM).build()
                     )
                     .on_press(Message::ConfirmCreatePlaylist)
-                    .style(super::styled_button::ButtonStyle::File)
+                    .button_type(super::styled_button::ButtonType::Default)
+                    .color(super::styled_button::ButtonColor::Primary)
                     .build();
 
                     let cancel_btn = StyledButton::new(
                         StyledText::new("✖").shaping(Shaping::Advanced).size(constants::TEXT_MEDIUM).build()
                     )
                     .on_press(Message::CancelCreatePlaylist)
-                    .style(super::styled_button::ButtonStyle::File)
+                    .button_type(super::styled_button::ButtonType::Default)
+                    .color(super::styled_button::ButtonColor::Primary)
                     .build();
 
                     let actions = row![
