@@ -11,6 +11,7 @@ use crate::ui::Message;
 use crate::ui::components::{constants, icons, svg_icon};
 use crate::ui::widgets::{StyledContainer, StyledText, StyledButton, styled_container::ContainerStyle};
 use rust_i18n::t;
+use crate::ui::theme::AppColors;
 
 /// 创建播放列表卡片控件
 pub struct CreatePlaylistCard;
@@ -58,14 +59,14 @@ impl CreatePlaylistCard {
                         background: Some(Background::Color(Color { a: 0.15, ..palette.primary.base.color })),
                         text_color: palette.primary.strong.color,
                         border: Border { radius: Radius::from(8.0), width: 0.0, color: Color::TRANSPARENT },
-                        shadow: Shadow { color: Color::from_rgba(0.0, 0.0, 0.0, 0.2), offset: iced::Vector::new(0.0, 4.0), blur_radius: 10.0 },
+                        shadow: Shadow { color: AppColors::shadow(theme), offset: iced::Vector::new(0.0, 4.0), blur_radius: 10.0 },
                         snap: false,
                     },
                     iced::widget::button::Status::Pressed => iced::widget::button::Style {
                         background: Some(Background::Color(Color { a: 0.25, ..palette.primary.base.color })),
                         text_color: palette.primary.strong.color,
                         border: Border { radius: Radius::from(8.0), width: 0.0, color: Color::TRANSPARENT },
-                        shadow: Shadow { color: Color::from_rgba(0.0, 0.0, 0.0, 0.25), offset: iced::Vector::new(0.0, 2.0), blur_radius: 6.0 },
+                        shadow: Shadow { color: AppColors::shadow(theme), offset: iced::Vector::new(0.0, 2.0), blur_radius: 6.0 },
                         snap: false,
                     },
                     iced::widget::button::Status::Disabled => iced::widget::button::Style {

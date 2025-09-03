@@ -225,7 +225,7 @@ fn decorative_style(theme: &iced::Theme) -> Style {
             color: Color { a: 0.15, ..palette.background.strong.color },
         },
         shadow: Shadow {
-            color: Color::from_rgba(0.0, 0.0, 0.0, 0.1),
+            color: crate::ui::theme::AppColors::shadow(theme),
             offset: iced::Vector::new(0.0, 2.0),
             blur_radius: 4.0,
         },

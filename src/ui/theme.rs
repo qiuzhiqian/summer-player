@@ -220,7 +220,7 @@ impl AppColors {
     /// 获取强阴影色
     pub fn shadow_strong(theme: &Theme) -> Color {
         if Self::is_dark_theme(theme) {
-            Color::from_rgba(0.0, 0.0, 0.0, 0.6)  // 更深的强阴影
+            Color::from_rgba(0.0, 0.0, 0.0, 0.6)  // #000000 更深的强阴影
         } else {
             Color::from_rgba(0.0, 0.0, 0.0, 0.2)
         }

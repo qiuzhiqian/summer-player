@@ -14,6 +14,7 @@ use iced::{
 };
 
 use crate::ui::Message;
+use crate::ui::theme::AppTheme;
 
 /// 样式化按钮组件
 pub struct StyledButton {
@@ -104,14 +105,12 @@ impl StyledButton {
     /// 获取对应样式的函数
     fn get_style_fn(&self) -> Box<dyn Fn(&iced::Theme, iced::widget::button::Status) -> iced::widget::button::Style> {
         match self.style {
-            ButtonStyle::Primary => Box::new(primary_button_style),
-            ButtonStyle::Control => Box::new(control_button_style),
-            ButtonStyle::File => Box::new(file_button_style),
-            ButtonStyle::PlaylistItem { is_playing, is_current } => Box::new(move |theme, status| {
-                playlist_item_button_style(theme, status, is_playing, is_current)
-            }),
-            ButtonStyle::ThemeToggle => Box::new(theme_toggle_button_style),
-            ButtonStyle::ViewToggle => Box::new(view_toggle_button_style),
+            ButtonStyle::Primary => Box::new(AppTheme::play_button()),
+            ButtonStyle::Control => Box::new(AppTheme::control_button()),
+            ButtonStyle::File => Box::new(AppTheme::file_button()),
+            ButtonStyle::PlaylistItem { is_playing, is_current } => Box::new(AppTheme::playlist_item_button(is_playing, is_current)),
+            ButtonStyle::ThemeToggle => Box::new(AppTheme::theme_toggle_button()),
+            ButtonStyle::ViewToggle => Box::new(AppTheme::view_toggle_button()),
         }
     }
 }

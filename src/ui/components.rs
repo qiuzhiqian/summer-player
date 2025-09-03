@@ -15,7 +15,7 @@ use crate::playlist::Playlist;
 use crate::utils::{extract_filename, format_duration};
 
 use super::Message;
-use super::theme::{AppTheme, AppThemeVariant};
+use super::theme::{AppTheme, AppThemeVariant, AppColors};
 use super::widgets::{StyledContainer, StyledButton, StyledText, IconButton, PlaylistCard, CreatePlaylistCard};
 use rust_i18n::t;
 
@@ -171,7 +171,7 @@ fn tooltip_style() -> impl Fn(&iced::Theme) -> container::Style {
                 color: palette.background.weak.color,
             },
             shadow: Shadow {
-                color: Color::from_rgba(0.0, 0.0, 0.0, 0.2),
+                color: AppColors::shadow(theme),
                 offset: iced::Vector::new(0.0, 2.0),
                 blur_radius: 8.0,
             },
@@ -182,9 +182,10 @@ fn tooltip_style() -> impl Fn(&iced::Theme) -> container::Style {
 
 /// 透明文本样式
 fn alpha_text_style(alpha: f32) -> impl Fn(&iced::Theme) -> iced::widget::text::Style {
-    move |_theme: &iced::Theme| {
+    move |theme: &iced::Theme| {
+        let base = AppColors::text_secondary(theme);
         iced::widget::text::Style {
-            color: Some(Color { r: 0.4, g: 0.4, b: 0.4, a: alpha }),
+            color: Some(Color { r: base.r, g: base.g, b: base.b, a: alpha }),
         }
     }
 }
@@ -192,9 +193,8 @@ fn alpha_text_style(alpha: f32) -> impl Fn(&iced::Theme) -> iced::widget::text::
 /// 主色文本样式
 fn primary_text_style() -> impl Fn(&iced::Theme) -> iced::widget::text::Style {
     |theme: &iced::Theme| {
-        let palette = theme.extended_palette();
         iced::widget::text::Style {
-            color: Some(palette.primary.base.color),
+            color: Some(AppColors::primary(theme)),
         }
     }
 }
@@ -524,28 +524,17 @@ pub fn simple_time_view(playback_state: &PlaybackState) -> Element<'static, Mess
         row![
             text(current_time_str)
                 .size(constants::TEXT_NORMAL)
-                .style(|theme: &iced::Theme| {
-                    let palette = theme.extended_palette();
-                    iced::widget::text::Style {
-                        color: Some(palette.primary.strong.color), // 使用主题强调色
-                    }
-                }),
+                .style(AppTheme::current_time_text()),
             text(" / ")
                 .size(constants::TEXT_NORMAL)
                 .style(|theme: &iced::Theme| {
-                    let palette = theme.extended_palette();
                     iced::widget::text::Style {
-                        color: Some(palette.background.base.text), // 使用主题文本色
+                        color: Some(AppColors::text_primary(theme)),
                     }
                 }),
             text(total_time_str)
                 .size(constants::TEXT_NORMAL)
-                .style(|theme: &iced::Theme| {
-                    let palette = theme.extended_palette();
-                    iced::widget::text::Style {
-                        color: Some(Color { a: 0.9, ..palette.background.base.text }), // 稍微透明的主题文本色
-                    }
-                }),
+                .style(AppTheme::total_time_text()),
         ]
         .spacing(4)
         .align_y(Vertical::Center)
@@ -730,8 +719,7 @@ pub fn lyrics_view(file_path: &str, is_playing: bool, current_time: f64, lyrics:
                         text(format!("▶ {}", if line.text.trim().is_empty() { "♪".to_string() } else { line.text.clone() }))
                             .size(constants::TEXT_TITLE - 2).align_x(Horizontal::Center).shaping(Shaping::Advanced)
                             .style(|theme: &iced::Theme| {
-                                let palette = theme.extended_palette();
-                                iced::widget::text::Style { color: Some(palette.primary.strong.color) }
+                                iced::widget::text::Style { color: Some(AppColors::primary(theme)) }
                             })
                     ).style(super::widgets::styled_container::ContainerStyle::Emphasis).padding(constants::PADDING_SMALL).width(Length::Fill).build().into()
                 } else {

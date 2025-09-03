@@ -13,6 +13,7 @@ use crate::ui::Message;
 use crate::ui::components::{constants, icons, svg_icon};
 use crate::ui::widgets::{StyledContainer, styled_container::ContainerStyle};
 use rust_i18n::t;
+use crate::ui::theme::AppColors;
 
 /// 播放列表卡片配置
 #[derive(Clone, Debug)]
@@ -319,7 +320,7 @@ impl PlaylistCard {
                 },
                 shadow: if is_selected {
                     Shadow {
-                        color: Color::from_rgba(0.0, 0.0, 0.0, 0.15),
+                        color: AppColors::shadow(theme),
                         offset: iced::Vector::new(0.0, 3.0),
                         blur_radius: 8.0,
                     }
@@ -341,7 +342,7 @@ impl PlaylistCard {
                     color: Color::TRANSPARENT,
                 },
                 shadow: Shadow {
-                    color: Color::from_rgba(0.0, 0.0, 0.0, 0.2),
+                    color: AppColors::shadow(theme),
                     offset: iced::Vector::new(0.0, 4.0),
                     blur_radius: 10.0,
                 },
@@ -360,7 +361,7 @@ impl PlaylistCard {
                     color: Color::TRANSPARENT,
                 },
                 shadow: Shadow {
-                    color: Color::from_rgba(0.0, 0.0, 0.0, 0.25),
+                    color: AppColors::shadow(theme),
                     offset: iced::Vector::new(0.0, 2.0),
                     blur_radius: 6.0,
                 },

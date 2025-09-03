@@ -11,6 +11,7 @@ use iced::{
 };
 
 use crate::ui::{Message, widgets::{styled_button::StyledButton}};
+use crate::ui::theme::AppColors;
 
 /// 图标按钮组件
 pub struct IconButton {
@@ -117,7 +118,7 @@ impl IconButton {
                     color: palette.background.weak.color,
                 },
                 shadow: iced::Shadow {
-                    color: Color::from_rgba(0.0, 0.0, 0.0, 0.2),
+                    color: AppColors::shadow(theme),
                     offset: iced::Vector::new(0.0, 2.0),
                     blur_radius: 8.0,
                 },
