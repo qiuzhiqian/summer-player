@@ -101,7 +101,7 @@ impl CreatePlaylistCard {
                 },
                 {
                     let confirm_btn = StyledButton::new(
-                        StyledText::new("✔").shaping(Shaping::Advanced).size(constants::TEXT_MEDIUM).build()
+                        svg_icon(icons::CONFIRM, 20.0, constants::ICON_COLOR)
                     )
                     .on_press(Message::ConfirmCreatePlaylist)
                     .button_type(super::styled_button::ButtonType::Default)
@@ -109,7 +109,7 @@ impl CreatePlaylistCard {
                     .build();
 
                     let cancel_btn = StyledButton::new(
-                        StyledText::new("✖").shaping(Shaping::Advanced).size(constants::TEXT_MEDIUM).build()
+                        svg_icon(icons::CANCEL, 20.0, constants::ICON_COLOR)
                     )
                     .on_press(Message::CancelCreatePlaylist)
                     .button_type(super::styled_button::ButtonType::Default)

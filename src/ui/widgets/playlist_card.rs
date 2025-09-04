@@ -132,7 +132,7 @@ impl PlaylistCard {
                 .into();
 
             let actions: Element<Message> = row![
-                button(text("✔").shaping(Shaping::Advanced).size(constants::TEXT_MEDIUM))
+                button(svg_icon(icons::CONFIRM, 20.0, constants::ICON_COLOR))
                     .on_press(Message::PlaylistCardRenameConfirm)
                     .style(|theme: &iced::Theme, status: iced::widget::button::Status| {
                         let palette = theme.extended_palette();
@@ -142,7 +142,7 @@ impl PlaylistCard {
                         }
                     }),
                 Space::with_width(Length::Fixed(8.0)),
-                button(text("✖").shaping(Shaping::Advanced).size(constants::TEXT_MEDIUM))
+                button(svg_icon(icons::CANCEL, 20.0, constants::ICON_COLOR))
                     .on_press(Message::PlaylistCardRenameCancel)
                     .style(|theme: &iced::Theme, status: iced::widget::button::Status| {
                         let palette = theme.extended_palette();
