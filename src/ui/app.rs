@@ -114,6 +114,7 @@ impl PlayerApp {
         if self.menu_playlist_path.as_deref() == Some(playlist_path.as_str()) {
             self.menu_playlist_path = None;
         } else {
+            println!("menu_playlist_path: {}", playlist_path);
             self.menu_playlist_path = Some(playlist_path);
             // 退出重命名状态
             self.renaming_playlist_path = None;
@@ -257,12 +258,12 @@ impl PlayerApp {
             Message::PlaylistItemSelected(index) => self.handle_playlist_item_selected(index),
             Message::PlaylistCardToggled(playlist_path) => self.handle_playlist_card_toggled(playlist_path),
             Message::PlaylistCardMoreClicked(playlist_path) => self.handle_playlist_card_more_clicked(playlist_path),
-            Message::PlaylistCardActionRenameStart(playlist_path) => self.handle_playlist_card_rename_start(playlist_path),
+            Message::PlaylistCardActionRenameStart(playlist_path) => {self.menu_playlist_path = None;self.handle_playlist_card_rename_start(playlist_path)},
             Message::PlaylistCardRenameNameChanged(name) => { self.renaming_playlist_name = name; Task::none() },
             Message::PlaylistCardRenameConfirm => self.handle_playlist_card_rename_confirm(),
             Message::PlaylistCardRenameCancel => { self.renaming_playlist_path = None; self.renaming_playlist_name.clear(); Task::none() },
-            Message::PlaylistCardActionDelete(playlist_path) => self.handle_playlist_card_delete(playlist_path),
-            Message::PlaylistCardActionAddMusic(playlist_path) => self.handle_playlist_card_add_music(playlist_path),
+            Message::PlaylistCardActionDelete(playlist_path) => { self.menu_playlist_path = None; self.handle_playlist_card_delete(playlist_path)},
+            Message::PlaylistCardActionAddMusic(playlist_path) => {self.menu_playlist_path = None;self.handle_playlist_card_add_music(playlist_path)},
             Message::PlaylistAddMusicFilesSelected(playlist_path, files) => self.handle_playlist_add_music_files_selected(playlist_path, files),
             Message::StartCreatePlaylist => { self.creating_playlist = true; Task::none() },
             Message::CreatePlaylistNameChanged(name) => { self.creating_playlist_name = name; Task::none() },
@@ -285,6 +286,8 @@ impl PlayerApp {
             Message::ResetConfig => self.handle_reset_config(),
             Message::AudioFileLoaded(file_path, success) => self.handle_audio_file_loaded(file_path, success),
             Message::AudioDurationEstimated(file_path, duration) => self.handle_audio_duration_estimated(file_path, duration),
+            Message::ExpandMenu(playlist_path) => self.handle_playlist_card_more_clicked(playlist_path),
+            Message::DismissMenu(_) => {self.menu_playlist_path = None; Task::none()},
         }
     }
 

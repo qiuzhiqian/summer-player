@@ -38,6 +38,8 @@ pub enum Message {
     PlaylistCardActionAddMusic(String),
     /// 添加音乐选择完成（携带播放列表路径和所选文件）
     PlaylistAddMusicFilesSelected(String, Vec<String>),
+    ExpandMenu(String),
+    DismissMenu(String),
 
     /// 开始创建播放列表（显示输入框）
     StartCreatePlaylist,
