@@ -3,7 +3,7 @@
 //! 包含可重用的UI组件和通用样式。
 
 use iced::{
-    widget::{column, row, text, slider, scrollable, Space, container, tooltip, svg},
+    widget::{column, row, text, slider, scrollable, Space, container, tooltip, svg, button},
     Element, Length, Border, Shadow, Background, Color,
     alignment::{Horizontal, Vertical},
     border::Radius,
@@ -535,7 +535,7 @@ pub fn simple_time_view(playback_state: &PlaybackState) -> Element<'static, Mess
 }
 
 /// 播放列表视图
-pub fn playlist_view(playlist: &Playlist, playlist_loaded: bool, is_playing: bool, playlist_manager: &crate::playlist::PlaylistManager) -> Element<'static, Message> {
+pub fn playlist_view(playlist: &Playlist, playlist_loaded: bool, is_playing: bool, playlist_manager: &crate::playlist::PlaylistManager, menu_song_index: Option<usize>) -> Element<'static, Message> {
     if !playlist_loaded {
         return StyledContainer::new(
             column![
@@ -606,6 +606,121 @@ pub fn playlist_view(playlist: &Playlist, playlist_loaded: bool, is_playing: boo
                         .style(super::widgets::styled_text::TextStyle::WithAlpha(0.7))
                         .build()
                 ).style(super::widgets::styled_container::ContainerStyle::Transparent).width(Length::Fixed(60.0)).align_x(Horizontal::Right).build(),
+                
+                // 右侧的更多操作按钮（切换菜单/图标）
+                {
+                    let trigger = button(text("⋮").shaping(Shaping::Advanced).size(constants::TEXT_LARGE))
+                        .style(move |theme: &iced::Theme, status: iced::widget::button::Status| {
+                            let palette = theme.extended_palette();
+                            match status {
+                                iced::widget::button::Status::Hovered => iced::widget::button::Style { 
+                                    background: Some(Background::Color(Color { a: 0.12, ..palette.primary.base.color })), 
+                                    text_color: palette.primary.strong.color, 
+                                    border: Border { radius: Radius::from(6.0), width: 0.0, color: Color::TRANSPARENT }, 
+                                    shadow: Shadow::default(), 
+                                    snap: false 
+                                },
+                                iced::widget::button::Status::Pressed => iced::widget::button::Style { 
+                                    background: Some(Background::Color(Color { a: 0.2, ..palette.primary.base.color })), 
+                                    text_color: palette.primary.strong.color, 
+                                    border: Border { radius: Radius::from(6.0), width: 0.0, color: Color::TRANSPARENT }, 
+                                    shadow: Shadow::default(), 
+                                    snap: false 
+                                },
+                                _ => iced::widget::button::Style { 
+                                    background: Some(Background::Color(Color::TRANSPARENT)), 
+                                    text_color: palette.primary.strong.color, 
+                                    border: Border { radius: Radius::from(6.0), width: 0.0, color: Color::TRANSPARENT }, 
+                                    shadow: Shadow::default(), 
+                                    snap: false 
+                                },
+                            }
+                        })
+                        .width(Length::Fixed(32.0))
+                        .on_press(Message::SongItemMenuToggled(index));
+
+                    let details_btn = button(text(t!("Song Details")).size(constants::TEXT_MEDIUM))
+                        .width(Length::Fill)
+                        .on_press(Message::SongItemActionDetails(index))
+                        .style(|theme: &iced::Theme, status: iced::widget::button::Status| {
+                            let palette = theme.extended_palette();
+                            match status {
+                                iced::widget::button::Status::Hovered => iced::widget::button::Style { 
+                                    background: Some(Background::Color(Color { a: 0.12, ..palette.primary.base.color })), 
+                                    text_color: palette.primary.strong.color, 
+                                    border: Border { radius: Radius::from(8.0), width: 0.0, color: Color::TRANSPARENT }, 
+                                    shadow: Shadow::default(), 
+                                    snap: false 
+                                },
+                                _ => iced::widget::button::Style { 
+                                    background: Some(Background::Color(Color::TRANSPARENT)), 
+                                    text_color: palette.primary.strong.color, 
+                                    border: Border { radius: Radius::from(8.0), width: 0.0, color: Color::TRANSPARENT }, 
+                                    shadow: Shadow::default(), 
+                                    snap: false 
+                                },
+                            }
+                        });
+
+                    let edit_btn = button(text(t!("Edit Tags")).size(constants::TEXT_MEDIUM))
+                        .width(Length::Fill)
+                        .on_press(Message::SongItemActionEditTags(index))
+                        .style(|theme: &iced::Theme, status: iced::widget::button::Status| {
+                            let palette = theme.extended_palette();
+                            match status {
+                                iced::widget::button::Status::Hovered => iced::widget::button::Style { 
+                                    background: Some(Background::Color(Color { a: 0.12, ..palette.primary.base.color })), 
+                                    text_color: palette.primary.strong.color, 
+                                    border: Border { radius: Radius::from(8.0), width: 0.0, color: Color::TRANSPARENT }, 
+                                    shadow: Shadow::default(), 
+                                    snap: false 
+                                },
+                                _ => iced::widget::button::Style { 
+                                    background: Some(Background::Color(Color::TRANSPARENT)), 
+                                    text_color: palette.primary.strong.color, 
+                                    border: Border { radius: Radius::from(8.0), width: 0.0, color: Color::TRANSPARENT }, 
+                                    shadow: Shadow::default(), 
+                                    snap: false 
+                                },
+                            }
+                        });
+
+                    let remove_btn = button(text(t!("Remove")).size(constants::TEXT_MEDIUM))
+                        .width(Length::Fill)
+                        .on_press(Message::SongItemActionRemove(index))
+                        .style(|theme: &iced::Theme, status: iced::widget::button::Status| {
+                            let palette = theme.extended_palette();
+                            match status {
+                                iced::widget::button::Status::Hovered => iced::widget::button::Style { 
+                                    background: Some(Background::Color(Color { a: 0.12, ..palette.background.strong.color })), 
+                                    text_color: palette.background.base.text, 
+                                    border: Border { radius: Radius::from(8.0), width: 0.0, color: Color::TRANSPARENT }, 
+                                    shadow: Shadow::default(), 
+                                    snap: false 
+                                },
+                                _ => iced::widget::button::Style { 
+                                    background: Some(Background::Color(Color::TRANSPARENT)), 
+                                    text_color: palette.background.base.text, 
+                                    border: Border { radius: Radius::from(8.0), width: 0.0, color: Color::TRANSPARENT }, 
+                                    shadow: Shadow::default(), 
+                                    snap: false 
+                                },
+                            }
+                        });
+
+                    let options = column![details_btn, edit_btn, remove_btn].width(Length::Fixed(110.0));
+
+                    let drop_down = iced_aw::DropDown::new(trigger, options, menu_song_index == Some(index))
+                        .width(Length::Fill)
+                        .on_dismiss(Message::DismissSongItemMenu(index))
+                        .alignment(iced_aw::drop_down::Alignment::BottomStart);
+
+                    StyledContainer::new(drop_down)
+                        .style(super::widgets::styled_container::ContainerStyle::Transparent)
+                        .width(Length::Fixed(32.0))
+                        .align_x(Horizontal::Right)
+                        .build()
+                }
             ].spacing(constants::SPACING_MEDIUM).align_y(Vertical::Center)
         )
         .style(super::widgets::styled_container::ContainerStyle::Transparent)
@@ -1046,5 +1161,3 @@ fn get_playlist_files_info_from_manager(playlist_manager: &crate::playlist::Play
     playlist_infos.sort_by(|a, b| a.name.cmp(&b.name));
     playlist_infos
 }
-
- 

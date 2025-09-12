@@ -74,6 +74,8 @@ pub struct PlayerApp {
     creating_playlist_name: String,
     /// 卡片菜单显示的播放列表路径（None为全部隐藏）
     menu_playlist_path: Option<String>,
+    /// 当前打开的歌曲项菜单索引（None为全部隐藏）
+    menu_song_index: Option<usize>,
     /// 当前正在重命名的播放列表路径
     renaming_playlist_path: Option<String>,
     /// 重命名输入内容
@@ -102,6 +104,7 @@ impl Default for PlayerApp {
             creating_playlist: false,
             creating_playlist_name: String::new(),
             menu_playlist_path: None,
+            menu_song_index: None,
             renaming_playlist_path: None,
             renaming_playlist_name: String::new(),
         }
@@ -288,6 +291,51 @@ impl PlayerApp {
             Message::AudioDurationEstimated(file_path, duration) => self.handle_audio_duration_estimated(file_path, duration),
             Message::ExpandMenu(playlist_path) => self.handle_playlist_card_more_clicked(playlist_path),
             Message::DismissMenu(_) => {self.menu_playlist_path = None; Task::none()},
+            Message::ExpandSongItemMenu(index) => {
+                // 切换菜单显示/隐藏
+                if self.menu_song_index == Some(index) {
+                    self.menu_song_index = None;
+                } else {
+                    self.menu_song_index = Some(index);
+                }
+                Task::none()
+            },
+            Message::SongItemMenuToggled(index) => {
+                // 切换菜单显示/隐藏
+                if self.menu_song_index == Some(index) {
+                    self.menu_song_index = None;
+                } else {
+                    self.menu_song_index = Some(index);
+                }
+                Task::none()
+            },
+            Message::DismissSongItemMenu(index) => {
+                self.menu_song_index = None;
+                Task::none()
+            },
+            Message::SongItemActionDetails(index) => {
+                // 显示歌曲详情（暂未实现）
+                self.menu_song_index = None;
+                Task::none()
+            },
+            Message::SongItemActionEditTags(index) => {
+                // 编辑歌曲标签（暂未实现）
+                self.menu_song_index = None;
+                Task::none()
+            },
+            Message::SongItemActionRemove(index) => {
+                // 从播放列表中移除歌曲
+                self.menu_song_index = None;
+                if let Some(playlist) = self.playlist_manager.current_playlist() {
+                    if playlist.remove_file(index) {
+                        // 如果移除的是当前播放的歌曲，停止播放
+                        if playlist.current_index() == Some(index) {
+                            self.stop_current_playback();
+                        }
+                    }
+                }
+                Task::none()
+            },
         }
     }
 
@@ -1245,10 +1293,10 @@ impl PlayerApp {
 
     fn create_sliding_animation_view(&self) -> Element<Message> {
         let playlist_content = if let Some(playlist) = self.playlist_manager.current_playlist_ref() {
-            playlist_view(playlist, self.playlist_loaded, self.is_playing, &self.playlist_manager)
+            playlist_view(playlist, self.playlist_loaded, self.is_playing, &self.playlist_manager, self.menu_song_index)
         } else {
             let empty_playlist = Playlist::new();
-            playlist_view(&empty_playlist, false, self.is_playing, &self.playlist_manager)
+            playlist_view(&empty_playlist, false, self.is_playing, &self.playlist_manager, None)
         };
         let lyrics_content = lyrics_view(&self.file_path, self.is_playing, self.playback_state.current_time, self.current_lyrics.clone(), self.window_size.1);
 
@@ -1331,5 +1379,3 @@ async fn open_audio_only_files_dialog() -> Vec<String> {
             .collect()
     ).unwrap_or_default()
 }
-
- 

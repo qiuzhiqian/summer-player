@@ -23,6 +23,18 @@ pub enum Message {
     PlaylistCardToggled(String),
     /// 播放列表卡片的更多菜单按钮被点击（占位，后续实现）
     PlaylistCardMoreClicked(String),
+    /// 歌曲项的更多菜单按钮被点击
+    SongItemMenuToggled(usize),
+    /// 关闭歌曲项菜单
+    DismissSongItemMenu(usize),
+    /// 展开歌曲项菜单
+    ExpandSongItemMenu(usize),
+    /// 查看歌曲详情
+    SongItemActionDetails(usize),
+    /// 编辑歌曲标签
+    SongItemActionEditTags(usize),
+    /// 移除歌曲
+    SongItemActionRemove(usize),
 
     /// 开始重命名指定播放列表
     PlaylistCardActionRenameStart(String),
@@ -84,4 +96,4 @@ pub enum Message {
     AudioFileLoaded(String, bool),
     /// 异步估算时长完成（文件路径，估算的时长）
     AudioDurationEstimated(String, Option<f64>),
-} 
+}
