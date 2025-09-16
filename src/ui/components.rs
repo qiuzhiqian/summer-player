@@ -230,9 +230,6 @@ fn icon_button(
 pub enum PageType { #[default] Home, Settings, Id3Tag, Lyrics }
 
 #[derive(Debug, Clone, PartialEq, Default)]
-pub enum ViewType { #[default] Playlist, Lyrics }
-
-#[derive(Debug, Clone, PartialEq, Default)]
 pub enum PlayMode { #[default] ListLoop, SingleLoop, Random }
 
 impl PlayMode {

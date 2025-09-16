@@ -193,8 +193,6 @@ pub struct UIConfig {
     pub language: String,
     /// 当前页面类型
     pub current_page: String,
-    /// 当前视图类型
-    pub current_view: String,
     /// 左侧面板宽度
     pub left_panel_width: f32,
 }
@@ -205,7 +203,6 @@ impl Default for UIConfig {
             theme: ThemeVariant::Light,
             language: "en".to_string(),
             current_page: "Home".to_string(),
-            current_view: "Playlist".to_string(),
             left_panel_width: ui::MAIN_PANEL_WIDTH,
         }
     }
@@ -476,26 +473,6 @@ impl From<String> for crate::ui::components::PageType {
             "Id3Tag" => crate::ui::components::PageType::Id3Tag,
             "Lyrics" => crate::ui::components::PageType::Lyrics,
             _ => crate::ui::components::PageType::Home,
-        }
-    }
-}
-
-/// 从UI视图类型转换到字符串
-impl From<crate::ui::components::ViewType> for String {
-    fn from(view: crate::ui::components::ViewType) -> Self {
-        match view {
-            crate::ui::components::ViewType::Playlist => "Playlist".to_string(),
-            crate::ui::components::ViewType::Lyrics => "Lyrics".to_string(),
-        }
-    }
-}
-
-/// 从字符串转换到UI视图类型
-impl From<String> for crate::ui::components::ViewType {
-    fn from(s: String) -> Self {
-        match s.as_str() {
-            "Lyrics" => crate::ui::components::ViewType::Lyrics,
-            _ => crate::ui::components::ViewType::Playlist,
         }
     }
 }

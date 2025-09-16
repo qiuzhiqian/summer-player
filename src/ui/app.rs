@@ -54,8 +54,6 @@ pub struct PlayerApp {
     playlist_loaded: bool,
     /// 当前页面类型
     current_page: PageType,
-    /// 当前视图类型（主页面内的视图切换）
-    current_view: ViewType,
     /// 当前歌词
     current_lyrics: Option<Lyrics>,
     /// 当前窗口大小
@@ -94,7 +92,6 @@ impl Default for PlayerApp {
             playlist_manager: PlaylistManager::new(),
             playlist_loaded: false,
             current_page: PageType::default(),
-            current_view: ViewType::default(),
             current_lyrics: None,
             window_size: (1000.0, 700.0),
             current_theme: AppThemeVariant::default(),
@@ -214,7 +211,6 @@ impl PlayerApp {
             current_language: config.ui.language.clone(),
             current_theme: config.ui.theme.clone().into(),
             current_page: config.ui.current_page.clone().into(),
-            current_view: config.ui.current_view.clone().into(),
             play_mode: config.player.play_mode.clone().into(),
             app_config: config,
             ..Self::default()
@@ -736,9 +732,6 @@ impl PlayerApp {
         //let playlist_path = new_playlist.
         let audio_file_path = new_playlist.set_current_index(0).unwrap().clone();
         self.playlist_manager.insert_and_set_current_playlist(new_playlist);
-        // 选择/创建播放列表后，强制切换到播放列表视图
-        self.current_view = ViewType::Playlist;
-        self.app_config.ui.current_view = self.current_view.clone().into();
         self.app_config.save_safe();
         //self.playlist_manager.set_current_playlist(new_playlist.file_path())
         let background_task = self.start_background_audio_duration_loading();
@@ -847,22 +840,6 @@ impl PlayerApp {
         Task::none()
     }
 
-    fn handle_toggle_view(&mut self) -> Task<Message> {
-        // 直接切换视图并保存配置（去除动画逻辑）
-        let target_view = match self.current_view {
-            ViewType::Playlist => ViewType::Lyrics,
-            ViewType::Lyrics => ViewType::Playlist,
-        };
-
-        self.current_view = target_view.clone();
-        self.app_config.ui.current_view = target_view.into();
-        self.app_config.save_safe();
-
-        Task::none()
-    }
-
-    
-
     fn handle_window_resized(&mut self, width: f32, height: f32) -> Task<Message> {
         self.window_size = (width, height);
         // 更新配置
@@ -944,7 +921,6 @@ impl PlayerApp {
         self.current_theme = self.app_config.ui.theme.clone().into();
         self.current_language = self.app_config.ui.language.clone();
         self.current_page = self.app_config.ui.current_page.clone().into();
-        self.current_view = self.app_config.ui.current_view.clone().into();
         self.play_mode = self.app_config.player.play_mode.clone().into();
         
         // 保存重置后的配置
@@ -1043,9 +1019,6 @@ impl PlayerApp {
             Ok(_) => {
                 self.stop_current_playback();
                 self.playlist_loaded = true;
-                // 切换播放列表时默认显示播放列表视图
-                self.current_view = ViewType::Playlist;
-                self.app_config.ui.current_view = self.current_view.clone().into();
                 self.app_config.save_safe();
                 // 先将播放列表中的音频加载到全局缓存中，再启动后台时长估算
                 self.playlist_manager.preload_current_playlist_audio_to_cache();
@@ -1067,7 +1040,6 @@ impl PlayerApp {
         self.app_config.ui.theme = self.current_theme.clone().into();
         self.app_config.ui.language = self.current_language.clone();
         self.app_config.ui.current_page = self.current_page.clone().into();
-        self.app_config.ui.current_view = self.current_view.clone().into();
         self.app_config.player.play_mode = self.play_mode.clone().into();
         
         if !self.file_path.is_empty() {
@@ -1253,24 +1225,14 @@ impl PlayerApp {
         Task::none()
     }
 
-    fn create_sliding_animation_view(&self) -> Element<Message> {
-        let playlist_content = if let Some(playlist) = self.playlist_manager.current_playlist_ref() {
+    fn create_main_player_view(&self) -> Element<Message> {
+        // 主内容（不包含底部栏与进度条，由首页统一布局承载）
+        let main_content = if let Some(playlist) = self.playlist_manager.current_playlist_ref() {
             playlist_view(playlist, self.playlist_loaded, self.is_playing, &self.playlist_manager, self.menu_song_index)
         } else {
             let empty_playlist = Playlist::new();
             playlist_view(&empty_playlist, false, self.is_playing, &self.playlist_manager, None)
         };
-        let lyrics_content = lyrics_view(&self.file_path, self.is_playing, self.playback_state.current_time, self.current_lyrics.clone(), self.window_size.1);
-
-        match self.current_view {
-            ViewType::Playlist => playlist_content,
-            ViewType::Lyrics => lyrics_content,
-        }
-    }
-
-    fn create_main_player_view(&self) -> Element<Message> {
-        // 主内容（不包含底部栏与进度条，由首页统一布局承载）
-        let main_content = self.create_sliding_animation_view();
 
         StyledContainer::new(container(main_content).height(Length::Fill).width(Length::Fill))
             .style(super::widgets::styled_container::ContainerStyle::Transparent)
