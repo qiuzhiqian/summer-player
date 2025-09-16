@@ -13,6 +13,8 @@ use super::components::PageType;
 pub enum Message {
     /// 播放/暂停切换
     PlayPause,
+    /// 切换主页和歌词页面
+    ToggleHomeLyrics,
     /// 打开文件对话框（音频文件多选，播放列表单选，有验证逻辑）
     OpenFile,
     /// 多个音频文件选择完成
@@ -33,6 +35,10 @@ pub enum Message {
     SongItemActionDetails(usize),
     /// 编辑歌曲标签
     SongItemActionEditTags(usize),
+    /// 从Id3Tag页面返回
+    ReturnFromId3Tag,
+    /// 从Lyrics页面返回
+    ReturnFromLyrics,
     /// 移除歌曲
     SongItemActionRemove(usize),
 
@@ -74,8 +80,6 @@ pub enum Message {
     AudioSessionStarted(mpsc::UnboundedSender<PlaybackCommand>),
     /// 系统事件
     EventOccurred(Event),
-    /// 切换播放列表/歌词显示视图
-    ToggleView,
     /// 窗口大小变化
     WindowResized(f32, f32),
     /// 进度条变化（值为0.0-1.0的比例）

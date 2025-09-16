@@ -195,8 +195,9 @@ fn alpha_text_style(alpha: f32) -> impl Fn(&iced::Theme) -> iced::widget::text::
 /// 主色文本样式
 fn primary_text_style() -> impl Fn(&iced::Theme) -> iced::widget::text::Style {
     |theme: &iced::Theme| {
+        let palette = theme.extended_palette();
         iced::widget::text::Style {
-            color: Some(AppColors::primary(theme)),
+            color: Some(palette.primary.strong.color),
         }
     }
 }
@@ -226,7 +227,7 @@ fn icon_button(
 // ============================================================================
 
 #[derive(Debug, Clone, PartialEq, Default)]
-pub enum PageType { #[default] Home, Settings }
+pub enum PageType { #[default] Home, Settings, Id3Tag, Lyrics }
 
 #[derive(Debug, Clone, PartialEq, Default)]
 pub enum ViewType { #[default] Playlist, Lyrics }
@@ -470,18 +471,6 @@ pub fn control_buttons_view(is_playing: bool) -> Element<'static, Message> {
 /// 紧凑按钮组
 pub fn compact_play_mode_button(current_mode: PlayMode) -> Element<'static, Message> {
     icon_button(current_mode.icon(), current_mode.name(), Message::TogglePlayMode, constants::BUTTON_SIZE_SMALL, constants::ICON_SIZE_SMALL, AppTheme::file_button)
-}
-
-pub fn compact_file_button() -> Element<'static, Message> {
-    icon_button(icons::FILE_FOLDER, t!("Open Files").to_string(), Message::OpenFile, constants::BUTTON_SIZE_SMALL, constants::ICON_SIZE_SMALL, AppTheme::file_button)
-}
-
-pub fn compact_view_toggle_button(current_view: ViewType) -> Element<'static, Message> {
-    let (icon, tooltip) = match current_view {
-        ViewType::Playlist => (icons::MUSIC_NOTE, t!("Switch to Lyrics").to_string()),
-        ViewType::Lyrics => (icons::LIST_VIEW, t!("Switch to Playlist").to_string()),
-    };
-    icon_button(icon, tooltip, Message::ToggleView, constants::BUTTON_SIZE_SMALL, constants::ICON_SIZE_SMALL, AppTheme::file_button)
 }
 
 /// 细进度条视图（用于底部栏）
@@ -951,18 +940,38 @@ pub fn spacer() -> Element<'static, Message> {
 pub fn compact_album_cover_view(audio_info: Option<&AudioInfo>) -> Element<'static, Message> {
     let content = if let Some(info) = audio_info {
         if let Some(cover_art) = &info.metadata.cover_art {
-            // 显示专辑封面（更大尺寸）
-            iced::widget::Image::new(iced::widget::image::Handle::from_bytes(cover_art.data.clone()))
+            // 显示可点击的专辑封面
+            let image = iced::widget::Image::new(iced::widget::image::Handle::from_bytes(cover_art.data.clone()))
                 .width(Length::Fixed(50.0))
-                .height(Length::Fixed(50.0))
-                .into()
+                .height(Length::Fixed(50.0));
+            
+            IconButton::new("", t!("Toggle View"))
+                .on_press(Message::ToggleHomeLyrics)
+                .size(56.0)
+                .style(super::widgets::styled_button::ButtonType::Default, super::widgets::styled_button::ButtonColor::Default)
+                .content(container(image)
+                    .width(Length::Fill)
+                    .height(Length::Fill)
+                    .align_x(Horizontal::Center)
+                    .align_y(Vertical::Center))
+                .build()
         } else {
-            // 没有封面时显示音乐图标
-            svg_icon(icons::MUSIC_NOTE, 28.0, constants::ICON_COLOR)
+            // 没有封面时显示可点击的音乐图标按钮
+            IconButton::new(icons::MUSIC_NOTE, t!("Toggle View"))
+                .on_press(Message::ToggleHomeLyrics)
+                .size(56.0)
+                .icon_size(28.0)
+                .style(super::widgets::styled_button::ButtonType::Default, super::widgets::styled_button::ButtonColor::Default)
+                .build()
         }
     } else {
-        // 没有音频信息时显示音乐图标
-        svg_icon(icons::MUSIC_NOTE, 28.0, constants::ICON_COLOR)
+        // 没有音频信息时显示可点击的音乐图标按钮
+        IconButton::new(icons::MUSIC_NOTE, t!("Toggle View"))
+            .on_press(Message::ToggleHomeLyrics)
+            .size(56.0)
+            .icon_size(28.0)
+            .style(super::widgets::styled_button::ButtonType::Default, super::widgets::styled_button::ButtonColor::Default)
+            .build()
     };
 
     StyledContainer::new(content)

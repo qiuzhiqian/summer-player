@@ -278,10 +278,19 @@ impl PlayerApp {
             Message::PlaybackStateUpdate(state) => self.handle_playback_state_update(state),
             Message::AudioSessionStarted(sender) => self.handle_audio_session_started(sender),
             Message::EventOccurred(event) => self.handle_event_occurred(event),
-            Message::ToggleView => self.handle_toggle_view(),
             Message::WindowResized(width, height) => self.handle_window_resized(width, height),
             Message::ProgressChanged(progress) => self.handle_progress_changed(progress),
             Message::ToggleTheme => self.handle_toggle_theme(),
+            Message::ToggleHomeLyrics => {
+                self.current_page = match &self.current_page {
+                    PageType::Home => PageType::Lyrics,
+                    PageType::Lyrics => PageType::Home,
+                    _ => PageType::Home,
+                };
+                self.app_config.ui.current_page = self.current_page.clone().into();
+                self.app_config.save_safe();
+                Task::none()
+            },
             Message::PageChanged(page) => self.handle_page_changed(page),
             Message::TogglePlayMode => self.handle_toggle_play_mode(),
             Message::ConfigUpdate => self.handle_config_update(),
@@ -319,8 +328,25 @@ impl PlayerApp {
                 Task::none()
             },
             Message::SongItemActionEditTags(index) => {
-                // 编辑歌曲标签（暂未实现）
+                // 切换到Id3Tag页面
                 self.menu_song_index = None;
+                self.current_page = PageType::Id3Tag;
+                self.app_config.ui.current_page = self.current_page.clone().into();
+                self.app_config.save_safe();
+                Task::none()
+            },
+            Message::ReturnFromId3Tag => {
+                // 从Id3Tag页面返回主页
+                self.current_page = PageType::Home;
+                self.app_config.ui.current_page = self.current_page.clone().into();
+                self.app_config.save_safe();
+                Task::none()
+            },
+            Message::ReturnFromLyrics => {
+                // 从Lyrics页面返回主页
+                self.current_page = PageType::Home;
+                self.app_config.ui.current_page = self.current_page.clone().into();
+                self.app_config.save_safe();
                 Task::none()
             },
             Message::SongItemActionRemove(index) => {
@@ -401,6 +427,46 @@ impl PlayerApp {
                 .height(Length::Fill)
                 .into()
             }
+            PageType::Id3Tag => {
+                let id3tag = StyledContainer::new(
+                    StyledText::new("ID3标签编辑功能暂未实现")
+                        .size(constants::TEXT_TITLE)
+                        .style(super::widgets::styled_text::TextStyle::Primary)
+                        .align(Horizontal::Center)
+                        .build()
+                )
+                .style(super::widgets::styled_container::ContainerStyle::Card)
+                .padding(constants::PADDING_MEDIUM)
+                .width(Length::Fill)
+                .height(Length::Fill)
+                .build();
+
+                row![
+                    nav,
+                    id3tag,
+                ]
+                .spacing(constants::SPACING_LARGE)
+                .height(Length::Fill)
+                .into()
+            }
+            PageType::Lyrics => {
+                let lyrics = StyledContainer::new(
+                    lyrics_view(&self.file_path, self.is_playing, self.playback_state.current_time, self.current_lyrics.clone(), self.window_size.1)
+                )
+                .style(super::widgets::styled_container::ContainerStyle::Card)
+                .padding(constants::PADDING_MEDIUM)
+                .width(Length::Fill)
+                .height(Length::Fill)
+                .build();
+
+                row![
+                    nav,
+                    lyrics,
+                ]
+                .spacing(constants::SPACING_LARGE)
+                .height(Length::Fill)
+                .into()
+            }
         };
 
         // 底部栏（统一）
@@ -418,9 +484,7 @@ impl PlayerApp {
 
         let right_controls = row![
             simple_time_view(&self.playback_state),
-            compact_file_button(),
             compact_play_mode_button(self.play_mode.clone()),
-            compact_view_toggle_button(self.current_view.clone()),
         ]
         .spacing(constants::SPACING_SMALL)
         .align_y(Vertical::Center);
@@ -1187,108 +1251,6 @@ impl PlayerApp {
         }
         
         Task::none()
-    }
-
-    /// 创建主页面内容
-    #[allow(dead_code)]
-    fn create_home_page(&self) -> Element<Message> {
-        // 左侧面板：播放列表文件网格视图（自适应宽度和高度）
-        let left_panel = column![
-            playlist_files_grid_view(&self.playlist_manager, self.creating_playlist, &self.creating_playlist_name, self.menu_playlist_path.as_deref(), self.renaming_playlist_path.as_deref(), &self.renaming_playlist_name),
-        ].spacing(16)
-         .width(Length::Fill)
-         .height(Length::Fill); // 确保填满可用高度
-
-        // 右侧面板：主内容区域
-        let right_panel = if self.playlist_manager.current_playlist_path().is_some() && self.playlist_loaded {
-            // 播放列表已加载，显示主播放界面
-            self.create_main_player_view()
-        } else {
-            // 播放列表未加载，显示欢迎界面
-            self.create_welcome_view()
-        };
-
-        // 左侧导航栏
-        let nav = navigation_sidebar(&self.current_page);
-
-        // 顶部：导航 + 左右面板（右侧固定宽度，左侧自适应）
-        let top_row = row![
-            // 导航侧边栏
-            nav,
-            // 左侧面板（播放列表网格）
-            StyledContainer::new(left_panel)
-                .style(super::widgets::styled_container::ContainerStyle::Card)
-                .width(Length::Fill)
-                .height(Length::Fill)
-                .padding(constants::PADDING_LARGE)
-                .build(),
-            // 右侧面板（主内容）
-            StyledContainer::new(right_panel)
-                .style(super::widgets::styled_container::ContainerStyle::Transparent)
-                .width(Length::Fixed(RIGHT_PANEL_WIDTH))
-                .height(Length::Fill)
-                .padding(constants::PADDING_LARGE)
-                .build(),
-        ]
-        .spacing(constants::SPACING_LARGE);
-
-        // 左侧固定宽度：封面 + 歌曲信息
-        let left_info = StyledContainer::new(
-            row![
-                compact_album_cover_view(self.audio_info.as_ref()),
-                compact_song_info_view(self.audio_info.as_ref(), &self.file_path),
-            ]
-            .spacing(constants::SPACING_SMALL)
-            .align_y(Vertical::Center)
-        )
-        .style(super::widgets::styled_container::ContainerStyle::Transparent)
-        .width(Length::Fixed(LEFT_INFO_WIDTH))
-        .build();
-
-        // 右侧功能按钮组（时间 + 文件打开 + 模式切换 + 歌词切换）
-        let right_controls = row![
-            simple_time_view(&self.playback_state),
-            compact_file_button(),
-            compact_play_mode_button(self.play_mode.clone()),
-            compact_view_toggle_button(self.current_view.clone()),
-        ]
-        .spacing(constants::SPACING_SMALL)
-        .align_y(Vertical::Center);
-
-        // 全局底部栏（跨越全宽）：左固定，中间居中控制，右侧功能组
-        let bottom_bar = StyledContainer::new(
-            row![
-                left_info,
-                container(control_buttons_view(self.is_playing))
-                    .width(Length::Fill)
-                    .align_x(Horizontal::Center),
-                right_controls,
-            ]
-            .spacing(constants::SPACING_MEDIUM)
-            .align_y(Vertical::Center)
-        )
-        .style(super::widgets::styled_container::ContainerStyle::Decorative)
-        .padding([constants::PADDING_SMALL, constants::PADDING_MEDIUM])
-        .width(Length::Fill)
-        .height(Length::Fixed(72.0))
-        .build();
-
-        // 顶部行 + 进度条 + 底部栏
-        StyledContainer::new(
-            column![
-                container(top_row).width(Length::Fill).height(Length::Fill),
-                container(thin_progress_view(&self.playback_state)).padding([0_u16, constants::PADDING_MEDIUM]).height(Length::Fixed(8.0)).width(Length::Fill),
-                bottom_bar,
-            ]
-            .spacing(constants::SPACING_MEDIUM)
-            .height(Length::Fill)
-        )
-        .style(super::widgets::styled_container::ContainerStyle::Background)
-        .padding(constants::PADDING_MEDIUM)
-        .width(Length::Fill)
-        .height(Length::Fill)
-        .build()
-        .into()
     }
 
     fn create_sliding_animation_view(&self) -> Element<Message> {

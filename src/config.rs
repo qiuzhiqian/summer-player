@@ -462,6 +462,8 @@ impl From<crate::ui::components::PageType> for String {
         match page {
             crate::ui::components::PageType::Home => "Home".to_string(),
             crate::ui::components::PageType::Settings => "Settings".to_string(),
+            crate::ui::components::PageType::Id3Tag => "Id3Tag".to_string(),
+            crate::ui::components::PageType::Lyrics => "Lyrics".to_string(),
         }
     }
 }
@@ -471,6 +473,8 @@ impl From<String> for crate::ui::components::PageType {
     fn from(s: String) -> Self {
         match s.as_str() {
             "Settings" => crate::ui::components::PageType::Settings,
+            "Id3Tag" => crate::ui::components::PageType::Id3Tag,
+            "Lyrics" => crate::ui::components::PageType::Lyrics,
             _ => crate::ui::components::PageType::Home,
         }
     }
@@ -494,4 +498,4 @@ impl From<String> for crate::ui::components::ViewType {
             _ => crate::ui::components::ViewType::Playlist,
         }
     }
-} 
+}
