@@ -35,6 +35,13 @@ pub enum Message {
     SongItemActionDetails(usize),
     /// 编辑歌曲标签
     SongItemActionEditTags(usize),
+    /// ID3标签字段变化
+    Id3TagFieldChanged {
+        field: Id3TagField,
+        value: String,
+    },
+    /// 确认ID3标签修改
+    ConfirmId3TagChanges,
     /// 从Id3Tag页面返回
     ReturnFromId3Tag,
     /// 从Lyrics页面返回
@@ -100,4 +107,15 @@ pub enum Message {
     AudioFileLoaded(String, bool),
     /// 异步估算时长完成（文件路径，估算的时长）
     AudioDurationEstimated(String, Option<f64>),
+}
+
+/// ID3标签字段枚举
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Id3TagField {
+    Title,
+    Album,
+    Artist,
+    Year,
+    TrackNumber,
+    Genre,
 }

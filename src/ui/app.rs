@@ -19,16 +19,53 @@ use iced::advanced::text::Shaping;
 use tokio::sync::mpsc;
 
 use crate::audio::{AudioInfo, PlaybackState, PlaybackCommand, start_audio_playback, AudioSource};
+use crate::ui::messages::Id3TagField;
 use crate::audio::file::estimate_duration_by_parsing;
+
+/// ID3标签编辑数据
+#[derive(Debug, Clone)]
+struct Id3TagData {
+    title: String,
+    album: String,
+    artist: String,
+    year: String,
+    track_number: String,
+    genre: String,
+}
+
+impl Default for Id3TagData {
+    fn default() -> Self {
+        Self {
+            title: String::new(),
+            album: String::new(),
+            artist: String::new(),
+            year: String::new(),
+            track_number: String::new(),
+            genre: String::new(),
+        }
+    }
+}
+
+/// 创建ID3标签输入框
+fn id3_tag_input_field(label: &str, value: &str, field: Id3TagField) -> Element<'static, Message> {
+    TextInput::new(label, value)
+        .on_input(move |value| Message::Id3TagFieldChanged { field, value })
+        .padding(constants::PADDING_SMALL)
+        .width(Length::Fill)
+        .into()
+}
 use crate::playlist::{Playlist, PlaylistManager, PlaylistExtraInfo};
 use crate::lyrics::Lyrics;
 use crate::utils::{is_m3u_playlist, is_supported_audio_file};
 use crate::config::AppConfig;
 use super::Message;
+use iced::widget::text_input::TextInput;
 use super::components::*;
 use super::theme::{AppThemeVariant};
 use super::widgets::StyledContainer;
 use super::widgets::StyledText;
+use super::widgets::StyledButton;
+use super::widgets::styled_button::ButtonType;
 use super::widgets::styled_text::TextStyle;
 
 const RIGHT_PANEL_WIDTH: f32 = 720.0;
@@ -78,6 +115,10 @@ pub struct PlayerApp {
     renaming_playlist_path: Option<String>,
     /// 重命名输入内容
     renaming_playlist_name: String,
+    /// ID3标签编辑数据
+    id3_tag_data: Id3TagData,
+    /// 当前编辑的歌曲索引
+    editing_song_index: Option<usize>,
 }
 
 impl Default for PlayerApp {
@@ -104,6 +145,8 @@ impl Default for PlayerApp {
             menu_song_index: None,
             renaming_playlist_path: None,
             renaming_playlist_name: String::new(),
+            id3_tag_data: Id3TagData::default(),
+            editing_song_index: None,
         }
     }
 }
@@ -329,6 +372,75 @@ impl PlayerApp {
                 self.current_page = PageType::Id3Tag;
                 self.app_config.ui.current_page = self.current_page.clone().into();
                 self.app_config.save_safe();
+                
+                // 初始化ID3标签数据
+                // 先获取文件路径
+                let file_path = if let Some(playlist) = self.playlist_manager.current_playlist() {
+                    playlist.get_file(index).cloned()
+                } else {
+                    None
+                };
+                
+                // 然后加载音频文件
+                if let Some(file_path) = file_path {
+                    if let Ok(audio_file) = self.playlist_manager.get_or_load_audio_file(&file_path) {
+                        self.editing_song_index = Some(index);
+                        self.id3_tag_data = Id3TagData {
+                            title: audio_file.info.metadata.title.clone().unwrap_or_default(),
+                            album: audio_file.info.metadata.album.clone().unwrap_or_default(),
+                            artist: audio_file.info.metadata.artist.clone().unwrap_or_default(),
+                            year: audio_file.info.metadata.year.map(|y| y.to_string()).unwrap_or_default(),
+                            track_number: audio_file.info.metadata.track_number.map(|t| t.to_string()).unwrap_or_default(),
+                            genre: audio_file.info.metadata.genre.clone().unwrap_or_default(),
+                        };
+                    }
+                }
+                Task::none()
+            },
+            Message::Id3TagFieldChanged { field, value } => {
+                match field {
+                    Id3TagField::Title => self.id3_tag_data.title = value,
+                    Id3TagField::Album => self.id3_tag_data.album = value,
+                    Id3TagField::Artist => self.id3_tag_data.artist = value,
+                    Id3TagField::Year => self.id3_tag_data.year = value,
+                    Id3TagField::TrackNumber => self.id3_tag_data.track_number = value,
+                    Id3TagField::Genre => self.id3_tag_data.genre = value,
+                }
+                Task::none()
+            },
+            Message::ConfirmId3TagChanges => {
+                if let Some(index) = self.editing_song_index {
+                        // 先获取文件路径
+                        let file_path = if let Some(playlist) = self.playlist_manager.current_playlist() {
+                            playlist.get_file(index).cloned()
+                        } else {
+                            None
+                        };
+                        
+                        // 然后加载并修改音频文件
+                        if let Some(file_path) = file_path {
+                            if let Ok(audio_file) = self.playlist_manager.get_or_load_audio_file(&file_path) {
+                                let mut audio_file = audio_file;
+                                audio_file.info.metadata.title = Some(self.id3_tag_data.title.clone());
+                                audio_file.info.metadata.album = Some(self.id3_tag_data.album.clone());
+                                audio_file.info.metadata.artist = Some(self.id3_tag_data.artist.clone());
+                                audio_file.info.metadata.year = self.id3_tag_data.year.parse().ok();
+                                audio_file.info.metadata.track_number = self.id3_tag_data.track_number.parse().ok();
+                                audio_file.info.metadata.genre = Some(self.id3_tag_data.genre.clone());
+                                
+                                // 保存播放列表
+                                if let Some(playlist) = self.playlist_manager.current_playlist() {
+                                    if let Err(e) = playlist.save() {
+                                        eprintln!("保存ID3标签失败: {}", e);
+                                    }
+                                }
+                            }
+                        }
+                }
+                // 返回主页
+                self.current_page = PageType::Home;
+                self.app_config.ui.current_page = self.current_page.clone().into();
+                self.app_config.save_safe();
                 Task::none()
             },
             Message::ReturnFromId3Tag => {
@@ -424,18 +536,37 @@ impl PlayerApp {
                 .into()
             }
             PageType::Id3Tag => {
-                let id3tag = StyledContainer::new(
-                    StyledText::new("ID3标签编辑功能暂未实现")
-                        .size(constants::TEXT_TITLE)
-                        .style(super::widgets::styled_text::TextStyle::Primary)
-                        .align(Horizontal::Center)
-                        .build()
-                )
-                .style(super::widgets::styled_container::ContainerStyle::Card)
-                .padding(constants::PADDING_MEDIUM)
-                .width(Length::Fill)
-                .height(Length::Fill)
-                .build();
+                let form = column![
+                    id3_tag_input_field("歌曲名", &self.id3_tag_data.title, Id3TagField::Title),
+                    id3_tag_input_field("专辑", &self.id3_tag_data.album, Id3TagField::Album),
+                    id3_tag_input_field("艺术家", &self.id3_tag_data.artist, Id3TagField::Artist),
+                    id3_tag_input_field("年代", &self.id3_tag_data.year, Id3TagField::Year),
+                    id3_tag_input_field("音轨号", &self.id3_tag_data.track_number, Id3TagField::TrackNumber),
+                    id3_tag_input_field("流派", &self.id3_tag_data.genre, Id3TagField::Genre),
+                    row![
+                        StyledButton::new("确定")
+                            .button_type(ButtonType::Primary)
+                            .on_press(Message::ConfirmId3TagChanges)
+                            .width(Length::Fixed(120.0))
+                            .build(),
+                        StyledButton::new("取消")
+                            .button_type(ButtonType::Default)
+                            .on_press(Message::ReturnFromId3Tag)
+                            .width(Length::Fixed(120.0))
+                            .build(),
+                    ]
+                    .spacing(constants::SPACING_MEDIUM)
+                    .align_y(iced::Alignment::Center)
+                ]
+                .spacing(constants::SPACING_LARGE)
+                .padding(constants::PADDING_MEDIUM);
+
+                let id3tag = StyledContainer::new(form)
+                    .style(super::widgets::styled_container::ContainerStyle::Card)
+                    .padding(constants::PADDING_MEDIUM)
+                    .width(Length::Fill)
+                    .height(Length::Fill)
+                    .build();
 
                 row![
                     nav,

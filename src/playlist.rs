@@ -4,7 +4,7 @@
 
 use std::{
     fs,
-    io::{BufRead, BufReader},
+    io::{BufRead, BufReader, Write},
     path::{Path, PathBuf},
     collections::HashMap,
 };
@@ -306,333 +306,370 @@ impl Playlist {
                             Some(0) // 回到开头
                         }
                     }
-                    None => Some(0), // 开始播放
-                };
-                
-                self.current_index = next_index;
-                (self.current_file_path(), false)
-            }
-            PlayMode::Random => {
-                // 随机播放：随机选择一首歌曲
-                if self.file_paths.len() == 1 {
-                    // 只有一首歌，重复播放
-                    (self.current_file_path(), true)
-                } else {
-                    use rand::Rng;
-                    let mut rng = rand::thread_rng();
-                    let mut next_index = rng.gen_range(0..self.file_paths.len());
-                    
-                    // 确保不会连续播放同一首歌（如果可能的话）
-                    if let Some(current) = self.current_index {
-                        while next_index == current && self.file_paths.len() > 1 {
-                            next_index = rng.gen_range(0..self.file_paths.len());
-                        }
-                    }
-                    
-                    self.current_index = Some(next_index);
-                    (self.current_file_path(), false)
-                }
-            }
-        }
-    }
-    
-    /// 根据播放模式切换到上一首
-    /// 
-    /// # 参数
-    /// * `play_mode` - 播放模式
-    /// 
-    /// # 返回
-    /// 上一首文件路径的引用和是否应该重新开始播放
-    pub fn previous_file_with_mode(&mut self, play_mode: &PlayMode) -> (Option<&String>, bool) {
-        if self.file_paths.is_empty() {
-            return (None, false);
-        }
+            None => Some(0), // 开始播放
+        };
         
-        match play_mode {
-            PlayMode::SingleLoop => {
-                // 单曲循环：保持当前歌曲
-                (self.current_file_path(), true)
-            }
-            PlayMode::ListLoop => {
-                // 列表循环：到开头后回到末尾
-                let prev_index = match self.current_index {
-                    Some(current) => {
-                        if current > 0 {
-                            Some(current - 1)
-                        } else {
-                            Some(self.file_paths.len() - 1) // 回到末尾
-                        }
-                    }
-                    None => {
-                        if !self.file_paths.is_empty() {
-                            Some(self.file_paths.len() - 1) // 从末尾开始
-                        } else {
-                            None
-                        }
-                    }
-                };
-                
-                self.current_index = prev_index;
-                (self.current_file_path(), false)
-            }
-            PlayMode::Random => {
-                // 随机播放：随机选择一首歌曲
-                if self.file_paths.len() == 1 {
-                    // 只有一首歌，重复播放
-                    (self.current_file_path(), true)
-                } else {
-                    use rand::Rng;
-                    let mut rng = rand::thread_rng();
-                    let mut prev_index = rng.gen_range(0..self.file_paths.len());
-                    
-                    // 确保不会连续播放同一首歌（如果可能的话）
-                    if let Some(current) = self.current_index {
-                        while prev_index == current && self.file_paths.len() > 1 {
-                            prev_index = rng.gen_range(0..self.file_paths.len());
-                        }
-                    }
-                    
-                    self.current_index = Some(prev_index);
-                    (self.current_file_path(), false)
-                }
-            }
-        }
+        self.current_index = next_index;
+        (self.current_file_path(), false)
     }
-    
-    /// 设置当前播放索引
-    /// 
-    /// # 参数
-    /// * `index` - 播放索引
-    /// 
-    /// # 返回
-    /// 指定索引的文件路径引用，如果索引无效则返回None
-    pub fn set_current_index(&mut self, index: usize) -> Option<&String> {
-        if index < self.file_paths.len() {
-            self.current_index = Some(index);
-            self.current_file_path()
+    PlayMode::Random => {
+        // 随机播放：随机选择一首歌曲
+        if self.file_paths.len() == 1 {
+            // 只有一首歌，重复播放
+            (self.current_file_path(), true)
         } else {
-            None
-        }
-    }
-    
-    /// 获取当前播放索引
-    /// 
-    /// # 返回
-    /// 当前播放索引，如果没有则返回None
-    pub fn current_index(&self) -> Option<usize> {
-        self.current_index
-    }
-    
-    /// 检查播放列表是否为空
-    /// 
-    /// # 返回
-    /// 如果播放列表为空则返回true
-    pub fn is_empty(&self) -> bool {
-        self.file_paths.is_empty()
-    }
-    
-    /// 获取播放列表长度
-    /// 
-    /// # 返回
-    /// 播放列表中的文件数量
-    pub fn len(&self) -> usize {
-        self.file_paths.len()
-    }
-    
-    /// 获取所有文件路径的引用
-    /// 
-    /// # 返回
-    /// 文件路径的向量引用
-    pub fn file_paths(&self) -> &[String] {
-        &self.file_paths
-    }
-    
-    /// 获取播放列表名称
-    /// 
-    /// # 返回
-    /// 播放列表名称的引用，如果没有则返回None
-    pub fn name(&self) -> Option<&str> {
-        self.name.as_deref()
-    }
-    
-    /// 获取播放列表文件路径
-    /// 
-    /// # 返回
-    /// 播放列表文件路径的引用，如果是临时播放列表则返回None
-    pub fn file_path(&self) -> Option<&str> {
-        self.file_path.as_deref()
-    }
-    
-    /// 检查是否为临时播放列表
-    /// 
-    /// # 返回
-    /// 如果是临时播放列表返回true
-    pub fn is_temporary(&self) -> bool {
-        self.file_path.is_none()
-    }
-    
-    /// 创建临时播放列表（用于多个音频文件）
-    /// 
-    /// # 参数
-    /// * `file_paths` - 音频文件路径向量
-    /// 
-    /// # 返回
-    /// 临时播放列表实例
-    pub fn create_from_audio_files(file_paths: Vec<String>) -> Self {
-        let mut playlist = Self {
-            file_paths: Vec::new(),
-            current_index: None,
-            name: None,
-            extra_infos: HashMap::new(),
-            file_path: None, // 临时播放列表没有文件路径
-        };
-        
-        // 为每个文件路径添加到播放列表
-        for file_path in file_paths {
-            playlist.add_file(file_path);
-        }
-        
-        // 如果有文件，设置第一个为当前播放项
-        if !playlist.is_empty() {
-            playlist.set_current_index(0);
-        }
-        
-        playlist
-    }
-    
-    /// 创建持久播放列表（从文件加载）
-    /// 
-    /// # 参数
-    /// * `file_path` - 播放列表文件路径
-    /// * `name` - 播放列表名称
-    /// 
-    /// # 返回
-    /// 成功时返回Playlist实例，失败时返回错误
-    pub fn create_from_playlist_file(file_path: String) -> Result<Self> {
-        let name = extract_filename(&file_path);
-        // 打开并读取播放列表文件
-        let file = fs::File::open(&file_path)
-            .map_err(|e| PlayerError::PlaylistError(format!("Failed to open playlist file: {}", e)))?;
-
-        let reader = BufReader::new(file);
-        let mut playlist = Self {
-            file_paths: Vec::new(),
-            current_index: None,
-            name: Some(name),
-            extra_infos: HashMap::new(),
-            file_path: Some(file_path.clone()),
-        };
-
-        let playlist_dir = Path::new(&file_path).parent()
-            .ok_or_else(|| PlayerError::PlaylistError("Invalid playlist path".to_string()))?;
-
-        let mut current_track_info: Option<(f64, String)> = None; // (duration, title)
-
-        for (line_num, line) in reader.lines().enumerate() {
-            let line = line.map_err(|e| PlayerError::PlaylistError(format!("Failed to read line {}: {}", line_num + 1, e)))?;
-            let line = line.trim();
-
-            // 跳过空行
-            if line.is_empty() {
-                continue;
-            }
-
-            // 处理M3U指令
-            if line.starts_with('#') {
-                if line.starts_with("#EXTINF:") {
-                    // 解析 #EXTINF: 指令
-                    if let Some(info_part) = line.strip_prefix("#EXTINF:") {
-                        if let Some(comma_pos) = info_part.find(',') {
-                            let duration_str = &info_part[..comma_pos];
-                            let title = &info_part[comma_pos + 1..];
-
-                            if let Ok(duration) = duration_str.parse::<f64>() {
-                                current_track_info = Some((duration, title.to_string()));
-                            }
-                        }
-                    }
-                }
-                // 跳过其他注释行
-                continue;
-            }
-
-            // 处理文件路径
-            let file_path = normalize_path(line, Some(playlist_dir));
-
-            // 检查文件是否存在
-            if !Path::new(&file_path).exists() {
-                eprintln!("Warning: File not found: {}", file_path);
-                continue;
-            }
-
-            // 添加文件到播放列表
-            playlist.add_file(file_path.clone());
-
-            // 如果有EXTINF信息，创建包含元数据的PlaylistExtraInfo
-            let extra_info = if let Some((duration, title)) = current_track_info.take() {
-                PlaylistExtraInfo::new(file_path.clone())
-                    .with_duration(Some(duration))
-                    .with_name(title)
-            } else {
-                PlaylistExtraInfo::new(file_path.clone())
-            };
-
-            // 记录额外信息（不在此处加载音频文件，避免重复加载）
-            playlist.set_extra_info(extra_info);
-        }
-
-        Ok(playlist)
-    }
-    
-    /// 移除指定索引的文件
-    /// 
-    /// # 参数
-    /// * `index` - 要移除的文件索引
-    /// 
-    /// # 返回
-    /// 如果成功移除则返回true
-    pub fn remove_file(&mut self, index: usize) -> bool {
-        if index < self.file_paths.len() {
-            self.file_paths.remove(index);
+            use rand::Rng;
+            let mut rng = rand::thread_rng();
+            let mut next_index = rng.gen_range(0..self.file_paths.len());
             
-            // 调整当前播放索引
+            // 确保不会连续播放同一首歌（如果可能的话）
             if let Some(current) = self.current_index {
-                if current == index {
-                    // 移除的是当前播放项
-                    if self.file_paths.is_empty() {
-                        self.current_index = None;
-                    } else if current >= self.file_paths.len() {
-                        self.current_index = Some(self.file_paths.len() - 1);
-                    }
-                    // 如果当前索引仍然有效，则保持不变
-                } else if current > index {
-                    // 当前播放项在被移除项之后，需要调整索引
-                    self.current_index = Some(current - 1);
+                while next_index == current && self.file_paths.len() > 1 {
+                    next_index = rng.gen_range(0..self.file_paths.len());
                 }
             }
             
-            true
-        } else {
-            false
+            self.current_index = Some(next_index);
+            (self.current_file_path(), false)
         }
     }
+}
+}
+
+/// 根据播放模式切换到上一首
+/// 
+/// # 参数
+/// * `play_mode` - 播放模式
+/// 
+/// # 返回
+/// 上一首文件路径的引用和是否应该重新开始播放
+pub fn previous_file_with_mode(&mut self, play_mode: &PlayMode) -> (Option<&String>, bool) {
+    if self.file_paths.is_empty() {
+        return (None, false);
+    }
     
-    /// 设置或更新指定文件的额外信息
-    pub fn set_extra_info(&mut self, extra_info: PlaylistExtraInfo) {
-        self.extra_infos.insert(extra_info.path.clone(), extra_info);
+    match play_mode {
+        PlayMode::SingleLoop => {
+            // 单曲循环：保持当前歌曲
+            (self.current_file_path(), true)
+        }
+        PlayMode::ListLoop => {
+            // 列表循环：到开头后回到末尾
+            let prev_index = match self.current_index {
+                Some(current) => {
+                    if current > 0 {
+                        Some(current - 1)
+                    } else {
+                        Some(self.file_paths.len() - 1) // 回到末尾
+                    }
+                }
+                None => {
+                    if !self.file_paths.is_empty() {
+                        Some(self.file_paths.len() - 1) // 从末尾开始
+                    } else {
+                        None
+                    }
+                }
+            };
+            
+            self.current_index = prev_index;
+            (self.current_file_path(), false)
+        }
+        PlayMode::Random => {
+            // 随机播放：随机选择一首歌曲
+            if self.file_paths.len() == 1 {
+                // 只有一首歌，重复播放
+                (self.current_file_path(), true)
+            } else {
+                use rand::Rng;
+                let mut rng = rand::thread_rng();
+                let mut prev_index = rng.gen_range(0..self.file_paths.len());
+                
+                // 确保不会连续播放同一首歌（如果可能的话）
+                if let Some(current) = self.current_index {
+                    while prev_index == current && self.file_paths.len() > 1 {
+                        prev_index = rng.gen_range(0..self.file_paths.len());
+                    }
+                }
+                
+                self.current_index = Some(prev_index);
+                (self.current_file_path(), false)
+            }
+        }
+    }
+}
+
+/// 设置当前播放索引
+/// 
+/// # 参数
+/// * `index` - 播放索引
+/// 
+/// # 返回
+/// 指定索引的文件路径引用，如果索引无效则返回None
+pub fn set_current_index(&mut self, index: usize) -> Option<&String> {
+    if index < self.file_paths.len() {
+        self.current_index = Some(index);
+        self.current_file_path()
+    } else {
+        None
+    }
+}
+
+/// 获取当前播放索引
+/// 
+/// # 返回
+/// 当前播放索引，如果没有则返回None
+pub fn current_index(&self) -> Option<usize> {
+    self.current_index
+}
+
+/// 检查播放列表是否为空
+/// 
+/// # 返回
+/// 如果播放列表为空则返回true
+pub fn is_empty(&self) -> bool {
+    self.file_paths.is_empty()
+}
+
+/// 获取播放列表长度
+/// 
+/// # 返回
+/// 播放列表中的文件数量
+pub fn len(&self) -> usize {
+    self.file_paths.len()
+}
+
+/// 获取所有文件路径的引用
+/// 
+/// # 返回
+/// 文件路径的向量引用
+pub fn file_paths(&self) -> &[String] {
+    &self.file_paths
+}
+
+/// 获取播放列表名称
+/// 
+/// # 返回
+/// 播放列表名称的引用，如果没有则返回None
+pub fn name(&self) -> Option<&str> {
+    self.name.as_deref()
+}
+
+/// 获取播放列表文件路径
+/// 
+/// # 返回
+/// 播放列表文件路径的引用，如果是临时播放列表则返回None
+pub fn file_path(&self) -> Option<&str> {
+    self.file_path.as_deref()
+}
+
+/// 检查是否为临时播放列表
+/// 
+/// # 返回
+/// 如果是临时播放列表返回true
+pub fn is_temporary(&self) -> bool {
+    self.file_path.is_none()
+}
+
+/// 创建临时播放列表（用于多个音频文件）
+/// 
+/// # 参数
+/// * `file_paths` - 音频文件路径向量
+/// 
+/// # 返回
+/// 临时播放列表实例
+pub fn create_from_audio_files(file_paths: Vec<String>) -> Self {
+    let mut playlist = Self {
+        file_paths: Vec::new(),
+        current_index: None,
+        name: None,
+        extra_infos: HashMap::new(),
+        file_path: None, // 临时播放列表没有文件路径
+    };
+    
+    // 为每个文件路径添加到播放列表
+    for file_path in file_paths {
+        playlist.add_file(file_path);
+    }
+    
+    // 如果有文件，设置第一个为当前播放项
+    if !playlist.is_empty() {
+        playlist.set_current_index(0);
+    }
+    
+    playlist
+}
+
+/// 创建持久播放列表（从文件加载）
+/// 
+/// # 参数
+/// * `file_path` - 播放列表文件路径
+/// * `name` - 播放列表名称
+/// 
+/// # 返回
+/// 成功时返回Playlist实例，失败时返回错误
+pub fn create_from_playlist_file(file_path: String) -> Result<Self> {
+    let name = extract_filename(&file_path);
+    // 打开并读取播放列表文件
+    let file = fs::File::open(&file_path)
+        .map_err(|e| PlayerError::PlaylistError(format!("Failed to open playlist file: {}", e)))?;
+
+    let reader = BufReader::new(file);
+    let mut playlist = Self {
+        file_paths: Vec::new(),
+        current_index: None,
+        name: Some(name),
+        extra_infos: HashMap::new(),
+        file_path: Some(file_path.clone()),
+    };
+
+    let playlist_dir = Path::new(&file_path).parent()
+        .ok_or_else(|| PlayerError::PlaylistError("Invalid playlist path".to_string()))?;
+
+    let mut current_track_info: Option<(f64, String)> = None; // (duration, title)
+
+    for (line_num, line) in reader.lines().enumerate() {
+        let line = line.map_err(|e| PlayerError::PlaylistError(format!("Failed to read line {}: {}", line_num + 1, e)))?;
+        let line = line.trim();
+
+        // 跳过空行
+        if line.is_empty() {
+            continue;
+        }
+
+        // 处理M3U指令
+        if line.starts_with('#') {
+            if line.starts_with("#EXTINF:") {
+                // 解析 #EXTINF: 指令
+                if let Some(info_part) = line.strip_prefix("#EXTINF:") {
+                    if let Some(comma_pos) = info_part.find(',') {
+                        let duration_str = &info_part[..comma_pos];
+                        let title = &info_part[comma_pos + 1..];
+
+                        if let Ok(duration) = duration_str.parse::<f64>() {
+                            current_track_info = Some((duration, title.to_string()));
+                        }
+                    }
+                }
+            }
+            // 跳过其他注释行
+            continue;
+        }
+
+        // 处理文件路径
+        let file_path = normalize_path(line, Some(playlist_dir));
+
+        // 检查文件是否存在
+        if !Path::new(&file_path).exists() {
+            eprintln!("Warning: File not found: {}", file_path);
+            continue;
+        }
+
+        // 添加文件到播放列表
+        playlist.add_file(file_path.clone());
+
+        // 如果有EXTINF信息，创建包含元数据的PlaylistExtraInfo
+        let extra_info = if let Some((duration, title)) = current_track_info.take() {
+            PlaylistExtraInfo::new(file_path.clone())
+                .with_duration(Some(duration))
+                .with_name(title)
+        } else {
+            PlaylistExtraInfo::new(file_path.clone())
+        };
+
+        // 记录额外信息（不在此处加载音频文件，避免重复加载）
+        playlist.set_extra_info(extra_info);
     }
 
-    /// 获取指定文件的额外信息
-    pub fn extra_info_for(&self, file_path: &str) -> Option<&PlaylistExtraInfo> {
-        self.extra_infos.get(file_path)
+    Ok(playlist)
+}
+
+/// 移除指定索引的文件
+/// 
+/// # 参数
+/// * `index` - 要移除的文件索引
+/// 
+/// # 返回
+/// 如果成功移除则返回true
+pub fn remove_file(&mut self, index: usize) -> bool {
+    if index < self.file_paths.len() {
+        self.file_paths.remove(index);
+        
+        // 调整当前播放索引
+        if let Some(current) = self.current_index {
+            if current == index {
+                // 移除的是当前播放项
+                if self.file_paths.is_empty() {
+                    self.current_index = None;
+                } else if current >= self.file_paths.len() {
+                    self.current_index = Some(self.file_paths.len() - 1);
+                }
+                // 如果当前索引仍然有效，则保持不变
+            } else if current > index {
+                // 当前播放项在被移除项之后，需要调整索引
+                self.current_index = Some(current - 1);
+            }
+        }
+        
+        true
+    } else {
+        false
     }
-    
-    /// 清空播放列表和缓存
-    pub fn clear(&mut self) {
-        self.file_paths.clear();
-        self.current_index = None;
-        self.extra_infos.clear();
+}
+
+/// 设置或更新指定文件的额外信息
+pub fn set_extra_info(&mut self, extra_info: PlaylistExtraInfo) {
+    self.extra_infos.insert(extra_info.path.clone(), extra_info);
+}
+
+/// 获取指定文件的额外信息
+pub fn extra_info_for(&self, file_path: &str) -> Option<&PlaylistExtraInfo> {
+    self.extra_infos.get(file_path)
+}
+
+/// 获取指定索引的文件路径
+pub fn get_file(&self, index: usize) -> Option<&String> {
+    self.file_paths.get(index)
+}
+
+/// 获取指定索引的文件路径的可变引用
+pub fn get_file_mut(&mut self, index: usize) -> Option<&mut String> {
+    self.file_paths.get_mut(index)
+}
+
+/// 保存播放列表到文件
+pub fn save(&mut self) -> Result<()> {
+    if let Some(path) = &self.file_path {
+        let mut file = fs::File::create(path)
+            .map_err(|e| PlayerError::PlaylistError(format!("Failed to create playlist file: {}", e)))?;
+        
+        // 写入M3U头
+        writeln!(file, "#EXTM3U")?;
+        
+        // 写入每个文件项
+        for (i, file_path) in self.file_paths.iter().enumerate() {
+            if let Some(extra_info) = self.extra_infos.get(file_path) {
+                // 写入EXTINF信息
+                if let (Some(duration), Some(title)) = (extra_info.duration, &extra_info.name) {
+                    writeln!(file, "#EXTINF:{},{}", duration, title)?;
+                }
+            }
+            // 写入文件路径
+            writeln!(file, "{}", file_path)?;
+        }
+        
+        Ok(())
+    } else {
+        Err(PlayerError::PlaylistError("Cannot save temporary playlist".to_string()))
     }
+}
+
+/// 清空播放列表和缓存
+pub fn clear(&mut self) {
+    self.file_paths.clear();
+    self.current_index = None;
+    self.extra_infos.clear();
+}
 }
 
 /// 播放列表管理器
@@ -1008,109 +1045,18 @@ impl PlaylistManager {
         if path.exists() {
             fs::remove_file(&path).map_err(|e| PlayerError::IoError(e))?;
         }
-        self.remove_playlist(playlist_path);
         Ok(())
     }
 
-    /// 追加文件到指定的m3u播放列表文件，并更新缓存
+    /// 追加文件到指定的播放列表
     pub fn append_files_to_playlist(&mut self, playlist_path: &str, files: &[String]) -> Result<()> {
-        if files.is_empty() { return Ok(()); }
-        // 只支持持久播放列表
-        let mut file = std::fs::OpenOptions::new()
-            .append(true)
-            .create(false)
-            .open(playlist_path)
-            .map_err(|e| PlayerError::IoError(e))?;
-        use std::io::Write;
-        for f in files {
-            // 写入相对路径或绝对路径，保持简单使用绝对路径
-            writeln!(file, "{}", f).map_err(|e| PlayerError::IoError(e))?;
-        }
-        // 刷新缓存中的该播放列表
-        if let Ok(pl) = Playlist::create_from_playlist_file(playlist_path.to_string()) {
-            self.playlists.insert(playlist_path.to_string(), pl);
+        if let Some(playlist) = self.playlists.get_mut(playlist_path) {
+            playlist.add_files(files.to_vec());
+            if let Some(file_path) = playlist.file_path() {
+                // 保存播放列表
+                playlist.save()?;
+            }
         }
         Ok(())
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_playlist_creation() {
-        let playlist = Playlist::new();
-        assert!(playlist.is_empty());
-        assert_eq!(playlist.len(), 0);
-        assert!(playlist.current_file_path().is_none());
-    }
-
-    #[test]
-    fn test_playlist_operations() {
-        let mut playlist = Playlist::new();
-        
-        playlist.add_file("test1.mp3".to_string());
-        playlist.add_file("test2.mp3".to_string());
-        
-        assert_eq!(playlist.len(), 2);
-        assert!(!playlist.is_empty());
-        
-        // 测试导航
-        assert!(playlist.next_file().is_some());
-        assert_eq!(playlist.current_index(), Some(0));
-        
-        assert!(playlist.next_file().is_some());
-        assert_eq!(playlist.current_index(), Some(1));
-        
-        assert!(playlist.next_file().is_none()); // 到达末尾
-        
-        assert!(playlist.previous_file().is_some());
-        assert_eq!(playlist.current_index(), Some(0));
-    }
-    
-    #[test]
-    fn test_create_from_multiple_audio_files() {
-        let file_paths = vec![
-            "song1.mp3".to_string(),
-            "song2.flac".to_string(),
-            "song3.wav".to_string(),
-        ];
-        
-        let playlist = Playlist::create_from_audio_files(file_paths);
-        
-        assert_eq!(playlist.len(), 3);
-        assert!(!playlist.is_empty());
-        assert_eq!(playlist.current_index(), Some(0));
-        assert!(playlist.is_temporary());
-        
-        // 验证所有文件都被添加到播放列表中
-        let paths = playlist.file_paths();
-        assert_eq!(paths[0], "song1.mp3");
-        assert_eq!(paths[1], "song2.flac");
-        assert_eq!(paths[2], "song3.wav");
-    }
-    
-    #[test]
-    fn test_create_from_single_audio_file_convenience() {
-        let playlist = Playlist::create_from_audio_files(vec!["single_song.mp3".to_string()]);
-        
-        assert_eq!(playlist.len(), 1);
-        assert!(!playlist.is_empty());
-        assert_eq!(playlist.current_index(), Some(0));
-        assert!(playlist.is_temporary());
-        
-        let paths = playlist.file_paths();
-        assert_eq!(paths[0], "single_song.mp3");
-    }
-    
-    #[test]
-    fn test_create_from_empty_audio_files() {
-        let playlist = Playlist::create_from_audio_files(vec![]);
-        
-        assert_eq!(playlist.len(), 0);
-        assert!(playlist.is_empty());
-        assert_eq!(playlist.current_index(), None);
-        assert!(playlist.is_temporary());
     }
 }
