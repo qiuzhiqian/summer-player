@@ -470,6 +470,10 @@ pub fn compact_play_mode_button(current_mode: PlayMode) -> Element<'static, Mess
     icon_button(current_mode.icon(), current_mode.name(), Message::TogglePlayMode, constants::BUTTON_SIZE_SMALL, constants::ICON_SIZE_SMALL, AppTheme::file_button)
 }
 
+pub fn compact_file_button() -> Element<'static, Message> {
+    icon_button(icons::FILE_FOLDER, t!("Open Files").to_string(), Message::OpenFile, constants::BUTTON_SIZE_SMALL, constants::ICON_SIZE_SMALL, AppTheme::file_button)
+}
+
 /// 细进度条视图（用于底部栏）
 pub fn thin_progress_view(playback_state: &PlaybackState) -> Element<'static, Message> {
     let progress = if playback_state.total_duration > 0.0 {

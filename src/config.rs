@@ -191,8 +191,6 @@ pub struct UIConfig {
     pub theme: ThemeVariant,
     /// 界面语言
     pub language: String,
-    /// 当前页面类型
-    pub current_page: String,
     /// 左侧面板宽度
     pub left_panel_width: f32,
 }
@@ -202,7 +200,6 @@ impl Default for UIConfig {
         Self {
             theme: ThemeVariant::Light,
             language: "en".to_string(),
-            current_page: "Home".to_string(),
             left_panel_width: ui::MAIN_PANEL_WIDTH,
         }
     }
@@ -453,26 +450,3 @@ impl Into<crate::ui::theme::AppThemeVariant> for ThemeVariant {
     }
 }
 
-/// 从UI页面类型转换到字符串
-impl From<crate::ui::components::PageType> for String {
-    fn from(page: crate::ui::components::PageType) -> Self {
-        match page {
-            crate::ui::components::PageType::Home => "Home".to_string(),
-            crate::ui::components::PageType::Settings => "Settings".to_string(),
-            crate::ui::components::PageType::Id3Tag => "Id3Tag".to_string(),
-            crate::ui::components::PageType::Lyrics => "Lyrics".to_string(),
-        }
-    }
-}
-
-/// 从字符串转换到UI页面类型
-impl From<String> for crate::ui::components::PageType {
-    fn from(s: String) -> Self {
-        match s.as_str() {
-            "Settings" => crate::ui::components::PageType::Settings,
-            "Id3Tag" => crate::ui::components::PageType::Id3Tag,
-            "Lyrics" => crate::ui::components::PageType::Lyrics,
-            _ => crate::ui::components::PageType::Home,
-        }
-    }
-}

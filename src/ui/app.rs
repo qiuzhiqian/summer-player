@@ -253,7 +253,7 @@ impl PlayerApp {
             window_size: (config.window.width, config.window.height),
             current_language: config.ui.language.clone(),
             current_theme: config.ui.theme.clone().into(),
-            current_page: config.ui.current_page.clone().into(),
+            current_page: PageType::default(),
             play_mode: config.player.play_mode.clone().into(),
             app_config: config,
             ..Self::default()
@@ -326,8 +326,6 @@ impl PlayerApp {
                     PageType::Lyrics => PageType::Home,
                     _ => PageType::Home,
                 };
-                self.app_config.ui.current_page = self.current_page.clone().into();
-                self.app_config.save_safe();
                 Task::none()
             },
             Message::PageChanged(page) => self.handle_page_changed(page),
@@ -370,8 +368,6 @@ impl PlayerApp {
                 // 切换到Id3Tag页面
                 self.menu_song_index = None;
                 self.current_page = PageType::Id3Tag;
-                self.app_config.ui.current_page = self.current_page.clone().into();
-                self.app_config.save_safe();
                 
                 // 初始化ID3标签数据
                 // 先获取文件路径
@@ -439,22 +435,16 @@ impl PlayerApp {
                 }
                 // 返回主页
                 self.current_page = PageType::Home;
-                self.app_config.ui.current_page = self.current_page.clone().into();
-                self.app_config.save_safe();
                 Task::none()
             },
             Message::ReturnFromId3Tag => {
                 // 从Id3Tag页面返回主页
                 self.current_page = PageType::Home;
-                self.app_config.ui.current_page = self.current_page.clone().into();
-                self.app_config.save_safe();
                 Task::none()
             },
             Message::ReturnFromLyrics => {
                 // 从Lyrics页面返回主页
                 self.current_page = PageType::Home;
-                self.app_config.ui.current_page = self.current_page.clone().into();
-                self.app_config.save_safe();
                 Task::none()
             },
             Message::SongItemActionRemove(index) => {
@@ -612,6 +602,7 @@ impl PlayerApp {
         let right_controls = row![
             simple_time_view(&self.playback_state),
             compact_play_mode_button(self.play_mode.clone()),
+            compact_file_button(),
         ]
         .spacing(constants::SPACING_SMALL)
         .align_y(Vertical::Center);
@@ -1013,10 +1004,7 @@ impl PlayerApp {
     }
 
     fn handle_page_changed(&mut self, page: PageType) -> Task<Message> {
-        self.current_page = page.clone();
-        // 更新配置
-        self.app_config.ui.current_page = page.into();
-        self.app_config.save_safe();
+        self.current_page = page;
         Task::none()
     }
 
@@ -1051,7 +1039,7 @@ impl PlayerApp {
         // 更新应用状态以匹配默认配置
         self.current_theme = self.app_config.ui.theme.clone().into();
         self.current_language = self.app_config.ui.language.clone();
-        self.current_page = self.app_config.ui.current_page.clone().into();
+        self.current_page = PageType::default();
         self.play_mode = self.app_config.player.play_mode.clone().into();
         
         // 保存重置后的配置
@@ -1170,7 +1158,6 @@ impl PlayerApp {
         self.app_config.window.height = self.window_size.1;
         self.app_config.ui.theme = self.current_theme.clone().into();
         self.app_config.ui.language = self.current_language.clone();
-        self.app_config.ui.current_page = self.current_page.clone().into();
         self.app_config.player.play_mode = self.play_mode.clone().into();
         
         if !self.file_path.is_empty() {
