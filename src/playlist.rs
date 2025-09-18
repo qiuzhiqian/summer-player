@@ -647,7 +647,7 @@ pub fn save(&mut self) -> Result<()> {
         writeln!(file, "#EXTM3U")?;
         
         // 写入每个文件项
-        for (i, file_path) in self.file_paths.iter().enumerate() {
+        for (_i, file_path) in self.file_paths.iter().enumerate() {
             if let Some(extra_info) = self.extra_infos.get(file_path) {
                 // 写入EXTINF信息
                 if let (Some(duration), Some(title)) = (extra_info.duration, &extra_info.name) {
@@ -1052,7 +1052,7 @@ impl PlaylistManager {
     pub fn append_files_to_playlist(&mut self, playlist_path: &str, files: &[String]) -> Result<()> {
         if let Some(playlist) = self.playlists.get_mut(playlist_path) {
             playlist.add_files(files.to_vec());
-            if let Some(file_path) = playlist.file_path() {
+            if let Some(_file_path) = playlist.file_path() {
                 // 保存播放列表
                 playlist.save()?;
             }

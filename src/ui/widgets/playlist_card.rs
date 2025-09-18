@@ -3,7 +3,7 @@
 //! 用于显示播放列表信息的可重用卡片组件
 
 use iced::{
-    alignment::{Horizontal, Vertical}, border::Radius, widget::{button, column, row, text, text_input, Column, Space}, Background, Border, Color, Element, Length, Shadow
+    alignment::{Horizontal, Vertical}, border::Radius, widget::{button, column, row, text, text_input, Space}, Background, Border, Color, Element, Length, Shadow
 };
 use iced::advanced::text::Shaping;
 use crate::ui::Message;

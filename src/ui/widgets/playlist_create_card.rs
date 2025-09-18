@@ -6,7 +6,6 @@ use iced::{
     alignment::{Horizontal, Vertical},
     border::Radius,
 };
-use iced::advanced::text::Shaping;
 use crate::ui::Message;
 use crate::ui::components::{constants, icons, svg_icon};
 use crate::ui::widgets::{StyledContainer, StyledText, StyledButton, styled_container::ContainerStyle};

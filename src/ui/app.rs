@@ -14,8 +14,10 @@ use iced::{
     Task,
     event::{self, Event},
     alignment::{Horizontal, Vertical},
+    Background, Border, Color,
 };
 use iced::advanced::text::Shaping;
+use iced::border::Radius;
 use tokio::sync::mpsc;
 
 use crate::audio::{AudioInfo, PlaybackState, PlaybackCommand, start_audio_playback, AudioSource};
@@ -46,26 +48,16 @@ impl Default for Id3TagData {
     }
 }
 
-/// 创建ID3标签输入框
-fn id3_tag_input_field(label: &str, value: &str, field: Id3TagField) -> Element<'static, Message> {
-    TextInput::new(label, value)
-        .on_input(move |value| Message::Id3TagFieldChanged { field, value })
-        .padding(constants::PADDING_SMALL)
-        .width(Length::Fill)
-        .into()
-}
 use crate::playlist::{Playlist, PlaylistManager, PlaylistExtraInfo};
 use crate::lyrics::Lyrics;
 use crate::utils::{is_m3u_playlist, is_supported_audio_file};
 use crate::config::AppConfig;
 use super::Message;
-use iced::widget::text_input::TextInput;
 use super::components::*;
 use super::theme::{AppThemeVariant};
 use super::widgets::StyledContainer;
 use super::widgets::StyledText;
 use super::widgets::StyledButton;
-use super::widgets::styled_button::ButtonType;
 use super::widgets::styled_text::TextStyle;
 
 const RIGHT_PANEL_WIDTH: f32 = 720.0;
@@ -355,11 +347,11 @@ impl PlayerApp {
                 }
                 Task::none()
             },
-            Message::DismissSongItemMenu(index) => {
+            Message::DismissSongItemMenu(_index) => {
                 self.menu_song_index = None;
                 Task::none()
             },
-            Message::SongItemActionDetails(index) => {
+            Message::SongItemActionDetails(_index) => {
                 // 显示歌曲详情（暂未实现）
                 self.menu_song_index = None;
                 Task::none()
@@ -526,45 +518,13 @@ impl PlayerApp {
                 .into()
             }
             PageType::Id3Tag => {
-                let form = column![
-                    id3_tag_input_field("歌曲名", &self.id3_tag_data.title, Id3TagField::Title),
-                    id3_tag_input_field("专辑", &self.id3_tag_data.album, Id3TagField::Album),
-                    id3_tag_input_field("艺术家", &self.id3_tag_data.artist, Id3TagField::Artist),
-                    id3_tag_input_field("年代", &self.id3_tag_data.year, Id3TagField::Year),
-                    id3_tag_input_field("音轨号", &self.id3_tag_data.track_number, Id3TagField::TrackNumber),
-                    id3_tag_input_field("流派", &self.id3_tag_data.genre, Id3TagField::Genre),
-                    row![
-                        StyledButton::new("确定")
-                            .button_type(ButtonType::Primary)
-                            .on_press(Message::ConfirmId3TagChanges)
-                            .width(Length::Fixed(120.0))
-                            .build(),
-                        StyledButton::new("取消")
-                            .button_type(ButtonType::Default)
-                            .on_press(Message::ReturnFromId3Tag)
-                            .width(Length::Fixed(120.0))
-                            .build(),
-                    ]
-                    .spacing(constants::SPACING_MEDIUM)
-                    .align_y(iced::Alignment::Center)
-                ]
-                .spacing(constants::SPACING_LARGE)
-                .padding(constants::PADDING_MEDIUM);
+                // 创建美化的ID3标签编辑页面
+                let id3tag_page = create_id3tag_page(
+                    &self.id3_tag_data,
+                    nav
+                );
 
-                let id3tag = StyledContainer::new(form)
-                    .style(super::widgets::styled_container::ContainerStyle::Card)
-                    .padding(constants::PADDING_MEDIUM)
-                    .width(Length::Fill)
-                    .height(Length::Fill)
-                    .build();
-
-                row![
-                    nav,
-                    id3tag,
-                ]
-                .spacing(constants::SPACING_LARGE)
-                .height(Length::Fill)
-                .into()
+                id3tag_page
             }
             PageType::Lyrics => {
                 let lyrics = StyledContainer::new(
@@ -1420,4 +1380,218 @@ async fn open_audio_only_files_dialog() -> Vec<String> {
             .map(|f| f.path().to_string_lossy().to_string())
             .collect()
     ).unwrap_or_default()
+}
+
+// 创建SVG图标元素
+fn svg_icon(content: &str, size: f32, color: Color) -> Element<'static, Message> {
+    use iced::widget::svg;
+    svg(svg::Handle::from_memory(content.as_bytes().to_vec()))
+        .width(Length::Fixed(size))
+        .height(Length::Fixed(size))
+        .style(move |theme: &iced::Theme, _status: svg::Status| {
+            let is_dark = {
+                let bg = theme.extended_palette().background.base.color;
+                bg.r + bg.g + bg.b < 1.5
+            };
+            
+            svg::Style {
+                color: Some(if is_dark && color.a <= 0.9 {
+                    Color { r: 0.8, g: 0.8, b: 0.8, a: 1.0 }
+                } else {
+                    color
+                }).into()
+            }
+        }).into()
+}
+
+/// 创建美化的ID3标签编辑页面
+fn create_id3tag_page(id3_tag_data: &Id3TagData, nav: Element<'static, Message>) -> Element<'static, Message> {
+    use iced::widget::{column, row, text_input, Container};
+    use iced::{Length, alignment::{Horizontal, Vertical}};
+    use iced::advanced::text::Shaping;
+    
+    // 创建样式化的输入框
+    let styled_input = |label: &str, value: &str, field: Id3TagField, placeholder: &str| {
+        let input = text_input(placeholder, value)
+            .on_input(move |v| Message::Id3TagFieldChanged { field, value: v })
+            .padding([12, 16])
+            .size(14)
+            .style(|theme: &iced::Theme, status: text_input::Status| {
+                let palette = theme.extended_palette();
+                let bg = theme.extended_palette().background.base.color;
+                let is_dark = bg.r + bg.g + bg.b < 1.5;
+                
+                text_input::Style {
+                    background: Background::Color(if is_dark {
+                        Color::from_rgba(0.15, 0.15, 0.17, 0.8)
+                    } else {
+                        Color::from_rgba(0.98, 0.98, 1.0, 0.9)
+                    }),
+                    border: Border {
+                        radius: Radius::from(8.0),
+                        width: 1.0,
+                        color: match status {
+                            text_input::Status::Focused { .. } => crate::ui::theme::AppColors::primary(theme),
+                            text_input::Status::Hovered => crate::ui::theme::AppColors::border(theme),
+                            _ => crate::ui::theme::AppColors::border(theme),
+                        },
+                    },
+                    icon: Color::TRANSPARENT,
+                    placeholder: Color {
+                        a: 0.5,
+                        ..palette.background.base.text
+                    },
+                    value: palette.background.base.text,
+                    selection: Color {
+                        a: 0.3,
+                        ..crate::ui::theme::AppColors::primary(theme)
+                    },
+                }
+            });
+        
+        column![
+            StyledText::new(label)
+                .size(12)
+                .style(super::widgets::styled_text::TextStyle::Secondary)
+                .build(),
+            Container::new(input)
+                .width(Length::Fill)
+                .padding([4, 0])
+        ]
+        .spacing(4)
+    };
+
+    // 基本信息组
+    let basic_info_group = StyledContainer::new(
+        column![
+            StyledText::new("🎵 基本信息")
+                .size(16)
+                .style(super::widgets::styled_text::TextStyle::Emphasis)
+                .shaping(Shaping::Advanced)
+                .build(),
+            row![
+                styled_input("歌曲标题", &id3_tag_data.title, Id3TagField::Title, "输入歌曲标题"),
+                styled_input("艺术家", &id3_tag_data.artist, Id3TagField::Artist, "输入艺术家名称")
+            ]
+            .spacing(16)
+            .align_y(Vertical::Top),
+            styled_input("专辑名称", &id3_tag_data.album, Id3TagField::Album, "输入专辑名称"),
+        ]
+        .spacing(16)
+    )
+    .style(super::widgets::styled_container::ContainerStyle::Card)
+    .padding([20, 24])
+    .width(Length::Fill)
+    .build();
+
+    // 详细信息组
+    let detail_info_group = StyledContainer::new(
+        column![
+            StyledText::new("📋 详细信息")
+                .size(16)
+                .style(super::widgets::styled_text::TextStyle::Emphasis)
+                .shaping(Shaping::Advanced)
+                .build(),
+            row![
+                styled_input("年代", &id3_tag_data.year, Id3TagField::Year, "例如: 2023"),
+                styled_input("音轨号", &id3_tag_data.track_number, Id3TagField::TrackNumber, "例如: 01")
+            ]
+            .spacing(16)
+            .align_y(Vertical::Top),
+            styled_input("音乐流派", &id3_tag_data.genre, Id3TagField::Genre, "例如: Pop, Rock, Jazz"),
+        ]
+        .spacing(16)
+    )
+    .style(super::widgets::styled_container::ContainerStyle::Card)
+    .padding([20, 24])
+    .width(Length::Fill)
+    .build();
+
+    // 操作按钮组
+    let action_buttons = row![
+        StyledButton::new(
+            row![
+                svg_icon(super::components::icons::CONFIRM, 16.0, crate::ui::theme::AppColors::success(&iced::Theme::default())),
+                StyledText::new("保存更改")
+                    .size(14)
+                    .build()
+            ]
+            .spacing(8)
+            .align_y(Vertical::Center)
+        )
+        .button_type(super::widgets::styled_button::ButtonType::Primary)
+        .on_press(Message::ConfirmId3TagChanges)
+        .padding(12)
+        .build(),
+        
+        StyledButton::new(
+            row![
+                svg_icon(super::components::icons::CANCEL, 16.0, crate::ui::theme::AppColors::text_secondary(&iced::Theme::default())),
+                StyledText::new("取消")
+                    .size(14)
+                    .build()
+            ]
+            .spacing(8)
+            .align_y(Vertical::Center)
+        )
+        .button_type(super::widgets::styled_button::ButtonType::Default)
+        .on_press(Message::ReturnFromId3Tag)
+        .padding(12)
+        .build(),
+    ]
+    .spacing(16)
+    .align_y(Vertical::Center);
+
+    // 主内容区域
+    let main_content = StyledContainer::new(
+        column![
+            // 页面标题
+            StyledContainer::new(
+                column![
+                    StyledText::new("✏️ 编辑ID3标签")
+                        .size(24)
+                        .style(super::widgets::styled_text::TextStyle::Primary)
+                        .shaping(Shaping::Advanced)
+                        .build(),
+                    StyledText::new("修改音频文件的元数据信息")
+                        .size(14)
+                        .style(super::widgets::styled_text::TextStyle::Hint)
+                        .build(),
+                ]
+                .spacing(8)
+                .align_x(Horizontal::Center)
+            )
+            .style(super::widgets::styled_container::ContainerStyle::Transparent)
+            .padding([0_u16, 24])
+            .width(Length::Fill)
+            .align_x(Horizontal::Center)
+            .build(),
+            
+            // 内容组
+            column![
+                basic_info_group,
+                detail_info_group,
+                StyledContainer::new(action_buttons)
+                    .style(super::widgets::styled_container::ContainerStyle::Transparent)
+                    .width(Length::Fill)
+                    .align_x(Horizontal::Center)
+                    .padding([24_u16, 0])
+                    .build(),
+            ]
+            .spacing(20),
+        ]
+        .padding([32, 40])
+    )
+    .style(super::widgets::styled_container::ContainerStyle::MainSection)
+    .width(Length::Fill)
+    .height(Length::Fill)
+    .build();
+
+    row![
+        nav,
+        main_content,
+    ]
+    .spacing(constants::SPACING_LARGE)
+    .height(Length::Fill)
+    .into()
 }
