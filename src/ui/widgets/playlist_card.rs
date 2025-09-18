@@ -3,7 +3,7 @@
 //! 用于显示播放列表信息的可重用卡片组件
 
 use iced::{
-    alignment::{Horizontal, Vertical}, border::Radius, widget::{button, column, row, text, text_input, Space}, Background, Border, Color, Element, Length, Shadow
+    alignment::{Horizontal, Vertical}, border::Radius, widget::{button, column, row, text, text_input, Space, container}, Background, Border, Color, Element, Length, Shadow
 };
 use iced::advanced::text::Shaping;
 use crate::ui::Message;
@@ -198,48 +198,164 @@ impl PlaylistCard {
                             .width(Length::Shrink)
                             .align_x(Horizontal::Right)
                             .build(),
-                        // 右侧的更多操作按钮（切换菜单/图标）
+                        // 右侧的更多操作按钮（切换菜单/图标）- 美化版本
                         {
                             let trigger = button(text("⋮").shaping(Shaping::Advanced).size(constants::TEXT_LARGE)).style(move |theme: &iced::Theme, status: iced::widget::button::Status| {
                                 let palette = theme.extended_palette();
+                                let is_dark = palette.background.base.color.r + palette.background.base.color.g + palette.background.base.color.b < 1.5;
+                                
                                 match status {
-                                    iced::widget::button::Status::Hovered => iced::widget::button::Style { background: Some(Background::Color(Color { a: 0.12, ..palette.primary.base.color })), text_color: palette.primary.strong.color, border: Border { radius: Radius::from(6.0), width: 0.0, color: Color::TRANSPARENT }, shadow: Shadow::default(), snap: false },
-                                    iced::widget::button::Status::Pressed => iced::widget::button::Style { background: Some(Background::Color(Color { a: 0.2, ..palette.primary.base.color })), text_color: palette.primary.strong.color, border: Border { radius: Radius::from(6.0), width: 0.0, color: Color::TRANSPARENT }, shadow: Shadow::default(), snap: false },
-                                    _ => iced::widget::button::Style { background: Some(Background::Color(Color::TRANSPARENT)), text_color: palette.primary.strong.color, border: Border { radius: Radius::from(6.0), width: 0.0, color: Color::TRANSPARENT }, shadow: Shadow::default(), snap: false },
+                                    iced::widget::button::Status::Hovered => iced::widget::button::Style {
+                                        background: Some(Background::Color(Color {
+                                            a: if is_dark { 0.15 } else { 0.08 },
+                                            ..palette.primary.base.color
+                                        })),
+                                        text_color: palette.primary.strong.color,
+                                        border: Border {
+                                            radius: Radius::from(8.0),
+                                            width: 1.0,
+                                            color: Color {
+                                                a: if is_dark { 0.3 } else { 0.2 },
+                                                ..palette.primary.base.color
+                                            }
+                                        },
+                                        shadow: Shadow {
+                                            color: Color { a: 0.1, ..palette.primary.base.color },
+                                            offset: iced::Vector::new(0.0, 2.0),
+                                            blur_radius: 8.0,
+                                        },
+                                        snap: false
+                                    },
+                                    iced::widget::button::Status::Pressed => iced::widget::button::Style {
+                                        background: Some(Background::Color(Color {
+                                            a: if is_dark { 0.25 } else { 0.15 },
+                                            ..palette.primary.base.color
+                                        })),
+                                        text_color: palette.primary.strong.color,
+                                        border: Border {
+                                            radius: Radius::from(8.0),
+                                            width: 1.0,
+                                            color: Color {
+                                                a: if is_dark { 0.5 } else { 0.3 },
+                                                ..palette.primary.base.color
+                                            }
+                                        },
+                                        shadow: Shadow {
+                                            color: Color { a: 0.15, ..palette.primary.base.color },
+                                            offset: iced::Vector::new(0.0, 1.0),
+                                            blur_radius: 4.0,
+                                        },
+                                        snap: false
+                                    },
+                                    _ => iced::widget::button::Style {
+                                        background: Some(Background::Color(Color::TRANSPARENT)),
+                                        text_color: palette.primary.strong.color,
+                                        border: Border {
+                                            radius: Radius::from(8.0),
+                                            width: 1.0,
+                                            color: Color {
+                                                a: if is_dark { 0.15 } else { 0.1 },
+                                                ..palette.primary.base.color
+                                            }
+                                        },
+                                        shadow: Shadow::default(),
+                                        snap: false
+                                    },
                                 }
                             })
-                            .width(Length::Fixed(32.0))
+                            .width(Length::Fixed(36.0))
+                            .height(Length::Fixed(32.0))
                             .on_press(Message::ExpandMenu(config.path.clone()));
 
+                            // 美化的下拉菜单按钮样式函数
+                            let menu_button_style = |theme: &iced::Theme, status: iced::widget::button::Status, is_danger: bool| {
+                                let palette = theme.extended_palette();
+                                let is_dark = palette.background.base.color.r + palette.background.base.color.g + palette.background.base.color.b < 1.5;
+                                
+                                let base_color = if is_danger {
+                                    palette.background.strong.color
+                                } else {
+                                    palette.primary.base.color
+                                };
+                                
+                                let text_color = if is_danger {
+                                    palette.background.base.text
+                                } else {
+                                    palette.primary.strong.color
+                                };
+                                
+                                match status {
+                                    iced::widget::button::Status::Hovered => iced::widget::button::Style {
+                                        background: Some(Background::Color(Color {
+                                            a: if is_dark { 0.12 } else { 0.08 },
+                                            ..base_color
+                                        })),
+                                        text_color,
+                                        border: Border {
+                                            radius: Radius::from(6.0),
+                                            width: 0.0,
+                                            color: Color::TRANSPARENT
+                                        },
+                                        shadow: Shadow::default(),
+                                        snap: false
+                                    },
+                                    _ => iced::widget::button::Style {
+                                        background: Some(Background::Color(Color::TRANSPARENT)),
+                                        text_color,
+                                        border: Border {
+                                            radius: Radius::from(6.0),
+                                            width: 0.0,
+                                            color: Color::TRANSPARENT
+                                        },
+                                        shadow: Shadow::default(),
+                                        snap: false
+                                    },
+                                }
+                            };
+                            
                             let rename_btn = button(text(t!("Rename")).size(constants::TEXT_MEDIUM)).width(Length::Fill)
                                 .on_press(Message::PlaylistCardActionRenameStart(config.path.clone()))
-                                .style(|theme: &iced::Theme, status: iced::widget::button::Status| {
-                                    let palette = theme.extended_palette();
-                                    match status {
-                                        iced::widget::button::Status::Hovered => iced::widget::button::Style { background: Some(Background::Color(Color { a: 0.12, ..palette.primary.base.color })), text_color: palette.primary.strong.color, border: Border { radius: Radius::from(8.0), width: 0.0, color: Color::TRANSPARENT }, shadow: Shadow::default(), snap: false },
-                                        _ => iced::widget::button::Style { background: Some(Background::Color(Color::TRANSPARENT)), text_color: palette.primary.strong.color, border: Border { radius: Radius::from(8.0), width: 0.0, color: Color::TRANSPARENT }, shadow: Shadow::default(), snap: false },
-                                    }
-                                });
+                                .style(move |theme: &iced::Theme, status| menu_button_style(theme, status, false));
+                                
                             let add_btn = button(text(t!("Add Music")).size(constants::TEXT_MEDIUM)).width(Length::Fill)
                                 .on_press(Message::PlaylistCardActionAddMusic(config.path.clone()))
-                                .style(|theme: &iced::Theme, status: iced::widget::button::Status| {
-                                    let palette = theme.extended_palette();
-                                    match status {
-                                        iced::widget::button::Status::Hovered => iced::widget::button::Style { background: Some(Background::Color(Color { a: 0.12, ..palette.primary.base.color })), text_color: palette.primary.strong.color, border: Border { radius: Radius::from(8.0), width: 0.0, color: Color::TRANSPARENT }, shadow: Shadow::default(), snap: false },
-                                        _ => iced::widget::button::Style { background: Some(Background::Color(Color::TRANSPARENT)), text_color: palette.primary.strong.color, border: Border { radius: Radius::from(8.0), width: 0.0, color: Color::TRANSPARENT }, shadow: Shadow::default(), snap: false },
-                                    }
-                                });
+                                .style(move |theme: &iced::Theme, status| menu_button_style(theme, status, false));
+                                
                             let delete_btn = button(text(t!("Delete")).size(constants::TEXT_MEDIUM))
                                 .on_press(Message::PlaylistCardActionDelete(config.path.clone())).width(Length::Fill)
-                                .style(|theme: &iced::Theme, status: iced::widget::button::Status| {
-                                    let palette = theme.extended_palette();
-                                    match status {
-                                        iced::widget::button::Status::Hovered => iced::widget::button::Style { background: Some(Background::Color(Color { a: 0.12, ..palette.background.strong.color })), text_color: palette.background.base.text, border: Border { radius: Radius::from(8.0), width: 0.0, color: Color::TRANSPARENT }, shadow: Shadow::default(), snap: false },
-                                        _ => iced::widget::button::Style { background: Some(Background::Color(Color::TRANSPARENT)), text_color: palette.background.base.text, border: Border { radius: Radius::from(8.0), width: 0.0, color: Color::TRANSPARENT }, shadow: Shadow::default(), snap: false },
-                                    }
-                                });
+                                .style(move |theme: &iced::Theme, status| menu_button_style(theme, status, true));
 
-                            let options = column![rename_btn, add_btn, delete_btn].width(Length::Fixed(100.0));
+                            // 美化的下拉菜单容器 - 使用直接容器而不是StyledContainer
+                            let options = container(
+                                column![rename_btn, add_btn, delete_btn]
+                                    .spacing(2)
+                                    .padding([8, 0])
+                            )
+                            .style(|theme: &iced::Theme| {
+                                let palette = theme.extended_palette();
+                                let is_dark = palette.background.base.color.r + palette.background.base.color.g + palette.background.base.color.b < 1.5;
+                                
+                                container::Style {
+                                    background: Some(Background::Color(if is_dark {
+                                        Color::from_rgba(0.15, 0.15, 0.17, 0.95)
+                                    } else {
+                                        Color::from_rgba(0.98, 0.98, 1.0, 0.95)
+                                    })),
+                                    border: Border {
+                                        radius: Radius::from(12.0),
+                                        width: 1.0,
+                                        color: palette.primary.weak.color,
+                                    },
+                                    shadow: Shadow {
+                                        color: Color::from_rgba(0.0, 0.0, 0.0, if is_dark { 0.4 } else { 0.15 }),
+                                        offset: iced::Vector::new(0.0, 8.0),
+                                        blur_radius: 24.0,
+                                    },
+                                    text_color: Some(palette.background.base.text),
+                                    snap: false,
+                                }
+                            })
+                            .width(Length::Fixed(110.0));
 
                             let drop_down = DropDown::new(trigger, options, config.show_menu)
                                 .width(Length::Fill)
