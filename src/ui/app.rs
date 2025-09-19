@@ -570,9 +570,10 @@ impl PlayerApp {
         let bottom_bar = StyledContainer::new(
             row![
                 left_info,
-                container(control_buttons_view(self.is_playing))
+                StyledContainer::new(control_buttons_view(self.is_playing))
+                    .style(super::widgets::styled_container::ContainerStyle::Transparent)
                     .width(Length::Fill)
-                    .align_x(Horizontal::Center),
+                    .align_x(Horizontal::Center).build(),
                 right_controls,
             ]
             .spacing(constants::SPACING_MEDIUM)
@@ -1312,7 +1313,7 @@ impl PlayerApp {
             playlist_view(&empty_playlist, false, self.is_playing, &self.playlist_manager, None)
         };
 
-        StyledContainer::new(container(main_content).height(Length::Fill).width(Length::Fill))
+        StyledContainer::new(main_content)
             .style(super::widgets::styled_container::ContainerStyle::Transparent)
             .padding(constants::PADDING_SMALL)
             .width(Length::Fill)
@@ -1338,7 +1339,7 @@ impl PlayerApp {
         .build();
 
         // 欢迎内容（不包含底部栏与进度条，由首页统一布局承载）
-        StyledContainer::new(container(welcome_main).height(Length::Fill).width(Length::Fill))
+        StyledContainer::new(welcome_main)
             .style(super::widgets::styled_container::ContainerStyle::Transparent)
             .padding(constants::PADDING_SMALL)
             .width(Length::Fill)

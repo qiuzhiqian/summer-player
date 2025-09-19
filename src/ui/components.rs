@@ -3,13 +3,13 @@
 //! 包含可重用的UI组件和通用样式。
 
 use iced::{
-    widget::{column, row, text, slider, scrollable, Space, container, tooltip, svg, button},
+    widget::{column, row, text, slider, scrollable, Space, container, tooltip, svg},
     Element, Length, Border, Shadow, Background, Color,
     alignment::{Horizontal, Vertical},
     border::Radius,
 };
 use iced::advanced::text::Shaping;
-use iced::Renderer;
+use crate::ui::widgets::{styled_button::{ButtonType,ButtonColor},styled_container::ContainerStyle};
 
 use crate::audio::{AudioInfo, PlaybackState};
 use crate::playlist::Playlist;
@@ -596,168 +596,47 @@ pub fn playlist_view(playlist: &Playlist, playlist_loaded: bool, is_playing: boo
                         .align(Horizontal::Right)
                         .style(super::widgets::styled_text::TextStyle::WithAlpha(0.7))
                         .build()
-                ).style(super::widgets::styled_container::ContainerStyle::Transparent).width(Length::Fixed(60.0)).align_x(Horizontal::Right).build(),
+                ).style(ContainerStyle::Transparent).width(Length::Fixed(60.0)).align_x(Horizontal::Right).build(),
                 
                 {
-                    let menu_button_style = |theme: &iced::Theme, status: iced::widget::button::Status, is_danger: bool| -> iced::widget::button::Style {
-                        let palette = theme.extended_palette();
-                        let is_dark = palette.background.base.color.r + palette.background.base.color.g + palette.background.base.color.b < 1.5;
-                        
-                        let base_color = if is_danger {
-                            palette.background.strong.color
-                        } else {
-                            palette.primary.base.color
-                        };
-                        
-                        let text_color = if is_danger {
-                            palette.background.base.text
-                        } else {
-                            palette.primary.strong.color
-                        };
-                        
-                        match status {
-                            iced::widget::button::Status::Hovered => iced::widget::button::Style {
-                                background: Some(Background::Color(Color {
-                                    a: if is_dark { 0.12 } else { 0.08 },
-                                    ..base_color
-                                })),
-                                text_color,
-                                border: Border {
-                                    radius: Radius::from(6.0),
-                                    width: 0.0,
-                                    color: Color::TRANSPARENT
-                                },
-                                shadow: Shadow::default(),
-                                snap: false
-                            },
-                            _ => iced::widget::button::Style {
-                                background: Some(Background::Color(Color::TRANSPARENT)),
-                                text_color,
-                                border: Border {
-                                    radius: Radius::from(6.0),
-                                    width: 0.0,
-                                    color: Color::TRANSPARENT
-                                },
-                                shadow: Shadow::default(),
-                                snap: false
-                            },
-                        }
-                    };
+                    let details_btn = StyledButton::new(
+                        text(t!("Song Details")).size(constants::TEXT_MEDIUM)
+                    )
+                    .button_type(ButtonType::Text)
+                    .width(Length::Fill)
+                    .on_press(Message::SongItemActionDetails(index))
+                    .build();
 
-                    let details_btn = button::<Message, iced::Theme, Renderer>(text(t!("Song Details")).size(constants::TEXT_MEDIUM))
-                        .width(Length::Fill)
-                        .on_press(Message::SongItemActionDetails(index))
-                        .style(move |theme: &iced::Theme, status| menu_button_style(theme, status, false));
+                    let edit_btn = StyledButton::new(
+                        text(t!("Edit Tags")).size(constants::TEXT_MEDIUM)
+                    )
+                    .button_type(ButtonType::Text)
+                    .width(Length::Fill)
+                    .on_press(Message::SongItemActionEditTags(index))
+                    .build();
 
-                    let edit_btn = button::<Message, iced::Theme, Renderer>(text(t!("Edit Tags")).size(constants::TEXT_MEDIUM))
-                        .width(Length::Fill)
-                        .on_press(Message::SongItemActionEditTags(index))
-                        .style(move |theme: &iced::Theme, status| menu_button_style(theme, status, false));
+                    let remove_btn = StyledButton::new(
+                        text(t!("Remove")).size(constants::TEXT_MEDIUM)
+                    )
+                    .button_type(ButtonType::Text)
+                    .width(Length::Fill)
+                    .on_press(Message::SongItemActionRemove(index))
+                    .build();
 
-                    let remove_btn = button::<Message, iced::Theme, Renderer>(text(t!("Remove")).size(constants::TEXT_MEDIUM))
-                        .width(Length::Fill)
-                        .on_press(Message::SongItemActionRemove(index))
-                        .style(move |theme: &iced::Theme, status| menu_button_style(theme, status, true));
-
-                    let options = container(
+                    let options = StyledContainer::new(
                             column![details_btn, edit_btn, remove_btn]
                                 .spacing(2)
                                 .padding([8, 0])
-                        )
-                        .style(|theme: &iced::Theme| {
-                            let palette = theme.extended_palette();
-                            let is_dark = palette.background.base.color.r + palette.background.base.color.g + palette.background.base.color.b < 1.5;
-                            
-                            container::Style {
-                                background: Some(Background::Color(if is_dark {
-                                    Color::from_rgba(0.15, 0.15, 0.17, 0.95)
-                                } else {
-                                    Color::from_rgba(0.98, 0.98, 1.0, 0.95)
-                                })),
-                                border: Border {
-                                    radius: Radius::from(12.0),
-                                    width: 1.0,
-                                    color: palette.primary.weak.color,
-                                },
-                                shadow: Shadow {
-                                    color: Color::from_rgba(0.0, 0.0, 0.0, if is_dark { 0.4 } else { 0.15 }),
-                                    offset: iced::Vector::new(0.0, 8.0),
-                                    blur_radius: 24.0,
-                                },
-                                text_color: Some(palette.background.base.text),
-                                snap: false,
-                            }
-                        })
-                        .width(Length::Fixed(110.0));
+                        ).style(ContainerStyle::Background).width(Length::Fixed(110.0)).build();
                     // 右侧的更多操作按钮（切换菜单/图标）- 美化版本
-                    let dropdown: Element<Message> = iced_aw::DropDown::new(
-                        button::<Message, iced::Theme, Renderer>(text("⋮").shaping(Shaping::Advanced).size(constants::TEXT_LARGE))
-                            .style(move |theme: &iced::Theme, status: iced::widget::button::Status| {
-                                let palette = theme.extended_palette();
-                                let is_dark = palette.background.base.color.r + palette.background.base.color.g + palette.background.base.color.b < 1.5;
-                                
-                                match status {
-                                    iced::widget::button::Status::Hovered => iced::widget::button::Style {
-                                        background: Some(Background::Color(Color {
-                                            a: if is_dark { 0.15 } else { 0.08 },
-                                            ..palette.primary.base.color
-                                        })),
-                                        text_color: palette.primary.strong.color,
-                                        border: Border {
-                                            radius: Radius::from(8.0),
-                                            width: 1.0,
-                                            color: Color {
-                                                a: if is_dark { 0.3 } else { 0.2 },
-                                                ..palette.primary.base.color
-                                            }
-                                        },
-                                        shadow: Shadow {
-                                            color: Color { a: 0.1, ..palette.primary.base.color },
-                                            offset: iced::Vector::new(0.0, 2.0),
-                                            blur_radius: 8.0,
-                                        },
-                                        snap: false
-                                    },
-                                    iced::widget::button::Status::Pressed => iced::widget::button::Style {
-                                        background: Some(Background::Color(Color {
-                                            a: if is_dark { 0.25 } else { 0.15 },
-                                            ..palette.primary.base.color
-                                        })),
-                                        text_color: palette.primary.strong.color,
-                                        border: Border {
-                                            radius: Radius::from(8.0),
-                                            width: 1.0,
-                                            color: Color {
-                                                a: if is_dark { 0.5 } else { 0.3 },
-                                                ..palette.primary.base.color
-                                            }
-                                        },
-                                        shadow: Shadow {
-                                            color: Color { a: 0.15, ..palette.primary.base.color },
-                                            offset: iced::Vector::new(0.0, 1.0),
-                                            blur_radius: 4.0,
-                                        },
-                                        snap: false
-                                    },
-                                    _ => iced::widget::button::Style {
-                                        background: Some(Background::Color(Color::TRANSPARENT)),
-                                        text_color: palette.primary.strong.color,
-                                        border: Border {
-                                            radius: Radius::from(8.0),
-                                            width: 1.0,
-                                            color: Color {
-                                                a: if is_dark { 0.15 } else { 0.1 },
-                                                ..palette.primary.base.color
-                                            }
-                                        },
-                                        shadow: Shadow::default(),
-                                        snap: false
-                                    },
-                                }
-                            })
-                            .width(Length::Fixed(36.0))
-                            .height(Length::Fixed(32.0))
-                            .on_press(Message::SongItemMenuToggled(index)),
+                    let drop_down: Element<Message> = iced_aw::DropDown::new(
+                        StyledButton::new(
+                            text("⋮").shaping(Shaping::Advanced).size(constants::TEXT_LARGE)
+                        )
+                        .button_type(ButtonType::Text)
+                        .color(ButtonColor::Default)
+                        .on_press(Message::ExpandSongItemMenu(index)) // 添加点击事件处理
+                        .build(),
                         options,
                         menu_song_index == Some(index)
                     )
@@ -765,11 +644,16 @@ pub fn playlist_view(playlist: &Playlist, playlist_loaded: bool, is_playing: boo
                     .on_dismiss(Message::DismissSongItemMenu(index))
                     .alignment(iced_aw::drop_down::Alignment::BottomStart)
                     .into();
-                    dropdown
+
+                    StyledContainer::new(drop_down)
+                                .style(ContainerStyle::Background)
+                                .width(Length::Fixed(32.0))
+                                .align_x(Horizontal::Right)
+                                .build()
                 }
             ].spacing(constants::SPACING_MEDIUM).align_y(Vertical::Center)
         )
-        .style(super::widgets::styled_container::ContainerStyle::Transparent)
+        .style(ContainerStyle::Transparent)
         .padding(constants::PADDING_SMALL)
         .width(Length::Fill)
         .build();
@@ -798,7 +682,7 @@ pub fn playlist_view(playlist: &Playlist, playlist_loaded: bool, is_playing: boo
             ).height(Length::Fill).width(Length::Fill),
         ].spacing(constants::SPACING_LARGE)
     )
-    .style(super::widgets::styled_container::ContainerStyle::Transparent)
+    .style(ContainerStyle::Transparent)
     .padding(constants::PADDING_SMALL)
     .width(Length::Fill)
     .height(Length::Fill)
@@ -814,7 +698,7 @@ pub fn lyrics_view(file_path: &str, is_playing: bool, current_time: f64, lyrics:
                 text(t!("Lyrics Display")).size(constants::TEXT_TITLE).align_x(Horizontal::Center).style(primary_text_style()),
                 text(t!("Please select an audio file")).size(constants::TEXT_MEDIUM).align_x(Horizontal::Center).style(alpha_text_style(0.7)),
             ].spacing(constants::SPACING_MEDIUM).align_x(Horizontal::Center)
-        ).style(super::widgets::styled_container::ContainerStyle::Transparent).padding(constants::PADDING_SMALL).width(Length::Fill).height(Length::Fill).build().into();
+        ).style(ContainerStyle::Transparent).padding(constants::PADDING_SMALL).width(Length::Fill).height(Length::Fill).build().into();
     }
     
     let mut elements = Vec::<Element<Message>>::new();
@@ -867,7 +751,7 @@ pub fn lyrics_view(file_path: &str, is_playing: bool, current_time: f64, lyrics:
                             .style(|theme: &iced::Theme| {
                                 iced::widget::text::Style { color: Some(AppColors::primary(theme)) }
                             })
-                    ).style(super::widgets::styled_container::ContainerStyle::Emphasis).padding(constants::PADDING_SMALL).width(Length::Fill).build().into()
+                    ).style(ContainerStyle::Emphasis).padding(constants::PADDING_SMALL).width(Length::Fill).build().into()
                 } else {
                     text(if line.text.trim().is_empty() { "♪".to_string() } else { line.text.clone() })
                         .size(constants::TEXT_MEDIUM).align_x(Horizontal::Center).shaping(Shaping::Advanced)
@@ -911,7 +795,7 @@ pub fn lyrics_view(file_path: &str, is_playing: bool, current_time: f64, lyrics:
                     text("📝 歌词文件名需与音频文件名相同").size(11).shaping(Shaping::Advanced),
                     text("🕐 支持时间同步的LRC格式歌词").size(11).shaping(Shaping::Advanced),
                 ].spacing(constants::SPACING_SMALL)
-            ).style(super::widgets::styled_container::ContainerStyle::Emphasis).padding(constants::PADDING_MEDIUM).build().into()
+            ).style(ContainerStyle::Emphasis).padding(constants::PADDING_MEDIUM).build().into()
         );
     }
     

@@ -249,10 +249,25 @@ impl StyledButton {
                         snap: false,
                     },
                     iced::widget::button::Status::Hovered => iced::widget::button::Style {
-                        background: Some(Background::Color(Color { a: 0.06, ..neutral_bg })),
-                        text_color: if matches!(color, ButtonColor::Default) { base_text } else { accent },
+                        background: Some(Background::Color(Color { a: 0.12, ..neutral_bg })),
+                        text_color: if matches!(color, ButtonColor::Default) {
+                            base_text
+                        } else {
+                            Color { r: (accent.r * 1.1).min(1.0), g: (accent.g * 1.1).min(1.0), b: (accent.b * 1.1).min(1.0), a: 1.0 }
+                        },
                         border: Border { radius, width: 0.0, color: Color::TRANSPARENT },
-                        shadow: Shadow::default(),
+                        shadow: Shadow { color: AppColors::shadow(theme), offset: iced::Vector::new(0.0, 1.0), blur_radius: 4.0 },
+                        snap: false,
+                    },
+                    iced::widget::button::Status::Pressed => iced::widget::button::Style {
+                        background: Some(Background::Color(Color { a: 0.18, ..neutral_bg })),
+                        text_color: if matches!(color, ButtonColor::Default) {
+                            base_text
+                        } else {
+                            Color { r: (accent.r * 0.9).min(1.0), g: (accent.g * 0.9).min(1.0), b: (accent.b * 0.9).min(1.0), a: 1.0 }
+                        },
+                        border: Border { radius, width: 0.0, color: Color::TRANSPARENT },
+                        shadow: Shadow { color: AppColors::shadow(theme), offset: iced::Vector::new(0.0, 0.5), blur_radius: 2.0 },
                         snap: false,
                     },
                     _ => iced::widget::button::Style {
