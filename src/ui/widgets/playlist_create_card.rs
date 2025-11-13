@@ -117,7 +117,7 @@ impl CreatePlaylistCard {
 
                     let actions = row![
                         confirm_btn,
-                        Space::with_width(Length::Fixed(8.0)),
+                        Space::new().width(Length::Fixed(8.0)),
                         cancel_btn,
                     ]
                     .spacing(constants::SPACING_SMALL)

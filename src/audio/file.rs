@@ -403,10 +403,10 @@ impl AudioFile {
             }
         };
         // 添加时间，来测试打开一个文件的耗时
-        let start_time = std::time::Instant::now();
+        //let start_time = std::time::Instant::now();
         let info = AudioInfo::from_track_with_metadata(&track, file_path, metadata);
-        let end_time = std::time::Instant::now();
-        println!("open file: {} cost: {:?}", file_path, end_time.duration_since(start_time));
+        //let end_time = std::time::Instant::now();
+        //println!("open file: {} cost: {:?}", file_path, end_time.duration_since(start_time));
         
         Ok(Self {
             file_path: file_path.to_string(),

@@ -1,23 +1,28 @@
 //! UI组件模块
-//! 
+//!
 //! 包含可重用的UI组件和通用样式。
 
-use iced::{
-    widget::{column, row, text, slider, scrollable, Space, container, tooltip, svg},
-    Element, Length, Border, Shadow, Background, Color,
-    alignment::{Horizontal, Vertical},
-    border::Radius,
+use crate::ui::widgets::{
+    styled_button::{ButtonColor, ButtonType},
+    styled_container::ContainerStyle,
 };
 use iced::advanced::text::Shaping;
-use crate::ui::widgets::{styled_button::{ButtonType,ButtonColor},styled_container::ContainerStyle};
+use iced::{
+    alignment::{Horizontal, Vertical},
+    border::Radius,
+    widget::{column, container, row, scrollable, slider, svg, text, tooltip, Space},
+    Background, Border, Color, Element, Length, Shadow,
+};
 
 use crate::audio::{AudioInfo, PlaybackState};
 use crate::playlist::Playlist;
 use crate::utils::{extract_filename, format_duration};
 
+use super::theme::{AppColors, AppTheme, AppThemeVariant};
+use super::widgets::{
+    icon_button, CreatePlaylistCard, PlaylistCard, StyledButton, StyledContainer, StyledText,
+};
 use super::Message;
-use super::theme::{AppTheme, AppThemeVariant, AppColors};
-use super::widgets::{StyledContainer, StyledButton, StyledText, IconButton, PlaylistCard, CreatePlaylistCard};
 use rust_i18n::t;
 
 // use dirs;
@@ -28,40 +33,50 @@ use rust_i18n::t;
 
 pub mod constants {
     use iced::Color;
-    
+
     // 尺寸常量
     pub const BUTTON_SIZE_SMALL: f32 = 40.0;
     pub const BUTTON_SIZE_MEDIUM: f32 = 48.0;
     pub const BUTTON_SIZE_LARGE: f32 = 60.0;
-    
+
     pub const ICON_SIZE_SMALL: f32 = 22.0;
     pub const ICON_SIZE_MEDIUM: f32 = 24.0;
     pub const ICON_SIZE_LARGE: f32 = 30.0;
     pub const ICON_SIZE_XLARGE: f32 = 35.0;
-    
+
     // 间距常量
     pub const SPACING_SMALL: u32 = 6;
     pub const SPACING_MEDIUM: u32 = 12;
     pub const SPACING_LARGE: u32 = 20;
-    
+
     pub const PADDING_SMALL: u16 = 8;
     pub const PADDING_MEDIUM: u16 = 16;
     pub const PADDING_LARGE: u16 = 24;
-    
+
     // 文本大小
     pub const TEXT_SMALL: u32 = 10;
     pub const TEXT_NORMAL: u32 = 12;
     pub const TEXT_MEDIUM: u32 = 14;
     pub const TEXT_LARGE: u32 = 16;
     pub const TEXT_TITLE: u32 = 20;
-    
+
     // 截断长度
     pub const TEXT_TRUNCATE_DEFAULT: usize = 30;
     pub const TEXT_TRUNCATE_LONG: usize = 40;
-    
+
     // 颜色
-    pub const ICON_COLOR: Color = Color { r: 0.4, g: 0.4, b: 0.4, a: 0.9 };
-    pub const ICON_COLOR_SUBTLE: Color = Color { r: 0.4, g: 0.4, b: 0.4, a: 0.8 };
+    pub const ICON_COLOR: Color = Color {
+        r: 0.4,
+        g: 0.4,
+        b: 0.4,
+        a: 0.9,
+    };
+    pub const ICON_COLOR_SUBTLE: Color = Color {
+        r: 0.4,
+        g: 0.4,
+        b: 0.4,
+        a: 0.8,
+    };
 }
 
 // ============================================================================
@@ -78,7 +93,7 @@ pub mod icons {
     pub const CD_ICON: &str = r#"<?xml version="1.0" encoding="utf-8"?>
 <!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN" "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd">
 <!-- Uploaded to: SVG Repo, www.svgrepo.com, Generator: SVG Repo Mixer Tools -->
-<svg height="800px" width="800px" version="1.1" id="_x32_" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" 
+<svg height="800px" width="800px" version="1.1" id="_x32_" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink"
 	 viewBox="0 0 512 512"  xml:space="preserve">
 <style type="text/css">
 	.st0{fill:#000000;}
@@ -120,14 +135,19 @@ pub fn svg_icon(content: &str, size: f32, color: Color) -> Element<'static, Mess
                 let bg = theme.extended_palette().background.base.color;
                 bg.r + bg.g + bg.b < 1.5
             };
-            
-            svg::Style { 
+
+            svg::Style {
                 color: Some(if is_dark_theme && color.a <= 0.9 {
                     // 只对默认图标颜色进行调整，保持自定义颜色不变
-                    Color { r: 0.8, g: 0.8, b: 0.8, a: 1.0 }
+                    Color {
+                        r: 0.8,
+                        g: 0.8,
+                        b: 0.8,
+                        a: 1.0,
+                    }
                 } else {
                     color
-                })
+                }),
             }
         })
         .into()
@@ -137,25 +157,31 @@ pub fn svg_icon(content: &str, size: f32, color: Color) -> Element<'static, Mess
 
 /// 创建带截断和tooltip的文本
 fn truncated_text(
-    full_text: String, 
-    max_len: usize, 
+    full_text: String,
+    max_len: usize,
     size: u32,
-    color: Color
+    color: Color,
 ) -> Element<'static, Message> {
     let display_text = if full_text.chars().count() > max_len {
         format!("{}...", full_text.chars().take(max_len).collect::<String>())
     } else {
         full_text.clone()
     };
-    
+
     let text_elem = text(display_text)
         .size(size)
         .style(move |_: &iced::Theme| iced::widget::text::Style { color: Some(color) })
         .shaping(Shaping::Advanced);
-    
+
     if full_text.chars().count() > max_len {
-        tooltip(text_elem, text(full_text).size(constants::TEXT_NORMAL), tooltip::Position::Top)
-            .style(tooltip_style()).padding(constants::PADDING_SMALL as u32).into()
+        tooltip(
+            text_elem,
+            text(full_text).size(constants::TEXT_NORMAL),
+            tooltip::Position::Top,
+        )
+        .style(tooltip_style())
+        .padding(constants::PADDING_SMALL as u32)
+        .into()
     } else {
         text_elem.into()
     }
@@ -188,7 +214,12 @@ fn alpha_text_style(alpha: f32) -> impl Fn(&iced::Theme) -> iced::widget::text::
     move |theme: &iced::Theme| {
         let base = AppColors::text_secondary(theme);
         iced::widget::text::Style {
-            color: Some(Color { r: base.r, g: base.g, b: base.b, a: alpha }),
+            color: Some(Color {
+                r: base.r,
+                g: base.g,
+                b: base.b,
+                a: alpha,
+            }),
         }
     }
 }
@@ -207,31 +238,26 @@ fn primary_text_style() -> impl Fn(&iced::Theme) -> iced::widget::text::Style {
 // 通用组件
 // ============================================================================
 
-/// 创建带tooltip的按钮
-fn icon_button(
-    icon: &'static str, 
-    tooltip_text: String, 
-    message: Message, 
-    size: f32, 
-    icon_size: f32,
-    _style_fn: fn() -> fn(&iced::Theme, iced::widget::button::Status) -> iced::widget::button::Style
-) -> Element<'static, Message> {
-    IconButton::new(icon, tooltip_text)
-        .on_press(message)
-        .size(size)
-        .icon_size(icon_size)
-        .build()
-}
-
 // ============================================================================
 // 枚举定义
 // ============================================================================
 
 #[derive(Debug, Clone, PartialEq, Default)]
-pub enum PageType { #[default] Home, Settings, Id3Tag, Lyrics }
+pub enum PageType {
+    #[default]
+    Home,
+    Settings,
+    Id3Tag,
+    Lyrics,
+}
 
 #[derive(Debug, Clone, PartialEq, Default)]
-pub enum PlayMode { #[default] ListLoop, SingleLoop, Random }
+pub enum PlayMode {
+    #[default]
+    ListLoop,
+    SingleLoop,
+    Random,
+}
 
 impl PlayMode {
     pub fn icon(&self) -> &'static str {
@@ -241,7 +267,7 @@ impl PlayMode {
             PlayMode::Random => icons::RANDOM_PLAY,
         }
     }
-    
+
     pub fn name(&self) -> String {
         match self {
             PlayMode::ListLoop => t!("List Loop").to_string(),
@@ -249,7 +275,7 @@ impl PlayMode {
             PlayMode::Random => t!("Random Play").to_string(),
         }
     }
-    
+
     pub fn description(&self) -> String {
         match self {
             PlayMode::ListLoop => t!("Play all songs in order and repeat").to_string(),
@@ -257,7 +283,7 @@ impl PlayMode {
             PlayMode::Random => t!("Play songs in random order").to_string(),
         }
     }
-    
+
     pub fn next(&self) -> Self {
         match self {
             PlayMode::ListLoop => PlayMode::SingleLoop,
@@ -273,33 +299,57 @@ impl PlayMode {
 
 /// 导航侧边栏
 pub fn navigation_sidebar(current_page: &PageType) -> Element<'static, Message> {
-    let nav_button = |icon: &'static str, label: String, page: PageType, is_active: bool| {
-        let (btn_type, btn_color) = if is_active {
-            (super::widgets::styled_button::ButtonType::Primary, super::widgets::styled_button::ButtonColor::Primary)
+    let nav_button = |icon: &'static str, _label: String, page: PageType, is_active: bool| {
+        let (btn_type, _btn_color) = if is_active {
+            (
+                super::widgets::styled_button::ButtonType::Primary,
+                super::widgets::styled_button::ButtonColor::Primary,
+            )
         } else {
-            (super::widgets::styled_button::ButtonType::Default, super::widgets::styled_button::ButtonColor::Default)
+            (
+                super::widgets::styled_button::ButtonType::Default,
+                super::widgets::styled_button::ButtonColor::Default,
+            )
         };
-        IconButton::new(icon, label)
-            .on_press(Message::PageChanged(page))
-            .size(constants::BUTTON_SIZE_MEDIUM)
-            .icon_size(constants::ICON_SIZE_MEDIUM)
-            .style(btn_type, btn_color)
-            .build()
+        icon_button(
+            icon,
+            Message::PageChanged(page),
+            constants::BUTTON_SIZE_MEDIUM,
+            btn_type,
+        )
     };
 
     StyledContainer::new(
         column![
-            nav_button(icons::HOME, t!("Home").to_string(), PageType::Home, *current_page == PageType::Home),
-            nav_button(icons::SETTINGS, t!("Settings").to_string(), PageType::Settings, *current_page == PageType::Settings),
-            Space::with_height(Length::Fill),
+            nav_button(
+                icons::HOME,
+                t!("Home").to_string(),
+                PageType::Home,
+                *current_page == PageType::Home
+            ),
+            nav_button(
+                icons::SETTINGS,
+                t!("Settings").to_string(),
+                PageType::Settings,
+                *current_page == PageType::Settings
+            ),
+            Space::new().height(Length::Fill),
             StyledContainer::new(
-                column![
-                    text("🎵").size(constants::TEXT_TITLE).shaping(Shaping::Advanced),
-                ].align_x(Horizontal::Center).spacing(4)
-            ).width(Length::Fill).align_x(Horizontal::Center).padding(constants::PADDING_SMALL).build(),
+                column![text("🎵")
+                    .size(constants::TEXT_TITLE)
+                    .shaping(Shaping::Advanced),]
+                .align_x(Horizontal::Center)
+                .spacing(4)
+            )
+            .width(Length::Fill)
+            .align_x(Horizontal::Center)
+            .padding(constants::PADDING_SMALL)
+            .build(),
         ]
-        .width(Length::Shrink).height(Length::Fill)
-        .spacing(constants::SPACING_MEDIUM).padding(constants::PADDING_SMALL)
+        .width(Length::Shrink)
+        .height(Length::Fill)
+        .spacing(constants::SPACING_MEDIUM)
+        .padding(constants::PADDING_SMALL),
     )
     .style(super::widgets::styled_container::ContainerStyle::MainSection)
     .width(Length::Fixed(70.0))
@@ -308,117 +358,156 @@ pub fn navigation_sidebar(current_page: &PageType) -> Element<'static, Message> 
 }
 
 /// 设置页面
-pub fn settings_page(current_theme: &AppThemeVariant, current_language: &str) -> Element<'static, Message> {
+pub fn settings_page(
+    current_theme: &AppThemeVariant,
+    current_language: &str,
+) -> Element<'static, Message> {
     let theme_setting = row![
         StyledText::new(match current_theme {
             AppThemeVariant::Light => "Light",
             AppThemeVariant::Dark => "Dark",
-        }).size(constants::TEXT_MEDIUM).build(),
-        Space::with_width(Length::Fill),
-        StyledButton::new(StyledText::new(t!("Toggle")).size(constants::TEXT_NORMAL).build())
-            .on_press(Message::ToggleTheme)
-            .button_type(super::widgets::styled_button::ButtonType::Default)
-            .color(super::widgets::styled_button::ButtonColor::Primary)
-            .padding(constants::PADDING_SMALL)
-            .build()
-    ].align_y(Vertical::Center);
+        })
+        .size(constants::TEXT_MEDIUM)
+        .build(),
+        Space::new().width(Length::Fill),
+        StyledButton::new(
+            StyledText::new(t!("Toggle"))
+                .size(constants::TEXT_NORMAL)
+                .build()
+        )
+        .on_press(Message::ToggleTheme)
+        .button_type(super::widgets::styled_button::ButtonType::Default)
+        .color(super::widgets::styled_button::ButtonColor::Primary)
+        .padding(constants::PADDING_SMALL)
+        .build()
+    ]
+    .align_y(Vertical::Center);
 
     let language_setting = row![
         StyledText::new(match current_language {
             "zh-CN" => t!("Chinese").to_string(),
             _ => "English".to_string(),
-        }).size(constants::TEXT_MEDIUM).build(),
-        Space::with_width(Length::Fill),
-        StyledButton::new(StyledText::new(t!("Change")).size(constants::TEXT_NORMAL).build())
-            .button_type(super::widgets::styled_button::ButtonType::Default)
-            .color(super::widgets::styled_button::ButtonColor::Primary)
-            .padding(constants::PADDING_SMALL)
-            .build()
-    ].align_y(Vertical::Center);
+        })
+        .size(constants::TEXT_MEDIUM)
+        .build(),
+        Space::new().width(Length::Fill),
+        StyledButton::new(
+            StyledText::new(t!("Change"))
+                .size(constants::TEXT_NORMAL)
+                .build()
+        )
+        .button_type(super::widgets::styled_button::ButtonType::Default)
+        .color(super::widgets::styled_button::ButtonColor::Primary)
+        .padding(constants::PADDING_SMALL)
+        .build()
+    ]
+    .align_y(Vertical::Center);
 
     StyledContainer::new(
         column![
             //StyledContainer::new(
-                StyledText::new(t!("Settings")).size(constants::TEXT_TITLE + 4)
-                    .style(super::widgets::styled_text::TextStyle::Emphasis)
-                    .build(),
+            StyledText::new(t!("Settings"))
+                .size(constants::TEXT_TITLE + 4)
+                .style(super::widgets::styled_text::TextStyle::Emphasis)
+                .build(),
             //)
             //.padding(constants::PADDING_MEDIUM)
             //.build(),
-            
             column![
-                StyledText::new(t!("Appearance")).size(constants::TEXT_LARGE)
+                StyledText::new(t!("Appearance"))
+                    .size(constants::TEXT_LARGE)
                     .style(super::widgets::styled_text::TextStyle::Secondary)
                     .build(),
                 StyledContainer::new(
                     row![
-                        StyledText::new(t!("Theme")).size(constants::TEXT_MEDIUM)
+                        StyledText::new(t!("Theme"))
+                            .size(constants::TEXT_MEDIUM)
                             .width(Length::Fixed(150.0))
                             .build(),
                         theme_setting
-                    ].align_y(Vertical::Center).spacing(constants::SPACING_MEDIUM).padding(constants::PADDING_SMALL)
+                    ]
+                    .align_y(Vertical::Center)
+                    .spacing(constants::SPACING_MEDIUM)
+                    .padding(constants::PADDING_SMALL)
                 )
                 .style(super::widgets::styled_container::ContainerStyle::Card)
                 .padding(constants::PADDING_MEDIUM)
                 .width(Length::Fill)
                 .build()
-            ].spacing(constants::SPACING_SMALL),
-            
+            ]
+            .spacing(constants::SPACING_SMALL),
             column![
-                StyledText::new(t!("Language")).size(constants::TEXT_LARGE)
+                StyledText::new(t!("Language"))
+                    .size(constants::TEXT_LARGE)
                     .style(super::widgets::styled_text::TextStyle::Secondary)
                     .build(),
                 StyledContainer::new(
                     row![
-                        StyledText::new(t!("Interface Language")).size(constants::TEXT_MEDIUM)
+                        StyledText::new(t!("Interface Language"))
+                            .size(constants::TEXT_MEDIUM)
                             .width(Length::Fixed(150.0))
                             .build(),
                         language_setting
-                    ].align_y(Vertical::Center).spacing(constants::SPACING_MEDIUM).padding(constants::PADDING_SMALL)
+                    ]
+                    .align_y(Vertical::Center)
+                    .spacing(constants::SPACING_MEDIUM)
+                    .padding(constants::PADDING_SMALL)
                 )
                 .style(super::widgets::styled_container::ContainerStyle::Card)
                 .padding(constants::PADDING_MEDIUM)
                 .width(Length::Fill)
                 .build()
-            ].spacing(constants::SPACING_SMALL),
-
+            ]
+            .spacing(constants::SPACING_SMALL),
             column![
-                StyledText::new("Advanced Settings").size(constants::TEXT_LARGE)
+                StyledText::new("Advanced Settings")
+                    .size(constants::TEXT_LARGE)
                     .style(super::widgets::styled_text::TextStyle::Secondary)
                     .build(),
                 StyledContainer::new(
                     row![
-                        StyledText::new("Reset Settings").size(constants::TEXT_MEDIUM)
+                        StyledText::new("Reset Settings")
+                            .size(constants::TEXT_MEDIUM)
                             .width(Length::Fixed(150.0))
                             .build(),
                         StyledButton::new(
-                            StyledText::new("Reset to Default").size(constants::TEXT_NORMAL).build()
+                            StyledText::new("Reset to Default")
+                                .size(constants::TEXT_NORMAL)
+                                .build()
                         )
                         .on_press(Message::ResetConfig)
                         .button_type(super::widgets::styled_button::ButtonType::Default)
                         .color(super::widgets::styled_button::ButtonColor::Primary)
                         .padding(constants::PADDING_SMALL)
                         .build()
-                    ].align_y(Vertical::Center).spacing(constants::SPACING_MEDIUM),
+                    ]
+                    .align_y(Vertical::Center)
+                    .spacing(constants::SPACING_MEDIUM),
                 )
                 .style(super::widgets::styled_container::ContainerStyle::Card)
                 .padding(constants::PADDING_MEDIUM)
                 .width(Length::Fill)
                 .build()
-            ].spacing(constants::SPACING_SMALL),
-            
-            Space::with_height(Length::Fill),
+            ]
+            .spacing(constants::SPACING_SMALL),
+            Space::new().height(Length::Fill),
             StyledContainer::new(
                 column![
-                    StyledText::new(format!("{} v{}", t!("Summer Player"), env!("CARGO_PKG_VERSION")))
-                        .size(constants::TEXT_NORMAL)
-                        .style(super::widgets::styled_text::TextStyle::Secondary)
-                        .build(),
+                    StyledText::new(format!(
+                        "{} v{}",
+                        t!("Summer Player"),
+                        env!("CARGO_PKG_VERSION")
+                    ))
+                    .size(constants::TEXT_NORMAL)
+                    .style(super::widgets::styled_text::TextStyle::Secondary)
+                    .build(),
                     StyledText::new(format!("© 2025 {}", "xiamengliang@gmail.com"))
                         .size(constants::TEXT_SMALL)
                         .style(super::widgets::styled_text::TextStyle::Hint)
                         .build(),
-                ].align_x(Horizontal::Center).spacing(2)
+                ]
+                .align_x(Horizontal::Center)
+                .spacing(2)
             )
             .center_x()
             .width(Length::Fill)
@@ -426,7 +515,7 @@ pub fn settings_page(current_theme: &AppThemeVariant, current_language: &str) ->
             .build()
         ]
         .spacing(constants::SPACING_MEDIUM)
-        .padding(constants::PADDING_LARGE)
+        .padding(constants::PADDING_LARGE),
     )
     .style(super::widgets::styled_container::ContainerStyle::Background)
     .width(Length::Fill)
@@ -435,31 +524,31 @@ pub fn settings_page(current_theme: &AppThemeVariant, current_language: &str) ->
 
 /// 控制按钮组
 pub fn control_buttons_view(is_playing: bool) -> Element<'static, Message> {
-    let (play_icon, play_tooltip) = if is_playing {
+    let (play_icon, _play_tooltip) = if is_playing {
         (icons::PAUSE, t!("Pause").to_string())
     } else {
         (icons::PLAY, t!("Play").to_string())
     };
 
     row![
-        IconButton::new(icons::PREVIOUS, t!("Previous Track").to_string())
-            .on_press(Message::PreviousTrack)
-            .size(constants::BUTTON_SIZE_SMALL)
-            .icon_size(constants::ICON_SIZE_SMALL)
-            .style(super::widgets::styled_button::ButtonType::Default, super::widgets::styled_button::ButtonColor::Default)
-            .build(),
-        IconButton::new(play_icon, play_tooltip)
-            .on_press(Message::PlayPause)
-            .size(constants::BUTTON_SIZE_MEDIUM)
-            .icon_size(constants::ICON_SIZE_MEDIUM)
-            .style(super::widgets::styled_button::ButtonType::Primary, super::widgets::styled_button::ButtonColor::Primary)
-            .build(),
-        IconButton::new(icons::NEXT, t!("Next Track").to_string())
-            .on_press(Message::NextTrack)
-            .size(constants::BUTTON_SIZE_SMALL)
-            .icon_size(constants::ICON_SIZE_SMALL)
-            .style(super::widgets::styled_button::ButtonType::Default, super::widgets::styled_button::ButtonColor::Default)
-            .build(),
+        icon_button(
+            icons::PREVIOUS,
+            Message::PreviousTrack,
+            constants::BUTTON_SIZE_SMALL,
+            ButtonType::Default
+        ),
+        icon_button(
+            play_icon,
+            Message::PlayPause,
+            constants::BUTTON_SIZE_MEDIUM,
+            super::widgets::styled_button::ButtonType::Primary
+        ),
+        icon_button(
+            icons::NEXT,
+            Message::NextTrack,
+            constants::BUTTON_SIZE_SMALL,
+            ButtonType::Default
+        ),
     ]
     .spacing(constants::SPACING_SMALL)
     .align_y(Vertical::Center)
@@ -468,19 +557,31 @@ pub fn control_buttons_view(is_playing: bool) -> Element<'static, Message> {
 
 /// 紧凑按钮组
 pub fn compact_play_mode_button(current_mode: PlayMode) -> Element<'static, Message> {
-    icon_button(current_mode.icon(), current_mode.name(), Message::TogglePlayMode, constants::BUTTON_SIZE_SMALL, constants::ICON_SIZE_SMALL, AppTheme::file_button)
+    icon_button(
+        current_mode.icon(),
+        Message::TogglePlayMode,
+        constants::BUTTON_SIZE_SMALL,
+        ButtonType::Default,
+    )
 }
 
 pub fn compact_file_button() -> Element<'static, Message> {
-    icon_button(icons::FILE_FOLDER, t!("Open Files").to_string(), Message::OpenFile, constants::BUTTON_SIZE_SMALL, constants::ICON_SIZE_SMALL, AppTheme::file_button)
+    icon_button(
+        icons::FILE_FOLDER,
+        Message::OpenFile,
+        constants::BUTTON_SIZE_SMALL,
+        ButtonType::Default,
+    )
 }
 
 /// 细进度条视图（用于底部栏）
 pub fn thin_progress_view(playback_state: &PlaybackState) -> Element<'static, Message> {
     let progress = if playback_state.total_duration > 0.0 {
         (playback_state.current_time / playback_state.total_duration) as f32
-    } else { 0.0 };
-    
+    } else {
+        0.0
+    };
+
     column![
         // 只显示进度条，不显示时间文本
         slider(0.0..=1.0, progress, Message::ProgressChanged)
@@ -496,7 +597,7 @@ pub fn thin_progress_view(playback_state: &PlaybackState) -> Element<'static, Me
 pub fn simple_time_view(playback_state: &PlaybackState) -> Element<'static, Message> {
     let current_time_str = format_duration(playback_state.current_time);
     let total_time_str = format_duration(playback_state.total_duration);
-    
+
     // 使用固定宽度的容器来防止播放控制按钮位置变动
     StyledContainer::new(
         row![
@@ -515,7 +616,7 @@ pub fn simple_time_view(playback_state: &PlaybackState) -> Element<'static, Mess
                 .style(AppTheme::total_time_text()),
         ]
         .spacing(4)
-        .align_y(Vertical::Center)
+        .align_y(Vertical::Center),
     )
     .style(super::widgets::styled_container::ContainerStyle::Transparent)
     .width(Length::Fixed(110.0)) // 固定宽度防止位置变动 (例如: "00:00 / 99:59")
@@ -526,20 +627,36 @@ pub fn simple_time_view(playback_state: &PlaybackState) -> Element<'static, Mess
 }
 
 /// 播放列表视图
-pub fn playlist_view(playlist: &Playlist, playlist_loaded: bool, is_playing: bool, playlist_manager: &crate::playlist::PlaylistManager, menu_song_index: Option<usize>) -> Element<'static, Message> {
+pub fn playlist_view(
+    playlist: &Playlist,
+    playlist_loaded: bool,
+    is_playing: bool,
+    playlist_manager: &crate::playlist::PlaylistManager,
+    menu_song_index: Option<usize>,
+) -> Element<'static, Message> {
     if !playlist_loaded {
         return StyledContainer::new(
             column![
-                StyledText::new("📂").size(48).align(Horizontal::Center).shaping(Shaping::Advanced).build(),
-                StyledText::new(t!("No playlist started")).size(constants::TEXT_LARGE)
+                StyledText::new("📂")
+                    .size(48)
+                    .align(Horizontal::Center)
+                    .shaping(Shaping::Advanced)
+                    .build(),
+                StyledText::new(t!("No playlist started"))
+                    .size(constants::TEXT_LARGE)
                     .align(Horizontal::Center)
                     .style(super::widgets::styled_text::TextStyle::Secondary)
                     .build(),
-                StyledText::new(t!(r#"Please click the playlist card you want to open"#.to_string())).size(constants::TEXT_NORMAL)
-                    .align(Horizontal::Center)
-                    .style(super::widgets::styled_text::TextStyle::Hint)
-                    .build(),
-            ].spacing(constants::SPACING_MEDIUM).align_x(Horizontal::Center)
+                StyledText::new(t!(
+                    r#"Please click the playlist card you want to open"#.to_string()
+                ))
+                .size(constants::TEXT_NORMAL)
+                .align(Horizontal::Center)
+                .style(super::widgets::styled_text::TextStyle::Hint)
+                .build(),
+            ]
+            .spacing(constants::SPACING_MEDIUM)
+            .align_x(Horizontal::Center),
         )
         .style(super::widgets::styled_container::ContainerStyle::Card)
         .padding(32)
@@ -553,134 +670,208 @@ pub fn playlist_view(playlist: &Playlist, playlist_loaded: bool, is_playing: boo
         let paths_ref = playlist.file_paths();
         paths_ref.to_vec()
     };
-    let display_items: Vec<_> = file_paths.iter().enumerate().map(|(index, file_path)| {
-        // 使用播放列表中存储的额外信息（避免每个播放列表独立缓存AudioFile）
-        let extra = playlist.extra_info_for(file_path);
-        let display_name = extra
-            .and_then(|e| e.name.clone())
-            .unwrap_or_else(|| extract_filename(file_path));
-        let duration = extra
-            .and_then(|e| e.duration)
-            .or_else(|| {
+    let display_items: Vec<_> = file_paths
+        .iter()
+        .enumerate()
+        .map(|(index, file_path)| {
+            // 使用播放列表中存储的额外信息（避免每个播放列表独立缓存AudioFile）
+            let extra = playlist.extra_info_for(file_path);
+            let display_name = extra
+                .and_then(|e| e.name.clone())
+                .unwrap_or_else(|| extract_filename(file_path));
+            let duration = extra.and_then(|e| e.duration).or_else(|| {
                 // 当播放列表中的额外信息没有时长时，回退到读取缓存中的AudioFile时长（不触发加载）
                 playlist_manager.get_cached_audio_duration(file_path)
             });
-        (index, display_name, duration, file_path.clone())
-    }).collect();
+            (index, display_name, duration, file_path.clone())
+        })
+        .collect();
 
-    let items: Vec<Element<Message>> = display_items.into_iter().map(|(index, display_name, duration, _file_path)| {
-        let is_current = playlist.current_index() == Some(index);
-        let is_playing_current = is_current && is_playing;
-        
-        let icon = if is_current {
-            if is_playing_current { "🎵" } else { "⏸" }
-        } else { "🎼" };
+    let items: Vec<Element<Message>> = display_items
+        .into_iter()
+        .map(|(index, display_name, duration, _file_path)| {
+            let is_current = playlist.current_index() == Some(index);
+            let is_playing_current = is_current && is_playing;
 
-        let text_color = if is_current { 
-            Color { r: 0.0, g: 0.6, b: 1.0, a: 1.0 }
-        } else { 
-            Color { r: 0.4, g: 0.4, b: 0.4, a: 1.0 }
-        };
-        
-        let content = StyledContainer::new(
-            row![
-                StyledText::new(icon).size(constants::TEXT_MEDIUM).shaping(Shaping::Advanced).build(),
-                // 歌曲名使用剩余空间
-                StyledContainer::new(
-                    truncated_text(display_name, constants::TEXT_TRUNCATE_DEFAULT, constants::TEXT_MEDIUM, text_color)
-                ).style(super::widgets::styled_container::ContainerStyle::Transparent).width(Length::Fill).build(),
-                // 时间区域固定宽度并右对齐
-                StyledContainer::new(
-                    StyledText::new(duration.map_or("--:--".to_string(), |d| format_duration(d)))
+            let icon = if is_current {
+                if is_playing_current {
+                    "🎵"
+                } else {
+                    "⏸"
+                }
+            } else {
+                "🎼"
+            };
+
+            let text_color = if is_current {
+                Color {
+                    r: 0.0,
+                    g: 0.6,
+                    b: 1.0,
+                    a: 1.0,
+                }
+            } else {
+                Color {
+                    r: 0.4,
+                    g: 0.4,
+                    b: 0.4,
+                    a: 1.0,
+                }
+            };
+
+            let content = StyledContainer::new(
+                row![
+                    StyledText::new(icon)
+                        .size(constants::TEXT_MEDIUM)
+                        .shaping(Shaping::Advanced)
+                        .build(),
+                    // 歌曲名使用剩余空间
+                    StyledContainer::new(truncated_text(
+                        display_name,
+                        constants::TEXT_TRUNCATE_DEFAULT,
+                        constants::TEXT_MEDIUM,
+                        text_color
+                    ))
+                    .style(super::widgets::styled_container::ContainerStyle::Transparent)
+                    .width(Length::Fill)
+                    .build(),
+                    // 时间区域固定宽度并右对齐
+                    StyledContainer::new(
+                        StyledText::new(
+                            duration.map_or("--:--".to_string(), |d| format_duration(d))
+                        )
                         .size(constants::TEXT_NORMAL)
                         .align(Horizontal::Right)
                         .style(super::widgets::styled_text::TextStyle::WithAlpha(0.7))
                         .build()
-                ).style(ContainerStyle::Transparent).width(Length::Fixed(60.0)).align_x(Horizontal::Right).build(),
-                
-                {
-                    let details_btn = StyledButton::new(
-                        text(t!("Song Details")).size(constants::TEXT_MEDIUM)
                     )
-                    .button_type(ButtonType::Text)
-                    .width(Length::Fill)
-                    .on_press(Message::SongItemActionDetails(index))
-                    .build();
-
-                    let edit_btn = StyledButton::new(
-                        text(t!("Edit Tags")).size(constants::TEXT_MEDIUM)
-                    )
-                    .button_type(ButtonType::Text)
-                    .width(Length::Fill)
-                    .on_press(Message::SongItemActionEditTags(index))
-                    .build();
-
-                    let remove_btn = StyledButton::new(
-                        text(t!("Remove")).size(constants::TEXT_MEDIUM)
-                    )
-                    .button_type(ButtonType::Text)
-                    .width(Length::Fill)
-                    .on_press(Message::SongItemActionRemove(index))
-                    .build();
-
-                    let options = StyledContainer::new(
-                            column![details_btn, edit_btn, remove_btn]
-                                .spacing(2)
-                                .padding([8, 0])
-                        ).style(ContainerStyle::Background).width(Length::Fixed(110.0)).build();
-                    // 右侧的更多操作按钮（切换菜单/图标）- 美化版本
-                    let drop_down: Element<Message> = iced_aw::DropDown::new(
-                        StyledButton::new(
-                            text("⋮").shaping(Shaping::Advanced).size(constants::TEXT_LARGE)
+                    .style(ContainerStyle::Transparent)
+                    .width(Length::Fixed(60.0))
+                    .align_x(Horizontal::Right)
+                    .build(),
+                    {
+                        let details_btn = StyledButton::new(
+                            text(t!("Song Details")).size(constants::TEXT_MEDIUM),
                         )
                         .button_type(ButtonType::Text)
-                        .color(ButtonColor::Default)
-                        .on_press(Message::ExpandSongItemMenu(index)) // 添加点击事件处理
-                        .build(),
-                        options,
-                        menu_song_index == Some(index)
-                    )
-                    .width(Length::Fill)
-                    .on_dismiss(Message::DismissSongItemMenu(index))
-                    .alignment(iced_aw::drop_down::Alignment::BottomStart)
-                    .into();
+                        .width(Length::Fill)
+                        .height(Length::Fill)
+                        .on_press(Message::SongItemActionDetails(index))
+                        .build();
 
-                    StyledContainer::new(drop_down)
-                                .style(ContainerStyle::Background)
-                                .width(Length::Fixed(32.0))
-                                .align_x(Horizontal::Right)
-                                .build()
-                }
-            ].spacing(constants::SPACING_MEDIUM).align_y(Vertical::Center)
-        )
-        .style(ContainerStyle::Transparent)
-        .padding(constants::PADDING_SMALL)
-        .width(Length::Fill)
-        .build();
-        
-        StyledButton::new(content)
-            .on_press(Message::PlaylistItemSelected(index))
+                        let edit_btn =
+                            StyledButton::new(text(t!("Edit Tags")).size(constants::TEXT_MEDIUM))
+                                .button_type(ButtonType::Text)
+                                .width(Length::Fill)
+                                .on_press(Message::SongItemActionEditTags(index))
+                                .build();
+
+                        let remove_btn =
+                            StyledButton::new(text(t!("Remove")).size(constants::TEXT_MEDIUM))
+                                .button_type(ButtonType::Text)
+                                .width(Length::Fill)
+                                .on_press(Message::SongItemActionRemove(index))
+                                .build();
+
+                        let options = StyledContainer::new(
+                            column![details_btn, edit_btn, remove_btn]
+                                .spacing(2)
+                                .padding([8, 0]),
+                        )
+                        .style(ContainerStyle::Background)
+                        .width(Length::Fixed(110.0))
+                        .height(Length::Fill)
+                        .build();
+                        // 右侧的更多操作按钮（切换菜单/图标）- 美化版本
+                        let drop_down: Element<Message> = iced_aw::DropDown::new(
+                            StyledButton::new(
+                                text("⋮")
+                                    .shaping(Shaping::Advanced)
+                                    .size(constants::TEXT_NORMAL),
+                            )
+                            .button_type(ButtonType::Text)
+                            .color(ButtonColor::Default)
+                            .height(Length::Fill)
+                            .width(Length::Fixed(32.0))
+                            .on_press(Message::ExpandSongItemMenu(index)) // 添加点击事件处理
+                            .build(),
+                            options,
+                            menu_song_index == Some(index),
+                        )
+                        .width(Length::Fill)
+                        .on_dismiss(Message::DismissSongItemMenu(index))
+                        .alignment(iced_aw::drop_down::Alignment::BottomStart)
+                        .into();
+                        
+
+                        StyledContainer::new(drop_down)
+                            .style(ContainerStyle::Background)
+                            .height(Length::Fill)
+                            .align_x(Horizontal::Right)
+                            .build()
+                    }
+                ]
+                .spacing(constants::SPACING_MEDIUM)
+                .padding(iced::Padding::ZERO)
+                .height(Length::Fill)
+                .align_y(Vertical::Center),
+            )
+            .style(ContainerStyle::Transparent)
+            .padding(iced::Padding::ZERO)
             .width(Length::Fill)
-            .button_type(if is_playing_current { super::widgets::styled_button::ButtonType::Default } else if is_current { super::widgets::styled_button::ButtonType::Dashed } else { super::widgets::styled_button::ButtonType::Text })
-            .color(if is_playing_current { super::widgets::styled_button::ButtonColor::Primary } else if is_current { super::widgets::styled_button::ButtonColor::Primary } else { super::widgets::styled_button::ButtonColor::Default })
-            .build()
-    }).collect();
-    
+            .height(Length::Fill)
+            .build();
+
+            StyledButton::new(content)
+                .on_press(Message::PlaylistItemSelected(index))
+                .width(Length::Fill)
+                .height(Length::Fixed(56.0))
+                .button_type(if is_playing_current {
+                    super::widgets::styled_button::ButtonType::Default
+                } else if is_current {
+                    super::widgets::styled_button::ButtonType::Dashed
+                } else {
+                    super::widgets::styled_button::ButtonType::Text
+                })
+                .color(if is_playing_current {
+                    super::widgets::styled_button::ButtonColor::Primary
+                } else if is_current {
+                    super::widgets::styled_button::ButtonColor::Primary
+                } else {
+                    super::widgets::styled_button::ButtonColor::Default
+                })
+                .build()
+        })
+        .collect();
+
     StyledContainer::new(
         column![
             //StyledContainer::new(
-                row![
-                    StyledText::new("📋").size(constants::TEXT_TITLE).shaping(Shaping::Advanced).build(),
-                    StyledText::new(t!("messages.CurrentPlaylist", count = format!("{}", playlist.len())))
-                        .size(constants::TEXT_TITLE - 2)
-                        .style(super::widgets::styled_text::TextStyle::Primary)
-                        .build(),
-                ].spacing(constants::SPACING_MEDIUM).align_y(Vertical::Center),
+            row![
+                StyledText::new("📋")
+                    .size(constants::TEXT_TITLE)
+                    .shaping(Shaping::Advanced)
+                    .build(),
+                StyledText::new(t!(
+                    "messages.CurrentPlaylist",
+                    count = format!("{}", playlist.len())
+                ))
+                .size(constants::TEXT_TITLE - 2)
+                .style(super::widgets::styled_text::TextStyle::Primary)
+                .build(),
+            ]
+            .spacing(constants::SPACING_MEDIUM)
+            .align_y(Vertical::Center),
             //).padding(constants::PADDING_SMALL).build(),
             scrollable(
-                column(items).spacing(constants::SPACING_SMALL).padding([constants::PADDING_SMALL, constants::PADDING_SMALL])
-            ).height(Length::Fill).width(Length::Fill),
-        ].spacing(constants::SPACING_LARGE)
+                column(items)
+                    .spacing(constants::SPACING_SMALL)
+                    .padding([constants::PADDING_SMALL, constants::PADDING_SMALL])
+            )
+            .height(Length::Fill)
+            .width(Length::Fill),
+        ]
+        .spacing(constants::SPACING_LARGE),
     )
     .style(ContainerStyle::Transparent)
     .padding(constants::PADDING_SMALL)
@@ -690,122 +881,244 @@ pub fn playlist_view(playlist: &Playlist, playlist_loaded: bool, is_playing: boo
 }
 
 /// 歌词视图
-pub fn lyrics_view(file_path: &str, is_playing: bool, current_time: f64, lyrics: Option<crate::lyrics::Lyrics>, window_height: f32) -> Element<'static, Message> {
+pub fn lyrics_view(
+    file_path: &str,
+    is_playing: bool,
+    current_time: f64,
+    lyrics: Option<crate::lyrics::Lyrics>,
+    window_height: f32,
+) -> Element<'static, Message> {
     if file_path.is_empty() {
         return StyledContainer::new(
             column![
-                text("🎵").size(48).align_x(Horizontal::Center).shaping(Shaping::Advanced),
-                text(t!("Lyrics Display")).size(constants::TEXT_TITLE).align_x(Horizontal::Center).style(primary_text_style()),
-                text(t!("Please select an audio file")).size(constants::TEXT_MEDIUM).align_x(Horizontal::Center).style(alpha_text_style(0.7)),
-            ].spacing(constants::SPACING_MEDIUM).align_x(Horizontal::Center)
-        ).style(ContainerStyle::Transparent).padding(constants::PADDING_SMALL).width(Length::Fill).height(Length::Fill).build().into();
+                text("🎵")
+                    .size(48)
+                    .align_x(Horizontal::Center)
+                    .shaping(Shaping::Advanced),
+                text(t!("Lyrics Display"))
+                    .size(constants::TEXT_TITLE)
+                    .align_x(Horizontal::Center)
+                    .style(primary_text_style()),
+                text(t!("Please select an audio file"))
+                    .size(constants::TEXT_MEDIUM)
+                    .align_x(Horizontal::Center)
+                    .style(alpha_text_style(0.7)),
+            ]
+            .spacing(constants::SPACING_MEDIUM)
+            .align_x(Horizontal::Center),
+        )
+        .style(ContainerStyle::Transparent)
+        .padding(constants::PADDING_SMALL)
+        .width(Length::Fill)
+        .height(Length::Fill)
+        .build()
+        .into();
     }
-    
+
     let mut elements = Vec::<Element<Message>>::new();
-    
+
     if let Some(lyrics_data) = lyrics {
         // 标题
         let title = lyrics_data.metadata.title.clone().unwrap_or_else(|| {
-            std::path::Path::new(file_path).file_stem()
-                .and_then(|s| s.to_str()).unwrap_or("未知歌曲").to_string()
+            std::path::Path::new(file_path)
+                .file_stem()
+                .and_then(|s| s.to_str())
+                .unwrap_or("未知歌曲")
+                .to_string()
         });
-        
+
         elements.push(
-            StyledContainer::new(
-                {
-                    let title_color = Color { r: 0.0, g: 0.6, b: 1.0, a: 1.0 };
-                    truncated_text(title, constants::TEXT_TRUNCATE_LONG, constants::TEXT_TITLE, title_color)
-                }
-            ).width(Length::Fill).align_x(Horizontal::Center).build().into()
+            StyledContainer::new({
+                let title_color = Color {
+                    r: 0.0,
+                    g: 0.6,
+                    b: 1.0,
+                    a: 1.0,
+                };
+                truncated_text(
+                    title,
+                    constants::TEXT_TRUNCATE_LONG,
+                    constants::TEXT_TITLE,
+                    title_color,
+                )
+            })
+            .width(Length::Fill)
+            .align_x(Horizontal::Center)
+            .build()
+            .into(),
         );
-        
+
         if let Some(ref artist) = lyrics_data.metadata.artist {
             elements.push(
-                StyledContainer::new(
-                    {
-                        let artist_color = Color { r: 0.4, g: 0.4, b: 0.4, a: 0.8 };
-                        truncated_text(format!("🎤 {}", artist), 35, constants::TEXT_MEDIUM, artist_color)
-                    }
-                ).width(Length::Fill).align_x(Horizontal::Center).build().into()
+                StyledContainer::new({
+                    let artist_color = Color {
+                        r: 0.4,
+                        g: 0.4,
+                        b: 0.4,
+                        a: 0.8,
+                    };
+                    truncated_text(
+                        format!("🎤 {}", artist),
+                        35,
+                        constants::TEXT_MEDIUM,
+                        artist_color,
+                    )
+                })
+                .width(Length::Fill)
+                .align_x(Horizontal::Center)
+                .build()
+                .into(),
             );
         }
-        
+
         elements.push(text("").into());
-        
+
         if lyrics_data.has_lyrics() {
             let current_line = lyrics_data.get_current_line_index(current_time);
             let display_lines = calculate_display_lines(lyrics_data.lines.len(), window_height);
-            
+
             // 简化的歌词显示 - 只显示当前和周围几行
             let start = current_line.unwrap_or(0).saturating_sub(display_lines / 2);
             let end = (start + display_lines).min(lyrics_data.lines.len());
-            
+
             for (i, line) in lyrics_data.lines[start..end].iter().enumerate() {
                 let line_index = start + i;
                 let is_current = Some(line_index) == current_line;
-                
+
                 let text_elem = if is_current && is_playing {
                     StyledContainer::new(
-                        text(format!("▶ {}", if line.text.trim().is_empty() { "♪".to_string() } else { line.text.clone() }))
-                            .size(constants::TEXT_TITLE - 2).align_x(Horizontal::Center).shaping(Shaping::Advanced)
-                            .style(|theme: &iced::Theme| {
-                                iced::widget::text::Style { color: Some(AppColors::primary(theme)) }
-                            })
-                    ).style(ContainerStyle::Emphasis).padding(constants::PADDING_SMALL).width(Length::Fill).build().into()
+                        text(format!(
+                            "▶ {}",
+                            if line.text.trim().is_empty() {
+                                "♪".to_string()
+                            } else {
+                                line.text.clone()
+                            }
+                        ))
+                        .size(constants::TEXT_TITLE - 2)
+                        .align_x(Horizontal::Center)
+                        .shaping(Shaping::Advanced)
+                        .style(|theme: &iced::Theme| {
+                            iced::widget::text::Style {
+                                color: Some(AppColors::primary(theme)),
+                            }
+                        }),
+                    )
+                    .style(ContainerStyle::Emphasis)
+                    .padding(constants::PADDING_SMALL)
+                    .width(Length::Fill)
+                    .build()
+                    .into()
                 } else {
-                    text(if line.text.trim().is_empty() { "♪".to_string() } else { line.text.clone() })
-                        .size(constants::TEXT_MEDIUM).align_x(Horizontal::Center).shaping(Shaping::Advanced)
-                        .style(alpha_text_style(if current_line.map_or(false, |c| line_index <= c) { 0.4 } else { 0.7 }))
-                        .into()
+                    text(if line.text.trim().is_empty() {
+                        "♪".to_string()
+                    } else {
+                        line.text.clone()
+                    })
+                    .size(constants::TEXT_MEDIUM)
+                    .align_x(Horizontal::Center)
+                    .shaping(Shaping::Advanced)
+                    .style(alpha_text_style(
+                        if current_line.map_or(false, |c| line_index <= c) {
+                            0.4
+                        } else {
+                            0.7
+                        },
+                    ))
+                    .into()
                 };
-                
+
                 elements.push(text_elem);
             }
         } else {
             elements.push(
                 text("⚠️ 歌词文件已加载，但没有找到歌词内容")
-                    .align_x(Horizontal::Center).shaping(Shaping::Advanced)
-                    .style(alpha_text_style(0.7)).into()
+                    .align_x(Horizontal::Center)
+                    .shaping(Shaping::Advanced)
+                    .style(alpha_text_style(0.7))
+                    .into(),
             );
         }
     } else {
         if is_playing {
             elements.extend([
-                text("♪ 正在播放中... ♪").size(constants::TEXT_TITLE - 2).align_x(Horizontal::Center).shaping(Shaping::Advanced).style(primary_text_style()).into(),
+                text("♪ 正在播放中... ♪")
+                    .size(constants::TEXT_TITLE - 2)
+                    .align_x(Horizontal::Center)
+                    .shaping(Shaping::Advanced)
+                    .style(primary_text_style())
+                    .into(),
                 text("").into(),
-                text("🎵 暂无歌词文件").align_x(Horizontal::Center).shaping(Shaping::Advanced).style(alpha_text_style(0.7)).into(),
+                text("🎵 暂无歌词文件")
+                    .align_x(Horizontal::Center)
+                    .shaping(Shaping::Advanced)
+                    .style(alpha_text_style(0.7))
+                    .into(),
                 text("").into(),
-                text(format!("⏱️ {}", format_duration(current_time))).size(constants::TEXT_NORMAL).align_x(Horizontal::Center).shaping(Shaping::Advanced).style(alpha_text_style(0.6)).into(),
+                text(format!("⏱️ {}", format_duration(current_time)))
+                    .size(constants::TEXT_NORMAL)
+                    .align_x(Horizontal::Center)
+                    .shaping(Shaping::Advanced)
+                    .style(alpha_text_style(0.6))
+                    .into(),
             ]);
         } else {
             elements.extend([
-                text("♪ 歌词显示 ♪").size(constants::TEXT_TITLE - 2).align_x(Horizontal::Center).shaping(Shaping::Advanced).style(primary_text_style()).into(),
+                text("♪ 歌词显示 ♪")
+                    .size(constants::TEXT_TITLE - 2)
+                    .align_x(Horizontal::Center)
+                    .shaping(Shaping::Advanced)
+                    .style(primary_text_style())
+                    .into(),
                 text("").into(),
-                text("⏸️ 暂停播放中").align_x(Horizontal::Center).shaping(Shaping::Advanced).style(alpha_text_style(0.7)).into(),
+                text("⏸️ 暂停播放中")
+                    .align_x(Horizontal::Center)
+                    .shaping(Shaping::Advanced)
+                    .style(alpha_text_style(0.7))
+                    .into(),
             ]);
         }
-        
+
         // 使用提示
         elements.push(text("").into());
         elements.push(
             StyledContainer::new(
                 column![
-                    text("💡 使用提示").size(constants::TEXT_MEDIUM).shaping(Shaping::Advanced).style(primary_text_style()),
-                    text("📁 将 .lrc 歌词文件放在音频文件同目录下").size(11).shaping(Shaping::Advanced),
-                    text("📝 歌词文件名需与音频文件名相同").size(11).shaping(Shaping::Advanced),
-                    text("🕐 支持时间同步的LRC格式歌词").size(11).shaping(Shaping::Advanced),
-                ].spacing(constants::SPACING_SMALL)
-            ).style(ContainerStyle::Emphasis).padding(constants::PADDING_MEDIUM).build().into()
+                    text("💡 使用提示")
+                        .size(constants::TEXT_MEDIUM)
+                        .shaping(Shaping::Advanced)
+                        .style(primary_text_style()),
+                    text("📁 将 .lrc 歌词文件放在音频文件同目录下")
+                        .size(11)
+                        .shaping(Shaping::Advanced),
+                    text("📝 歌词文件名需与音频文件名相同")
+                        .size(11)
+                        .shaping(Shaping::Advanced),
+                    text("🕐 支持时间同步的LRC格式歌词")
+                        .size(11)
+                        .shaping(Shaping::Advanced),
+                ]
+                .spacing(constants::SPACING_SMALL),
+            )
+            .style(ContainerStyle::Emphasis)
+            .padding(constants::PADDING_MEDIUM)
+            .build()
+            .into(),
         );
     }
-    
+
     StyledContainer::new(
-        column(elements).spacing(constants::SPACING_LARGE).width(Length::Fill).align_x(Horizontal::Center)
+        column(elements)
+            .spacing(constants::SPACING_LARGE)
+            .width(Length::Fill)
+            .align_x(Horizontal::Center),
     )
     .style(super::widgets::styled_container::ContainerStyle::Transparent)
     .padding(constants::PADDING_SMALL)
-    .width(Length::Fill).height(Length::Fill)
-    .build().into()
+    .width(Length::Fill)
+    .height(Length::Fill)
+    .build()
+    .into()
 }
 
 // ============================================================================
@@ -813,12 +1126,12 @@ pub fn lyrics_view(file_path: &str, is_playing: bool, current_time: f64, lyrics:
 // ============================================================================
 
 /// 计算歌词显示行数
-/// 
+///
 /// 根据窗口高度和布局结构动态计算合适的歌词显示行数
 fn calculate_display_lines(total_lyrics: usize, window_height: f32) -> usize {
     // 分析当前布局的固定高度占用：
     // 1. 整体外边距：8px (上) + 8px (下) = 16px
-    // 2. 主内容区域内边距：16px (上) + 16px (下) = 32px  
+    // 2. 主内容区域内边距：16px (上) + 16px (下) = 32px
     // 3. 主内容和底部区域间距：16px
     // 4. 底部区域：
     //    - 控制按钮高度：~54px (BUTTON_SIZE_MEDIUM + 6.0)
@@ -828,25 +1141,25 @@ fn calculate_display_lines(total_lyrics: usize, window_height: f32) -> usize {
     //    - 底部区域总高度：max(54, 40, 48) + 16 = 70px
     // 5. 歌词视图内部padding：constants::PADDING_LARGE + 4 = 28px (上下各28px = 56px)
     // 6. 歌词标题和艺术家信息占用：~80px (标题 + 艺术家 + spacing)
-    
+
     let fixed_ui_height = 16.0  // 整体外边距
         + 32.0  // 主内容区域内边距
         + 16.0  // 主内容和底部间距
         + 70.0  // 底部区域
         + 56.0  // 歌词视图内部padding
         + 80.0; // 歌词标题区域
-        
+
     let available_height = window_height - fixed_ui_height;
-    
+
     // 歌词行高度：标准文本大小 + 行间距
     // TEXT_TITLE-2 (18px) + SPACING_LARGE (20px) = 38px 用于当前行
     // TEXT_MEDIUM (14px) + SPACING_LARGE (20px) = 34px 用于其他行
     // 平均行高取 35px
     let line_height = 35.0;
-    
+
     // 计算基础显示行数
     let calculated_lines = (available_height / line_height) as usize;
-    
+
     // 应用智能调整策略
     let adjusted_lines = if total_lyrics == 0 {
         // 无歌词时，返回默认值
@@ -861,20 +1174,20 @@ fn calculate_display_lines(total_lyrics: usize, window_height: f32) -> usize {
         // 长歌词，允许更多行显示
         calculated_lines.max(11).min(25)
     };
-    
+
     // 确保最小行数为5，最大行数为25
     let final_lines = adjusted_lines.max(5).min(25);
-    
+
     // 确保为奇数以保持当前行居中
-    if final_lines % 2 == 0 { 
-        final_lines + 1 
-    } else { 
-        final_lines 
+    if final_lines % 2 == 0 {
+        final_lines + 1
+    } else {
+        final_lines
     }
 }
 
 pub fn spacer() -> Element<'static, Message> {
-    Space::new(Length::Fill, Length::Fill).into()
+    Space::new().into()
 }
 
 /// 紧凑的专辑封面视图（用于底部栏下层）
@@ -882,37 +1195,20 @@ pub fn compact_album_cover_view(audio_info: Option<&AudioInfo>) -> Element<'stat
     let content = if let Some(info) = audio_info {
         if let Some(cover_art) = &info.metadata.cover_art {
             // 显示可点击的专辑封面
-            let image = iced::widget::Image::new(iced::widget::image::Handle::from_bytes(cover_art.data.clone()))
-                .width(Length::Fixed(50.0))
-                .height(Length::Fixed(50.0));
+            let handle = iced::widget::image::Handle::from_bytes(cover_art.data.clone());
             
-            IconButton::new("", t!("Toggle View"))
-                .on_press(Message::ToggleHomeLyrics)
+            StyledButton::icon_only(handle)
+                .button_type(ButtonType::Default)
                 .size(56.0)
-                .style(super::widgets::styled_button::ButtonType::Default, super::widgets::styled_button::ButtonColor::Default)
-                .content(container(image)
-                    .width(Length::Fill)
-                    .height(Length::Fill)
-                    .align_x(Horizontal::Center)
-                    .align_y(Vertical::Center))
+                .on_press(Message::ToggleHomeLyrics)
                 .build()
         } else {
             // 没有封面时显示可点击的音乐图标按钮
-            IconButton::new(icons::MUSIC_NOTE, t!("Toggle View"))
-                .on_press(Message::ToggleHomeLyrics)
-                .size(56.0)
-                .icon_size(28.0)
-                .style(super::widgets::styled_button::ButtonType::Default, super::widgets::styled_button::ButtonColor::Default)
-                .build()
+            icon_button(icons::MUSIC_NOTE, Message::ToggleHomeLyrics, 56.0,ButtonType::Default)
         }
     } else {
         // 没有音频信息时显示可点击的音乐图标按钮
-        IconButton::new(icons::MUSIC_NOTE, t!("Toggle View"))
-            .on_press(Message::ToggleHomeLyrics)
-            .size(56.0)
-            .icon_size(28.0)
-            .style(super::widgets::styled_button::ButtonType::Default, super::widgets::styled_button::ButtonColor::Default)
-            .build()
+        icon_button(icons::MUSIC_NOTE, Message::ToggleHomeLyrics,56.0,ButtonType::Default)
     };
 
     StyledContainer::new(content)
@@ -927,15 +1223,24 @@ pub fn compact_album_cover_view(audio_info: Option<&AudioInfo>) -> Element<'stat
 }
 
 /// 紧凑的歌曲信息视图（用于底部栏下层）
-pub fn compact_song_info_view(audio_info: Option<&AudioInfo>, file_path: &str) -> Element<'static, Message> {
+pub fn compact_song_info_view(
+    audio_info: Option<&AudioInfo>,
+    file_path: &str,
+) -> Element<'static, Message> {
     if let Some(info) = audio_info {
         let file_name = std::path::Path::new(file_path)
-            .file_stem().and_then(|s| s.to_str())
-            .unwrap_or("Unknown Track").to_string();
-        
+            .file_stem()
+            .and_then(|s| s.to_str())
+            .unwrap_or("Unknown Track")
+            .to_string();
+
         let display_title = info.metadata.title.clone().unwrap_or(file_name);
-        let display_artist = info.metadata.artist.clone().unwrap_or("Unknown Artist".to_string());
-        
+        let display_artist = info
+            .metadata
+            .artist
+            .clone()
+            .unwrap_or("Unknown Artist".to_string());
+
         StyledContainer::new(
             column![
                 // 第一行：歌曲名（使用主题强调色，高对比度）
@@ -951,7 +1256,6 @@ pub fn compact_song_info_view(audio_info: Option<&AudioInfo>, file_path: &str) -
                         color: Some(palette.primary.strong.color), // 使用主题强调色，高对比度
                     }
                 }),
-                
                 // 第二行：艺术家（使用主题文本色）
                 text(if display_artist.chars().count() > 25 {
                     format!("{}...", display_artist.chars().take(22).collect::<String>())
@@ -962,11 +1266,14 @@ pub fn compact_song_info_view(audio_info: Option<&AudioInfo>, file_path: &str) -
                 .style(|theme: &iced::Theme| {
                     let palette = theme.extended_palette();
                     iced::widget::text::Style {
-                        color: Some(Color { a: 0.9, ..palette.background.base.text }), // 主题文本色，稍微透明
+                        color: Some(Color {
+                            a: 0.9,
+                            ..palette.background.base.text
+                        }), // 主题文本色，稍微透明
                     }
                 }),
             ]
-            .spacing(3)
+            .spacing(3),
         )
         .style(super::widgets::styled_container::ContainerStyle::Transparent)
         .width(Length::Fixed(180.0))
@@ -983,7 +1290,8 @@ pub fn compact_song_info_view(audio_info: Option<&AudioInfo>, file_path: &str) -
                 .size(constants::TEXT_SMALL)
                 .style(alpha_text_style(0.6))
         ]
-        .spacing(2).into()
+        .spacing(2)
+        .into()
     }
 }
 
@@ -999,16 +1307,16 @@ pub fn playlist_files_grid_view(
 ) -> Element<'static, Message> {
     // 从PlaylistManager获取播放列表文件信息
     let playlist_infos = get_playlist_files_info_from_manager(playlist_manager);
-    
+
     // 创建网格布局，每行显示3个卡片（包括创建卡片）
     let mut grid_rows = Vec::<Element<Message>>::new();
     let mut current_row = Vec::<Element<Message>>::new();
-    
+
     let current_path = playlist_manager.current_playlist_path();
     for playlist_info in playlist_infos.iter() {
         // 检查当前卡片是否被选中（由 PlaylistManager 提供）
         let is_selected = current_path == Some(playlist_info.path.as_str());
-        
+
         // 使用新的PlaylistCard控件
         let playlist_card = PlaylistCard::builder()
             .path(playlist_info.path.clone())
@@ -1021,30 +1329,34 @@ pub fn playlist_files_grid_view(
             .width(170.0)
             .height(240.0)
             .build();
-        
+
         current_row.push(playlist_card);
-        
+
         // 满3个则落一行
         if current_row.len() == 3 {
             // 填充不足3个的行
             while current_row.len() < 3 {
-                current_row.push(Space::new(Length::Fixed(140.0), Length::Fixed(150.0)).into());
+                current_row.push(Space::new().into());
             }
-            
+
             let grid_row = row(current_row.drain(..).collect::<Vec<_>>())
                 .spacing(constants::SPACING_LARGE)
                 .align_y(Vertical::Center)
                 .into();
-            
+
             grid_rows.push(grid_row);
         }
     }
 
     // 追加“创建播放列表”卡片，计入布局
-    current_row.push(if !creating { CreatePlaylistCard::display_card() } else { CreatePlaylistCard::input_card(creating_name) });
+    current_row.push(if !creating {
+        CreatePlaylistCard::display_card()
+    } else {
+        CreatePlaylistCard::input_card(creating_name)
+    });
 
     while current_row.len() < 3 {
-        current_row.push(Space::new(Length::Fixed(140.0), Length::Fixed(150.0)).into());
+        current_row.push(Space::new().into());
     }
 
     let grid_row = row(current_row.drain(..).collect::<Vec<_>>())
@@ -1053,28 +1365,39 @@ pub fn playlist_files_grid_view(
         .into();
 
     grid_rows.push(grid_row);
-    
+
     StyledContainer::new(
         column![
             // 标题
             //StyledContainer::new(
-                row![
-                    text("📋").size(constants::TEXT_TITLE).shaping(Shaping::Advanced),
-                    text(t!("Playlists")).size(constants::TEXT_TITLE - 2).style(primary_text_style()),
-                ].spacing(constants::SPACING_MEDIUM).align_y(Vertical::Center),
+            row![
+                text("📋")
+                    .size(constants::TEXT_TITLE)
+                    .shaping(Shaping::Advanced),
+                text(t!("Playlists"))
+                    .size(constants::TEXT_TITLE - 2)
+                    .style(primary_text_style()),
+            ]
+            .spacing(constants::SPACING_MEDIUM)
+            .align_y(Vertical::Center),
             //).padding(constants::PADDING_SMALL).build(),
-            
+
             // 网格布局的播放列表（自适应高度，滚动条）
             scrollable(
                 column(grid_rows)
                     .spacing(constants::SPACING_MEDIUM)
                     .padding([constants::PADDING_SMALL, constants::PADDING_SMALL])
-            ).height(Length::Fill).width(Length::Fill), // 高度填满可用空间，超出时自动滚动
-        ].spacing(constants::SPACING_LARGE).height(Length::Fill) // 确保列也填满高度
+            )
+            .height(Length::Fill)
+            .width(Length::Fill), // 高度填满可用空间，超出时自动滚动
+        ]
+        .spacing(constants::SPACING_LARGE)
+        .height(Length::Fill), // 确保列也填满高度
     )
     .style(super::widgets::styled_container::ContainerStyle::Transparent)
     .padding(constants::PADDING_SMALL)
-    .width(Length::Fill).height(Length::Fill) // 容器填满可用空间
+    .width(Length::Fill)
+    .height(Length::Fill) // 容器填满可用空间
     .build()
     .into()
 }
@@ -1088,17 +1411,17 @@ struct PlaylistFileInfo {
 }
 
 /// 从PlaylistManager获取播放列表文件信息（只包含持久播放列表，不包含临时播放列表）
-fn get_playlist_files_info_from_manager(playlist_manager: &crate::playlist::PlaylistManager) -> Vec<PlaylistFileInfo> {
+fn get_playlist_files_info_from_manager(
+    playlist_manager: &crate::playlist::PlaylistManager,
+) -> Vec<PlaylistFileInfo> {
     let mut playlist_infos = Vec::new();
-    
+
     // 遍历PlaylistManager中的持久播放列表
     for (playlist_path, playlist) in playlist_manager.get_persistent_playlists_with_paths() {
         // 只包含持久播放列表（不包含临时播放列表）
         if !playlist.is_temporary() {
-            let name = playlist.name()
-                .unwrap_or("Unknown Playlist")
-                .to_string();
-            
+            let name = playlist.name().unwrap_or("Unknown Playlist").to_string();
+
             playlist_infos.push(PlaylistFileInfo {
                 path: playlist_path.to_string(),
                 name,
@@ -1106,7 +1429,7 @@ fn get_playlist_files_info_from_manager(playlist_manager: &crate::playlist::Play
             });
         }
     }
-    
+
     // 按文件名排序
     playlist_infos.sort_by(|a, b| a.name.cmp(&b.name));
     playlist_infos

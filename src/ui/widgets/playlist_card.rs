@@ -3,12 +3,12 @@
 //! 用于显示播放列表信息的可重用卡片组件
 
 use iced::{
-    alignment::{Horizontal, Vertical}, border::Radius, widget::{column, row, text, text_input, Space, container}, Background, Border, Color, Element, Length, Shadow
+    alignment::{Horizontal, Vertical}, border::Radius, widget::{column, row, text, text_input, Space}, Background, Border, Color, Element, Length, Shadow
 };
 use iced::advanced::text::Shaping;
-use crate::ui::Message;
+use crate::ui::{Message, widgets::icon_button};
 use crate::ui::components::{constants, icons, svg_icon};
-use crate::ui::widgets::{IconButton, StyledContainer, styled_container::ContainerStyle, StyledButton, styled_button::{ButtonType, ButtonColor}};
+use crate::ui::widgets::{StyledContainer, styled_container::ContainerStyle, StyledButton, styled_button::{ButtonType, ButtonColor}};
 use rust_i18n::t;
 use crate::ui::theme::AppColors;
 use iced_aw::{DropDown, drop_down};
@@ -130,19 +130,9 @@ impl PlaylistCard {
                 .into();
 
             let actions: Element<Message> = row![
-                IconButton::new(icons::CONFIRM, t!("Toggle View"))
-                    .on_press(Message::PlaylistCardRenameConfirm)
-                    .size(56.0)
-                    .icon_size(28.0)
-                    .style(ButtonType::Default, ButtonColor::Default)
-                    .build(),
-                Space::with_width(Length::Fixed(8.0)),
-                IconButton::new(icons::CANCEL, t!("Toggle View"))
-                    .on_press(Message::PlaylistCardRenameCancel)
-                    .size(56.0)
-                    .icon_size(28.0)
-                    .style(ButtonType::Default, ButtonColor::Default)
-                    .build(),
+                icon_button(icons::CONFIRM, Message::PlaylistCardRenameConfirm,56.0,ButtonType::Default),
+                Space::new().width(Length::Fixed(8.0)),
+                icon_button(icons::CANCEL, Message::PlaylistCardRenameCancel, 56.0,ButtonType::Default),
             ]
             .spacing(constants::SPACING_SMALL)
             .align_y(Vertical::Center)
@@ -278,7 +268,8 @@ impl PlaylistCard {
             .build()
     }
 
-    /// 卡片按钮样式
+    /// 卡片按钮样式（当前未使用，保留供将来使用）
+    #[allow(dead_code)]
     fn card_button_style(
         theme: &iced::Theme,
         status: iced::widget::button::Status,

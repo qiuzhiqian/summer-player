@@ -1512,7 +1512,7 @@ fn create_id3tag_page(id3_tag_data: &Id3TagData, nav: Element<'static, Message>)
     let action_buttons = row![
         StyledButton::new(
             row![
-                svg_icon(super::components::icons::CONFIRM, 16.0, crate::ui::theme::AppColors::success(&iced::Theme::default())),
+                svg_icon(super::components::icons::CONFIRM, 16.0, Color::from_rgba(0.2, 0.8, 0.2, 1.0)),
                 StyledText::new("保存更改")
                     .size(14)
                     .build()
@@ -1527,7 +1527,7 @@ fn create_id3tag_page(id3_tag_data: &Id3TagData, nav: Element<'static, Message>)
         
         StyledButton::new(
             row![
-                svg_icon(super::components::icons::CANCEL, 16.0, crate::ui::theme::AppColors::text_secondary(&iced::Theme::default())),
+                svg_icon(super::components::icons::CANCEL, 16.0, Color::from_rgba(0.5, 0.5, 0.5, 1.0)),
                 StyledText::new("取消")
                     .size(14)
                     .build()
