@@ -300,7 +300,7 @@ impl PlayerApp {
             Message::PlaylistItemSelected(index) => self.handle_playlist_item_selected(index),
             Message::PlaylistCardToggled(playlist_path) => self.handle_playlist_card_toggled(playlist_path),
             Message::PlaylistCardMoreClicked(playlist_path) => self.handle_playlist_card_more_clicked(playlist_path),
-            Message::PlaylistCardActionRenameStart(playlist_path) => {self.menu_playlist_path = None;self.handle_playlist_card_rename_start(playlist_path)},
+            Message::PlaylistCardActionRenameStart(playlist_path) => Task::none(), //{self.menu_playlist_path = None;self.handle_playlist_card_rename_start(playlist_path)},
             Message::PlaylistCardRenameNameChanged(name) => { self.renaming_playlist_name = name; Task::none() },
             Message::PlaylistCardRenameConfirm => self.handle_playlist_card_rename_confirm(),
             Message::PlaylistCardRenameCancel => { self.renaming_playlist_path = None; self.renaming_playlist_name.clear(); Task::none() },
@@ -338,15 +338,6 @@ impl PlayerApp {
             Message::ExpandMenu(playlist_path) => self.handle_playlist_card_more_clicked(playlist_path),
             Message::DismissMenu(_) => {self.menu_playlist_path = None; Task::none()},
             Message::ExpandSongItemMenu(index) => {
-                // 切换菜单显示/隐藏
-                if self.menu_song_index == Some(index) {
-                    self.menu_song_index = None;
-                } else {
-                    self.menu_song_index = Some(index);
-                }
-                Task::none()
-            },
-            Message::SongItemMenuToggled(index) => {
                 // 切换菜单显示/隐藏
                 if self.menu_song_index == Some(index) {
                     self.menu_song_index = None;
@@ -440,10 +431,10 @@ impl PlayerApp {
             Message::ShowModal(modal_type) => self.handle_show_modal(modal_type),
             Message::HideModal => self.handle_hide_modal(),
             Message::ModalInputChanged { field_type, field, value } => self.handle_modal_input_changed(field_type, field, value),
-            Message::ShowPlaylistRenameModal(playlist_path) => self.handle_show_playlist_rename_modal(playlist_path),
+            Message::ShowPlaylistRenameModal(playlist_path) => {self.menu_playlist_path = None;self.handle_show_playlist_rename_modal(playlist_path)},
             Message::PlaylistCardRenameModal(playlist_path, new_name) => self.handle_playlist_rename_modal(playlist_path, new_name),
-            Message::ShowSongDetailsModal(index) => self.show_song_details_modal(index),
-            Message::ShowEditTagsModal(index) => self.show_edit_tags_modal(index),
+            //Message::ShowSongDetailsModal(index) => self.show_song_details_modal(index),
+            //Message::ShowEditTagsModal(index) => self.show_edit_tags_modal(index),
         }
     }
 
@@ -620,9 +611,9 @@ impl PlayerApp {
     /// 创建播放列表重命名模态窗口
     fn create_playlist_rename_modal(&self) -> Element<Message> {
         use iced::widget::{column, text, text_input, row, button};
-        use iced::{Length, alignment::{Horizontal, Vertical}};
+        use iced::Length;
         
-        column![
+        let content = column![
             text("重命名播放列表").size(20),
             text_input("输入新名称", &self.modal_data.playlist_rename_data.new_name)
                 .on_input(|value| Message::ModalInputChanged {
@@ -647,14 +638,20 @@ impl PlayerApp {
         ]
         .spacing(20)
         .padding(20)
-        .width(Length::Fixed(350.0)) // 设置固定宽度350px
-        .into()
+        .width(Length::Fixed(350.0)); // 设置固定宽度350px
+        
+        // 使用带主题色背景的容器包装
+        super::widgets::StyledContainer::new(content)
+            .style(super::widgets::styled_container::ContainerStyle::Card)
+            .width(Length::Shrink)
+            .height(Length::Shrink)
+            .build()
     }
 
     /// 创建歌曲详情模态窗口
     fn create_song_details_modal(&self) -> Element<Message> {
-        use iced::widget::{column, text, row, button};
-        use iced::{Length, alignment::{Horizontal, Vertical}};
+        use iced::widget::{column, text, button};
+        use iced::Length;
         
         let duration_text = if let Some(duration) = self.modal_data.song_details_data.duration {
             format!("{:.1}秒", duration)
@@ -662,7 +659,7 @@ impl PlayerApp {
             "未知".to_string()
         };
         
-        column![
+        let content = column![
             text("歌曲详情").size(20),
             column![
                 text("标题:").size(14),
@@ -698,16 +695,22 @@ impl PlayerApp {
         ]
         .spacing(15)
         .padding(20)
-        .width(Length::Fixed(400.0)) // 设置固定宽度400px
-        .into()
+        .width(Length::Fixed(400.0)); // 设置固定宽度400px
+        
+        // 使用带主题色背景的容器包装
+        super::widgets::StyledContainer::new(content)
+            .style(super::widgets::styled_container::ContainerStyle::Card)
+            .width(Length::Shrink)
+            .height(Length::Shrink)
+            .build()
     }
 
     /// 创建编辑标签模态窗口
     fn create_edit_tags_modal(&self) -> Element<Message> {
         use iced::widget::{column, text, text_input, row, button};
-        use iced::{Length, alignment::{Horizontal, Vertical}};
+        use iced::Length;
         
-        column![
+        let content = column![
             text("编辑标签").size(20),
             column![
                 text("标题:").size(14),
@@ -787,8 +790,14 @@ impl PlayerApp {
         ]
         .spacing(15)
         .padding(20)
-        .width(Length::Fixed(450.0)) // 设置固定宽度450px
-        .into()
+        .width(Length::Fixed(450.0)); // 设置固定宽度450px
+        
+        // 使用带主题色背景的容器包装
+        super::widgets::StyledContainer::new(content)
+            .style(super::widgets::styled_container::ContainerStyle::Card)
+            .width(Length::Shrink)
+            .height(Length::Shrink)
+            .build()
     }
 
     /// 创建应用程序订阅

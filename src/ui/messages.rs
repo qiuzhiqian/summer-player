@@ -83,8 +83,6 @@ pub enum Message {
     /// 歌曲项菜单相关消息
     /// 展开歌曲项菜单
     ExpandSongItemMenu(usize),
-    /// 切换歌曲项菜单显示状态
-    SongItemMenuToggled(usize),
     /// 关闭歌曲项菜单
     DismissSongItemMenu(usize),
     /// 查看歌曲详情
@@ -124,10 +122,10 @@ pub enum Message {
     ShowPlaylistRenameModal(String),
     /// 播放列表重命名模态窗口
     PlaylistCardRenameModal(String, String),
-    /// 歌曲详情模态窗口
-    ShowSongDetailsModal(usize),
-    /// 编辑标签模态窗口
-    ShowEditTagsModal(usize),
+    // 歌曲详情模态窗口
+    //ShowSongDetailsModal(usize),
+    // 编辑标签模态窗口
+    //ShowEditTagsModal(usize),
 }
 
 /// ID3标签字段枚举
