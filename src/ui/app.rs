@@ -59,6 +59,7 @@ use super::widgets::StyledContainer;
 use super::widgets::StyledText;
 use super::widgets::StyledButton;
 use super::widgets::styled_text::TextStyle;
+use super::messages::{ModalType, ModalData};
 
 const RIGHT_PANEL_WIDTH: f32 = 720.0;
 const LEFT_INFO_WIDTH: f32 = 260.0;
@@ -111,6 +112,10 @@ pub struct PlayerApp {
     id3_tag_data: Id3TagData,
     /// 当前编辑的歌曲索引
     editing_song_index: Option<usize>,
+    /// 模态窗口相关状态
+    show_modal: bool,
+    modal_type: ModalType,
+    modal_data: ModalData,
 }
 
 impl Default for PlayerApp {
@@ -139,6 +144,9 @@ impl Default for PlayerApp {
             renaming_playlist_name: String::new(),
             id3_tag_data: Id3TagData::default(),
             editing_song_index: None,
+            show_modal: false,
+            modal_type: ModalType::None,
+            modal_data: ModalData::default(),
         }
     }
 }
@@ -351,39 +359,15 @@ impl PlayerApp {
                 self.menu_song_index = None;
                 Task::none()
             },
-            Message::SongItemActionDetails(_index) => {
-                // 显示歌曲详情（暂未实现）
+            Message::SongItemActionDetails(index) => {
+                // 显示歌曲详情模态窗口
                 self.menu_song_index = None;
-                Task::none()
+                self.show_song_details_modal(index)
             },
             Message::SongItemActionEditTags(index) => {
-                // 切换到Id3Tag页面
+                // 显示编辑标签模态窗口
                 self.menu_song_index = None;
-                self.current_page = PageType::Id3Tag;
-                
-                // 初始化ID3标签数据
-                // 先获取文件路径
-                let file_path = if let Some(playlist) = self.playlist_manager.current_playlist() {
-                    playlist.get_file(index).cloned()
-                } else {
-                    None
-                };
-                
-                // 然后加载音频文件
-                if let Some(file_path) = file_path {
-                    if let Ok(audio_file) = self.playlist_manager.get_or_load_audio_file(&file_path) {
-                        self.editing_song_index = Some(index);
-                        self.id3_tag_data = Id3TagData {
-                            title: audio_file.info.metadata.title.clone().unwrap_or_default(),
-                            album: audio_file.info.metadata.album.clone().unwrap_or_default(),
-                            artist: audio_file.info.metadata.artist.clone().unwrap_or_default(),
-                            year: audio_file.info.metadata.year.map(|y| y.to_string()).unwrap_or_default(),
-                            track_number: audio_file.info.metadata.track_number.map(|t| t.to_string()).unwrap_or_default(),
-                            genre: audio_file.info.metadata.genre.clone().unwrap_or_default(),
-                        };
-                    }
-                }
-                Task::none()
+                self.show_edit_tags_modal(index)
             },
             Message::Id3TagFieldChanged { field, value } => {
                 match field {
@@ -452,6 +436,14 @@ impl PlayerApp {
                 }
                 Task::none()
             },
+            // 模态窗口相关消息处理
+            Message::ShowModal(modal_type) => self.handle_show_modal(modal_type),
+            Message::HideModal => self.handle_hide_modal(),
+            Message::ModalInputChanged { field_type, field, value } => self.handle_modal_input_changed(field_type, field, value),
+            Message::ShowPlaylistRenameModal(playlist_path) => self.handle_show_playlist_rename_modal(playlist_path),
+            Message::PlaylistCardRenameModal(playlist_path, new_name) => self.handle_playlist_rename_modal(playlist_path, new_name),
+            Message::ShowSongDetailsModal(index) => self.show_song_details_modal(index),
+            Message::ShowEditTagsModal(index) => self.show_edit_tags_modal(index),
         }
     }
 
@@ -462,6 +454,11 @@ impl PlayerApp {
 
     /// 创建应用程序视图
     pub fn view(&self) -> Element<Message> {
+        self.view_with_modal()
+    }
+    
+    /// 创建主视图内容（不包含模态窗口）
+    fn create_main_view(&self) -> Element<Message> {
         // 顶部主区域：根据当前页面切换，但底部栏保持不变
         let nav = navigation_sidebar(&self.current_page);
         let top_row: Element<Message> = match self.current_page {
@@ -598,6 +595,199 @@ impl PlayerApp {
         .width(Length::Fill)
         .height(Length::Fill)
         .build()
+        .into()
+    }
+
+    /// 创建带模态窗口的视图
+    pub fn view_with_modal(&self) -> Element<Message> {
+        let main_content = self.create_main_view();
+        
+        // 如果显示模态窗口，则添加模态窗口覆盖层
+        if self.show_modal {
+            let modal_content = match self.modal_type {
+                ModalType::PlaylistRename => self.create_playlist_rename_modal(),
+                ModalType::SongDetails => self.create_song_details_modal(),
+                ModalType::EditTags => self.create_edit_tags_modal(),
+                ModalType::None => return main_content,
+            };
+            
+            crate::ui::components::modal::modal(main_content, modal_content, Message::HideModal)
+        } else {
+            main_content
+        }
+    }
+
+    /// 创建播放列表重命名模态窗口
+    fn create_playlist_rename_modal(&self) -> Element<Message> {
+        use iced::widget::{column, text, text_input, row, button};
+        use iced::{Length, alignment::{Horizontal, Vertical}};
+        
+        column![
+            text("重命名播放列表").size(20),
+            text_input("输入新名称", &self.modal_data.playlist_rename_data.new_name)
+                .on_input(|value| Message::ModalInputChanged {
+                    field_type: "playlist_rename".to_string(),
+                    field: "new_name".to_string(),
+                    value
+                })
+                .padding(10)
+                .size(16),
+            row![
+                button("取消")
+                    .on_press(Message::HideModal)
+                    .padding([8, 16]),
+                button("确认")
+                    .on_press(Message::PlaylistCardRenameModal(
+                        self.modal_data.playlist_rename_data.playlist_path.clone(),
+                        self.modal_data.playlist_rename_data.new_name.clone()
+                    ))
+                    .padding([8, 16])
+            ]
+            .spacing(10)
+        ]
+        .spacing(20)
+        .padding(20)
+        .width(Length::Fixed(350.0)) // 设置固定宽度350px
+        .into()
+    }
+
+    /// 创建歌曲详情模态窗口
+    fn create_song_details_modal(&self) -> Element<Message> {
+        use iced::widget::{column, text, row, button};
+        use iced::{Length, alignment::{Horizontal, Vertical}};
+        
+        let duration_text = if let Some(duration) = self.modal_data.song_details_data.duration {
+            format!("{:.1}秒", duration)
+        } else {
+            "未知".to_string()
+        };
+        
+        column![
+            text("歌曲详情").size(20),
+            column![
+                text("标题:").size(14),
+                text(&self.modal_data.song_details_data.title).size(16),
+            ].spacing(5),
+            column![
+                text("艺术家:").size(14),
+                text(&self.modal_data.song_details_data.artist).size(16),
+            ].spacing(5),
+            column![
+                text("专辑:").size(14),
+                text(&self.modal_data.song_details_data.album).size(16),
+            ].spacing(5),
+            column![
+                text("时长:").size(14),
+                text(duration_text).size(16),
+            ].spacing(5),
+            column![
+                text("年份:").size(14),
+                text(&self.modal_data.song_details_data.year).size(16),
+            ].spacing(5),
+            column![
+                text("音轨号:").size(14),
+                text(&self.modal_data.song_details_data.track_number).size(16),
+            ].spacing(5),
+            column![
+                text("流派:").size(14),
+                text(&self.modal_data.song_details_data.genre).size(16),
+            ].spacing(5),
+            button("关闭")
+                .on_press(Message::HideModal)
+                .padding([8, 16])
+        ]
+        .spacing(15)
+        .padding(20)
+        .width(Length::Fixed(400.0)) // 设置固定宽度400px
+        .into()
+    }
+
+    /// 创建编辑标签模态窗口
+    fn create_edit_tags_modal(&self) -> Element<Message> {
+        use iced::widget::{column, text, text_input, row, button};
+        use iced::{Length, alignment::{Horizontal, Vertical}};
+        
+        column![
+            text("编辑标签").size(20),
+            column![
+                text("标题:").size(14),
+                text_input("输入歌曲标题", &self.modal_data.edit_tags_data.title)
+                    .on_input(|value| Message::ModalInputChanged {
+                        field_type: "edit_tags".to_string(),
+                        field: "title".to_string(),
+                        value
+                    })
+                    .padding(8)
+                    .size(14),
+            ].spacing(5),
+            column![
+                text("艺术家:").size(14),
+                text_input("输入艺术家名称", &self.modal_data.edit_tags_data.artist)
+                    .on_input(|value| Message::ModalInputChanged {
+                        field_type: "edit_tags".to_string(),
+                        field: "artist".to_string(),
+                        value
+                    })
+                    .padding(8)
+                    .size(14),
+            ].spacing(5),
+            column![
+                text("专辑:").size(14),
+                text_input("输入专辑名称", &self.modal_data.edit_tags_data.album)
+                    .on_input(|value| Message::ModalInputChanged {
+                        field_type: "edit_tags".to_string(),
+                        field: "album".to_string(),
+                        value
+                    })
+                    .padding(8)
+                    .size(14),
+            ].spacing(5),
+            column![
+                text("年份:").size(14),
+                text_input("输入年份", &self.modal_data.edit_tags_data.year)
+                    .on_input(|value| Message::ModalInputChanged {
+                        field_type: "edit_tags".to_string(),
+                        field: "year".to_string(),
+                        value
+                    })
+                    .padding(8)
+                    .size(14),
+            ].spacing(5),
+            column![
+                text("音轨号:").size(14),
+                text_input("输入音轨号", &self.modal_data.edit_tags_data.track_number)
+                    .on_input(|value| Message::ModalInputChanged {
+                        field_type: "edit_tags".to_string(),
+                        field: "track_number".to_string(),
+                        value
+                    })
+                    .padding(8)
+                    .size(14),
+            ].spacing(5),
+            column![
+                text("流派:").size(14),
+                text_input("输入音乐流派", &self.modal_data.edit_tags_data.genre)
+                    .on_input(|value| Message::ModalInputChanged {
+                        field_type: "edit_tags".to_string(),
+                        field: "genre".to_string(),
+                        value
+                    })
+                    .padding(8)
+                    .size(14),
+            ].spacing(5),
+            row![
+                button("取消")
+                    .on_press(Message::HideModal)
+                    .padding([8, 16]),
+                button("保存")
+                    .on_press(Message::ConfirmId3TagChanges)
+                    .padding([8, 16])
+            ]
+            .spacing(10)
+        ]
+        .spacing(15)
+        .padding(20)
+        .width(Length::Fixed(450.0)) // 设置固定宽度450px
         .into()
     }
 
@@ -1346,6 +1536,161 @@ impl PlayerApp {
             .height(Length::Fill)
             .build()
             .into()
+    }
+
+    // 模态窗口相关方法
+    fn handle_show_modal(&mut self, modal_type: ModalType) -> Task<Message> {
+        self.show_modal = true;
+        self.modal_type = modal_type;
+        Task::none()
+    }
+
+    fn handle_hide_modal(&mut self) -> Task<Message> {
+        self.show_modal = false;
+        self.modal_type = ModalType::None;
+        self.modal_data = ModalData::default();
+        Task::none()
+    }
+
+    fn handle_modal_input_changed(&mut self, field_type: String, field: String, value: String) -> Task<Message> {
+        match field_type.as_str() {
+            "playlist_rename" => {
+                self.modal_data.playlist_rename_data.new_name = value;
+            }
+            "edit_tags" => {
+                match field.as_str() {
+                    "title" => self.modal_data.edit_tags_data.title = value,
+                    "album" => self.modal_data.edit_tags_data.album = value,
+                    "artist" => self.modal_data.edit_tags_data.artist = value,
+                    "year" => self.modal_data.edit_tags_data.year = value,
+                    "track_number" => self.modal_data.edit_tags_data.track_number = value,
+                    "genre" => self.modal_data.edit_tags_data.genre = value,
+                    _ => {}
+                }
+            }
+            _ => {}
+        }
+        Task::none()
+    }
+
+    fn handle_show_playlist_rename_modal(&mut self, playlist_path: String) -> Task<Message> {
+        // 获取当前播放列表名称
+        let default_name = std::path::Path::new(&playlist_path)
+            .file_stem()
+            .and_then(|s| s.to_str())
+            .unwrap_or("")
+            .to_string();
+        
+        // 设置模态窗口数据
+        self.modal_data.playlist_rename_data.playlist_path = playlist_path;
+        self.modal_data.playlist_rename_data.new_name = default_name;
+        
+        // 显示模态窗口
+        self.handle_show_modal(ModalType::PlaylistRename)
+    }
+
+    fn handle_playlist_rename_modal(&mut self, playlist_path: String, new_name: String) -> Task<Message> {
+        if new_name.trim().is_empty() {
+            return Task::none();
+        }
+        
+        match self.playlist_manager.rename_playlist(&playlist_path, &new_name) {
+            Ok(new_path) => {
+                // 如果当前显示该播放列表，更新为新路径
+                if self.playlist_manager.current_playlist_path() == Some(playlist_path.as_str()) {
+                    let _ = self.handle_playlist_card_toggled(new_path);
+                }
+                self.handle_hide_modal()
+            }
+            Err(e) => {
+                eprintln!("重命名失败: {}", e);
+                Task::none()
+            }
+        }
+    }
+
+    fn show_song_details_modal(&mut self, index: usize) -> Task<Message> {
+        // 获取歌曲信息
+        if let Some(playlist) = self.playlist_manager.current_playlist() {
+            if let Some(file_path) = playlist.get_file(index) {
+                let file_path = file_path.clone();
+                // 尝试从缓存获取音频文件信息
+                if let Ok(audio_file) = self.playlist_manager.get_or_load_audio_file(&file_path) {
+                    self.modal_data.song_details_data.file_path = file_path.clone();
+                    self.modal_data.song_details_data.title = audio_file.info.metadata.title.clone().unwrap_or_else(|| {
+                        std::path::Path::new(&file_path)
+                            .file_stem()
+                            .and_then(|s| s.to_str())
+                            .unwrap_or("未知歌曲")
+                            .to_string()
+                    });
+                    self.modal_data.song_details_data.artist = audio_file.info.metadata.artist.clone().unwrap_or_else(|| "未知艺术家".to_string());
+                    self.modal_data.song_details_data.album = audio_file.info.metadata.album.clone().unwrap_or_else(|| "未知专辑".to_string());
+                    self.modal_data.song_details_data.duration = audio_file.info.duration;
+                    self.modal_data.song_details_data.year = audio_file.info.metadata.year.map(|y| y.to_string()).unwrap_or_else(|| "未知".to_string());
+                    self.modal_data.song_details_data.genre = audio_file.info.metadata.genre.clone().unwrap_or_else(|| "未知".to_string());
+                    self.modal_data.song_details_data.track_number = audio_file.info.metadata.track_number.map(|n| n.to_string()).unwrap_or_else(|| "未知".to_string());
+                } else {
+                    // 如果无法从缓存获取，使用基本信息
+                    self.modal_data.song_details_data.file_path = file_path.clone();
+                    self.modal_data.song_details_data.title = std::path::Path::new(&file_path)
+                        .file_stem()
+                        .and_then(|s| s.to_str())
+                        .unwrap_or("未知歌曲")
+                        .to_string();
+                    self.modal_data.song_details_data.artist = "未知艺术家".to_string();
+                    self.modal_data.song_details_data.album = "未知专辑".to_string();
+                    self.modal_data.song_details_data.duration = None;
+                    self.modal_data.song_details_data.year = "未知".to_string();
+                    self.modal_data.song_details_data.genre = "未知".to_string();
+                    self.modal_data.song_details_data.track_number = "未知".to_string();
+                }
+                
+                return self.handle_show_modal(ModalType::SongDetails);
+            }
+        }
+        Task::none()
+    }
+
+    fn show_edit_tags_modal(&mut self, index: usize) -> Task<Message> {
+        // 获取歌曲信息并填充到编辑表单
+        if let Some(playlist) = self.playlist_manager.current_playlist() {
+            if let Some(file_path) = playlist.get_file(index) {
+                let file_path = file_path.clone();
+                // 尝试从缓存获取音频文件信息
+                if let Ok(audio_file) = self.playlist_manager.get_or_load_audio_file(&file_path) {
+                    self.modal_data.edit_tags_data.file_path = file_path.clone();
+                    self.modal_data.edit_tags_data.title = audio_file.info.metadata.title.clone().unwrap_or_else(|| {
+                        std::path::Path::new(&file_path)
+                            .file_stem()
+                            .and_then(|s| s.to_str())
+                            .unwrap_or("")
+                            .to_string()
+                    });
+                    self.modal_data.edit_tags_data.artist = audio_file.info.metadata.artist.clone().unwrap_or_else(|| "".to_string());
+                    self.modal_data.edit_tags_data.album = audio_file.info.metadata.album.clone().unwrap_or_else(|| "".to_string());
+                    self.modal_data.edit_tags_data.year = audio_file.info.metadata.year.map(|y| y.to_string()).unwrap_or_else(|| "".to_string());
+                    self.modal_data.edit_tags_data.genre = audio_file.info.metadata.genre.clone().unwrap_or_else(|| "".to_string());
+                    self.modal_data.edit_tags_data.track_number = audio_file.info.metadata.track_number.map(|n| n.to_string()).unwrap_or_else(|| "".to_string());
+                } else {
+                    // 如果无法从缓存获取，使用基本信息
+                    self.modal_data.edit_tags_data.file_path = file_path.clone();
+                    self.modal_data.edit_tags_data.title = std::path::Path::new(&file_path)
+                        .file_stem()
+                        .and_then(|s| s.to_str())
+                        .unwrap_or("")
+                        .to_string();
+                    self.modal_data.edit_tags_data.artist = "".to_string();
+                    self.modal_data.edit_tags_data.album = "".to_string();
+                    self.modal_data.edit_tags_data.year = "".to_string();
+                    self.modal_data.edit_tags_data.genre = "".to_string();
+                    self.modal_data.edit_tags_data.track_number = "".to_string();
+                }
+                
+                return self.handle_show_modal(ModalType::EditTags);
+            }
+        }
+        Task::none()
     }
 }
 

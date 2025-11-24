@@ -1434,3 +1434,6 @@ fn get_playlist_files_info_from_manager(
     playlist_infos.sort_by(|a, b| a.name.cmp(&b.name));
     playlist_infos
 }
+
+// 模态窗口模块
+pub mod modal;

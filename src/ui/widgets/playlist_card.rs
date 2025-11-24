@@ -199,7 +199,7 @@ impl PlaylistCard {
                             )
                             .button_type(ButtonType::Text)
                             .width(Length::Fill)
-                            .on_press(Message::PlaylistCardActionRenameStart(config.path.clone()))
+                            .on_press(Message::ShowPlaylistRenameModal(config.path.clone()))
                             .build();
                                     
                             let add_btn = StyledButton::new(
