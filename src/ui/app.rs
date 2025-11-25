@@ -662,32 +662,32 @@ impl PlayerApp {
         let content = column![
             text("歌曲详情").size(20),
             column![
-                text("标题:").size(14),
+                text("歌曲路径:").size(14),
+                text(&self.modal_data.song_details_data.file_path).size(16),
+            ].spacing(5),
+            column![
+                text("歌曲名:").size(14),
                 text(&self.modal_data.song_details_data.title).size(16),
             ].spacing(5),
             column![
-                text("艺术家:").size(14),
-                text(&self.modal_data.song_details_data.artist).size(16),
+                text("文件大小:").size(14),
+                text(&self.modal_data.song_details_data.file_size).size(16),
             ].spacing(5),
             column![
-                text("专辑:").size(14),
-                text(&self.modal_data.song_details_data.album).size(16),
+                text("格式:").size(14),
+                text(&self.modal_data.song_details_data.format).size(16),
             ].spacing(5),
             column![
-                text("时长:").size(14),
+                text("长度:").size(14),
                 text(duration_text).size(16),
             ].spacing(5),
             column![
-                text("年份:").size(14),
-                text(&self.modal_data.song_details_data.year).size(16),
+                text("比特率:").size(14),
+                text(&self.modal_data.song_details_data.bitrate).size(16),
             ].spacing(5),
             column![
-                text("音轨号:").size(14),
-                text(&self.modal_data.song_details_data.track_number).size(16),
-            ].spacing(5),
-            column![
-                text("流派:").size(14),
-                text(&self.modal_data.song_details_data.genre).size(16),
+                text("采样率:").size(14),
+                text(&self.modal_data.song_details_data.sample_rate).size(16),
             ].spacing(5),
             button("关闭")
                 .on_press(Message::HideModal)
@@ -695,7 +695,7 @@ impl PlayerApp {
         ]
         .spacing(15)
         .padding(20)
-        .width(Length::Fixed(400.0)); // 设置固定宽度400px
+        .width(Length::Fixed(400.0));
         
         // 使用带主题色背景的容器包装
         super::widgets::StyledContainer::new(content)
@@ -1633,12 +1633,42 @@ impl PlayerApp {
                             .unwrap_or("未知歌曲")
                             .to_string()
                     });
-                    self.modal_data.song_details_data.artist = audio_file.info.metadata.artist.clone().unwrap_or_else(|| "未知艺术家".to_string());
-                    self.modal_data.song_details_data.album = audio_file.info.metadata.album.clone().unwrap_or_else(|| "未知专辑".to_string());
                     self.modal_data.song_details_data.duration = audio_file.info.duration;
-                    self.modal_data.song_details_data.year = audio_file.info.metadata.year.map(|y| y.to_string()).unwrap_or_else(|| "未知".to_string());
-                    self.modal_data.song_details_data.genre = audio_file.info.metadata.genre.clone().unwrap_or_else(|| "未知".to_string());
-                    self.modal_data.song_details_data.track_number = audio_file.info.metadata.track_number.map(|n| n.to_string()).unwrap_or_else(|| "未知".to_string());
+                    
+                    // 获取文件大小
+                    if let Ok(metadata) = std::fs::metadata(&file_path) {
+                        let file_size = metadata.len();
+                        self.modal_data.song_details_data.file_size = format_file_size(file_size);
+                    } else {
+                        self.modal_data.song_details_data.file_size = "未知".to_string();
+                    }
+                    
+                    // 获取文件格式
+                    self.modal_data.song_details_data.format = std::path::Path::new(&file_path)
+                        .extension()
+                        .and_then(|s| s.to_str())
+                        .unwrap_or("未知")
+                        .to_uppercase();
+                    
+                    // 获取采样率
+                    self.modal_data.song_details_data.sample_rate = format!("{} Hz", audio_file.info.sample_rate);
+                    
+                    // 计算比特率
+                    if let Some(duration) = audio_file.info.duration {
+                        if duration > 0.0 {
+                            if let Ok(metadata) = std::fs::metadata(&file_path) {
+                                let file_size_bits = metadata.len() * 8;
+                                let bitrate = (file_size_bits as f64 / duration / 1000.0) as u32;
+                                self.modal_data.song_details_data.bitrate = format!("{} kbps", bitrate);
+                            } else {
+                                self.modal_data.song_details_data.bitrate = "未知".to_string();
+                            }
+                        } else {
+                            self.modal_data.song_details_data.bitrate = "未知".to_string();
+                        }
+                    } else {
+                        self.modal_data.song_details_data.bitrate = "未知".to_string();
+                    }
                 } else {
                     // 如果无法从缓存获取，使用基本信息
                     self.modal_data.song_details_data.file_path = file_path.clone();
@@ -1647,12 +1677,26 @@ impl PlayerApp {
                         .and_then(|s| s.to_str())
                         .unwrap_or("未知歌曲")
                         .to_string();
-                    self.modal_data.song_details_data.artist = "未知艺术家".to_string();
-                    self.modal_data.song_details_data.album = "未知专辑".to_string();
                     self.modal_data.song_details_data.duration = None;
-                    self.modal_data.song_details_data.year = "未知".to_string();
-                    self.modal_data.song_details_data.genre = "未知".to_string();
-                    self.modal_data.song_details_data.track_number = "未知".to_string();
+                    
+                    // 获取文件大小
+                    if let Ok(metadata) = std::fs::metadata(&file_path) {
+                        let file_size = metadata.len();
+                        self.modal_data.song_details_data.file_size = format_file_size(file_size);
+                    } else {
+                        self.modal_data.song_details_data.file_size = "未知".to_string();
+                    }
+                    
+                    // 获取文件格式
+                    self.modal_data.song_details_data.format = std::path::Path::new(&file_path)
+                        .extension()
+                        .and_then(|s| s.to_str())
+                        .unwrap_or("未知")
+                        .to_uppercase();
+                    
+                    // 无法获取音频信息时设为未知
+                    self.modal_data.song_details_data.sample_rate = "未知".to_string();
+                    self.modal_data.song_details_data.bitrate = "未知".to_string();
                 }
                 
                 return self.handle_show_modal(ModalType::SongDetails);
@@ -1949,4 +1993,22 @@ fn create_id3tag_page(id3_tag_data: &Id3TagData, nav: Element<'static, Message>)
     .spacing(constants::SPACING_LARGE)
     .height(Length::Fill)
     .into()
+}
+
+/// 格式化文件大小
+fn format_file_size(size: u64) -> String {
+    const UNITS: &[&str] = &["B", "KB", "MB", "GB", "TB"];
+    let mut size = size as f64;
+    let mut unit_index = 0;
+    
+    while size >= 1024.0 && unit_index < UNITS.len() - 1 {
+        size /= 1024.0;
+        unit_index += 1;
+    }
+    
+    if unit_index == 0 {
+        format!("{} {}", size as u64, UNITS[unit_index])
+    } else {
+        format!("{:.1} {}", size, UNITS[unit_index])
+    }
 }

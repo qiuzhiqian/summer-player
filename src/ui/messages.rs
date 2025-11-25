@@ -182,36 +182,30 @@ impl Default for PlaylistRenameData {
 pub struct SongDetailsData {
     /// 歌曲标题
     pub title: String,
-    /// 专辑名称
-    pub album: String,
-    /// 艺术家
-    pub artist: String,
-    /// 年代
-    pub year: String,
-    /// 音轨号
-    pub track_number: String,
-    /// 音乐流派
-    pub genre: String,
     /// 时长
     pub duration: Option<f64>,
     /// 文件大小
     pub file_size: String,
     /// 文件路径
     pub file_path: String,
+    /// 文件格式
+    pub format: String,
+    /// 比特率
+    pub bitrate: String,
+    /// 采样率
+    pub sample_rate: String,
 }
 
 impl Default for SongDetailsData {
     fn default() -> Self {
         Self {
             title: String::new(),
-            album: String::new(),
-            artist: String::new(),
-            year: String::new(),
-            track_number: String::new(),
-            genre: String::new(),
             duration: None,
             file_size: String::new(),
             file_path: String::new(),
+            format: String::new(),
+            bitrate: String::new(),
+            sample_rate: String::new(),
         }
     }
 }
