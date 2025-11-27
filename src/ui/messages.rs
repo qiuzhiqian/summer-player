@@ -124,6 +124,11 @@ pub enum Message {
     //ShowSongDetailsModal(usize),
     // 编辑标签模态窗口
     //ShowEditTagsModal(usize),
+    
+    /// 播放列表视图模式切换
+    TogglePlaylistViewMode,
+    /// 播放列表排序模式切换
+    TogglePlaylistSortMode,
 }
 
 /// ID3标签字段枚举
@@ -144,6 +149,7 @@ pub enum ModalType {
     PlaylistRename,
     SongDetails,
     EditTags,
+    CreatePlaylist,
 }
 
 /// 模态窗口数据
@@ -155,6 +161,8 @@ pub struct ModalData {
     pub song_details_data: SongDetailsData,
     /// 编辑标签数据
     pub edit_tags_data: EditTagsData,
+    /// 创建播放列表数据
+    pub create_playlist_data: CreatePlaylistData,
 }
 
 /// 播放列表重命名数据
@@ -237,6 +245,21 @@ impl Default for EditTagsData {
             year: String::new(),
             track_number: String::new(),
             genre: String::new(),
+        }
+    }
+}
+
+/// 创建播放列表数据
+#[derive(Debug, Clone)]
+pub struct CreatePlaylistData {
+    /// 播放列表名称
+    pub playlist_name: String,
+}
+
+impl Default for CreatePlaylistData {
+    fn default() -> Self {
+        Self {
+            playlist_name: String::new(),
         }
     }
 }

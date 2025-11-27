@@ -294,9 +294,9 @@ impl PlayerApp {
             Message::PlaylistCardActionDelete(playlist_path) => { self.menu_playlist_path = None; self.handle_playlist_card_delete(playlist_path)},
             Message::PlaylistCardActionAddMusic(playlist_path) => {self.menu_playlist_path = None;self.handle_playlist_card_add_music(playlist_path)},
             Message::PlaylistAddMusicFilesSelected(playlist_path, files) => self.handle_playlist_add_music_files_selected(playlist_path, files),
-            Message::StartCreatePlaylist => { self.creating_playlist = true; Task::none() },
+            Message::StartCreatePlaylist => self.handle_show_create_playlist_modal(),
             Message::CreatePlaylistNameChanged(name) => { self.creating_playlist_name = name; Task::none() },
-            Message::ConfirmCreatePlaylist => self.handle_confirm_create_playlist(),
+            Message::ConfirmCreatePlaylist => self.handle_confirm_create_playlist_from_modal(),
             Message::CancelCreatePlaylist => { self.creating_playlist = false; self.creating_playlist_name.clear(); Task::none() },
             Message::NextTrack => self.handle_next_track(),
             Message::PreviousTrack => self.handle_previous_track(),
@@ -433,6 +433,16 @@ impl PlayerApp {
             Message::PlaylistCardRenameModal(playlist_path, new_name) => self.handle_playlist_rename_modal(playlist_path, new_name),
             //Message::ShowSongDetailsModal(index) => self.show_song_details_modal(index),
             //Message::ShowEditTagsModal(index) => self.show_edit_tags_modal(index),
+            Message::TogglePlaylistViewMode => {
+                // 切换播放列表视图模式
+                println!("切换播放列表视图模式");
+                Task::none()
+            },
+            Message::TogglePlaylistSortMode => {
+                // 切换播放列表排序模式
+                println!("切换播放列表排序模式");
+                Task::none()
+            },
         }
     }
 
@@ -454,7 +464,7 @@ impl PlayerApp {
             PageType::Home => {
                 // 左侧面板：播放列表文件网格视图（自适应宽度和高度）
                 let left_panel = column![
-                    playlist_files_grid_view(&self.playlist_manager, self.creating_playlist, &self.creating_playlist_name, self.menu_playlist_path.as_deref(), self.renaming_playlist_path.as_deref(), &self.renaming_playlist_name),
+                    playlist_files_grid_view(&self.playlist_manager, self.menu_playlist_path.as_deref(), self.renaming_playlist_path.as_deref(), &self.renaming_playlist_name),
                 ].spacing(16)
                  .width(Length::Fill)
                  .height(Length::Fill);
@@ -597,6 +607,7 @@ impl PlayerApp {
                 ModalType::PlaylistRename => self.create_playlist_rename_modal(),
                 ModalType::SongDetails => self.create_song_details_modal(),
                 ModalType::EditTags => self.create_edit_tags_modal(),
+                ModalType::CreatePlaylist => self.create_create_playlist_modal(),
                 ModalType::None => return main_content,
             };
             
@@ -1266,29 +1277,6 @@ impl PlayerApp {
         Task::none()
     }
 
-    fn handle_confirm_create_playlist(&mut self) -> Task<Message> {
-        let name = self.creating_playlist_name.trim().to_string();
-        if name.is_empty() {
-            // 空名则忽略
-            self.creating_playlist = false;
-            self.creating_playlist_name.clear();
-            return Task::none();
-        }
-        match self.playlist_manager.create_empty_playlist(&name) {
-            Ok(path) => {
-                // 重置创建状态
-                self.creating_playlist = false;
-                self.creating_playlist_name.clear();
-                // 立即选中该播放列表以便显示
-                self.handle_playlist_card_toggled(path)
-            }
-            Err(e) => {
-                eprintln!("创建播放列表失败: {}", e);
-                Task::none()
-            }
-        }
-    }
-
     fn handle_playlist_card_toggled(&mut self, playlist_path: String) -> Task<Message> {
         // 直接通过 PlaylistManager 管理当前激活的播放列表
         // 总是加载选中的播放列表到右侧显示（但不开始播放）
@@ -1575,6 +1563,12 @@ impl PlayerApp {
                     _ => {}
                 }
             }
+            "create_playlist" => {
+                match field.as_str() {
+                    "playlist_name" => self.modal_data.create_playlist_data.playlist_name = value,
+                    _ => {}
+                }
+            }
             _ => {}
         }
         Task::none()
@@ -1745,6 +1739,75 @@ impl PlayerApp {
             }
         }
         Task::none()
+    }
+
+    /// 显示创建播放列表模态窗口
+    fn handle_show_create_playlist_modal(&mut self) -> Task<Message> {
+        // 初始化模态窗口数据
+        self.modal_data.create_playlist_data.playlist_name = String::new();
+        
+        // 显示模态窗口
+        self.handle_show_modal(ModalType::CreatePlaylist)
+    }
+
+    /// 从模态窗口确认创建播放列表
+    fn handle_confirm_create_playlist_from_modal(&mut self) -> Task<Message> {
+        let name = self.modal_data.create_playlist_data.playlist_name.trim().to_string();
+        if name.is_empty() {
+            // 空名则忽略
+            return self.handle_hide_modal();
+        }
+        
+        match self.playlist_manager.create_empty_playlist(&name) {
+            Ok(_path) => {
+                // 关闭模态窗口
+                let hide_task = self.handle_hide_modal();
+                // 立即选中该播放列表以便显示
+                let toggle_task = self.handle_playlist_card_toggled(_path);
+                return Task::batch([hide_task, toggle_task]);
+            }
+            Err(e) => {
+                eprintln!("创建播放列表失败: {}", e);
+                Task::none()
+            }
+        }
+    }
+
+    /// 创建播放列表模态窗口
+    fn create_create_playlist_modal(&self) -> Element<'_, Message> {
+        use iced::widget::{column, text, text_input, row, button};
+        use iced::Length;
+        
+        let content = column![
+            text("创建新播放列表").size(20),
+            text_input("输入播放列表名称", &self.modal_data.create_playlist_data.playlist_name)
+                .on_input(|value| Message::ModalInputChanged {
+                    field_type: "create_playlist".to_string(),
+                    field: "playlist_name".to_string(),
+                    value
+                })
+                .padding(10)
+                .size(16),
+            row![
+                button("取消")
+                    .on_press(Message::HideModal)
+                    .padding([8, 16]),
+                button("创建")
+                    .on_press(Message::ConfirmCreatePlaylist)
+                    .padding([8, 16])
+            ]
+            .spacing(10)
+        ]
+        .spacing(20)
+        .padding(20)
+        .width(Length::Fixed(350.0)); // 设置固定宽度350px
+        
+        // 使用带主题色背景的容器包装
+        super::widgets::StyledContainer::new(content)
+            .style(super::widgets::styled_container::ContainerStyle::Card)
+            .width(Length::Shrink)
+            .height(Length::Shrink)
+            .build()
     }
 }
 

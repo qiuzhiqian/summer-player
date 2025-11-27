@@ -74,3 +74,42 @@ where
     .padding(10)
     .into()
 }*/
+
+/// 创建播放列表模态窗口
+pub fn create_playlist_modal(
+    playlist_name: &str,
+) -> Element<'static, crate::ui::Message> {
+    use iced::widget::{column, text, text_input, row, button};
+    use iced::Length;
+    
+    let content = column![
+        text("创建新播放列表").size(20),
+        text_input("输入播放列表名称", playlist_name)
+            .on_input(|value| crate::ui::Message::ModalInputChanged {
+                field_type: "create_playlist".to_string(),
+                field: "playlist_name".to_string(),
+                value
+            })
+            .padding(10)
+            .size(16),
+        row![
+            button("取消")
+                .on_press(crate::ui::Message::HideModal)
+                .padding([8, 16]),
+            button("创建")
+                .on_press(crate::ui::Message::ConfirmCreatePlaylist)
+                .padding([8, 16])
+        ]
+        .spacing(10)
+    ]
+    .spacing(20)
+    .padding(20)
+    .width(Length::Fixed(350.0)); // 设置固定宽度350px
+    
+    // 使用带主题色背景的容器包装
+    crate::ui::widgets::StyledContainer::new(content)
+        .style(crate::ui::widgets::styled_container::ContainerStyle::Card)
+        .width(Length::Shrink)
+        .height(Length::Shrink)
+        .build()
+}

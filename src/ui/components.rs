@@ -20,7 +20,7 @@ use crate::utils::{extract_filename, format_duration};
 
 use super::theme::{AppColors, AppTheme, AppThemeVariant};
 use super::widgets::{
-    icon_button, CreatePlaylistCard, PlaylistCard, StyledButton, StyledContainer, StyledText,
+    icon_button, PlaylistCard, StyledButton, StyledContainer, StyledText,
 };
 use super::Message;
 use rust_i18n::t;
@@ -116,6 +116,11 @@ pub mod icons {
     pub const SETTINGS: &str = r#"<svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M12 15a3 3 0 100-6 3 3 0 000 6z" stroke="currentColor" stroke-width="1.5"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-2 2 2 2 0 01-2-2v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83 0 2 2 0 010-2.83l.06-.06a1.65 1.65 0 00.33-1.82 1.65 1.65 0 00-1.51-1H3a2 2 0 01-2-2 2 2 0 012-2h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 010-2.83 2 2 0 012.83 0l.06.06a1.65 1.65 0 001.82.33H9a1.65 1.65 0 001-1.51V3a2 2 0 012-2 2 2 0 012 2v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 0 2 2 0 010 2.83l-.06.06a1.65 1.65 0 00-.33 1.82V9a1.65 1.65 0 001.51 1H21a2 2 0 012 2 2 2 0 01-2 2h-.09a1.65 1.65 0 00-1.51 1z" stroke="currentColor" stroke-width="1.5"/></svg>"#;
     pub const CONFIRM: &str = r#"<svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="1.5"/><path d="M8 12.5l2.5 2.5L16 9" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>"#;
     pub const CANCEL: &str = r#"<svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="1.5"/><path d="M9 9l6 6M15 9l-6 6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>"#;
+    pub const GRID_VIEW: &str = r#"<svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><rect x="3" y="3" width="7" height="7" rx="1" stroke="currentColor" stroke-width="1.5"/><rect x="14" y="3" width="7" height="7" rx="1" stroke="currentColor" stroke-width="1.5"/><rect x="3" y="14" width="7" height="7" rx="1" stroke="currentColor" stroke-width="1.5"/><rect x="14" y="14" width="7" height="7" rx="1" stroke="currentColor" stroke-width="1.5"/></svg>"#;
+    pub const LIST_VIEW: &str = r#"<svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><rect x="3" y="4" width="18" height="2" rx="1" stroke="currentColor" stroke-width="1.5"/><rect x="3" y="11" width="18" height="2" rx="1" stroke="currentColor" stroke-width="1.5"/><rect x="3" y="18" width="18" height="2" rx="1" stroke="currentColor" stroke-width="1.5"/></svg>"#;
+    pub const SORT_ASC: &str = r#"<svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M3 6h18M3 12h12M3 18h6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><path d="M19 9l-3-3-3 3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>"#;
+    pub const SORT_DESC: &str = r#"<svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M3 6h18M3 12h12M3 18h6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><path d="M19 15l-3 3-3-3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>"#;
+    pub const ADD_PLAYLIST: &str = r#"<svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>"#;
 }
 
 // ============================================================================
@@ -1295,8 +1300,6 @@ pub fn compact_song_info_view(
 /// 显示配置目录下的所有m3u播放列表文件
 pub fn playlist_files_grid_view(
     playlist_manager: &crate::playlist::PlaylistManager,
-    creating: bool,
-    creating_name: &str,
     menu_playlist_path: Option<&str>,
     renaming_playlist_path: Option<&str>,
     renaming_playlist_name: &str,
@@ -1344,13 +1347,7 @@ pub fn playlist_files_grid_view(
         }
     }
 
-    // 追加“创建播放列表”卡片，计入布局
-    current_row.push(if !creating {
-        CreatePlaylistCard::display_card()
-    } else {
-        CreatePlaylistCard::input_card(creating_name)
-    });
-
+    // 不再添加创建播放列表卡片，而是通过右上角的按钮触发模态对话框
     while current_row.len() < 3 {
         current_row.push(Space::new().into());
     }
@@ -1365,18 +1362,40 @@ pub fn playlist_files_grid_view(
     StyledContainer::new(
         column![
             // 标题
-            //StyledContainer::new(
             row![
+                // 左侧：图标和标题文本
                 text("📋")
                     .size(constants::TEXT_TITLE)
                     .shaping(Shaping::Advanced),
                 text(t!("Playlists"))
                     .size(constants::TEXT_TITLE - 2)
                     .style(primary_text_style()),
+                
+                // 中间：空白区域
+                Space::new().width(Length::Fill),
+                
+                // 右侧：三个并排的按钮图标
+                icon_button(
+                    icons::GRID_VIEW,
+                    Message::TogglePlaylistViewMode,
+                    constants::BUTTON_SIZE_SMALL,
+                    ButtonType::Default
+                ),
+                icon_button(
+                    icons::SORT_ASC,
+                    Message::TogglePlaylistSortMode,
+                    constants::BUTTON_SIZE_SMALL,
+                    ButtonType::Default
+                ),
+                icon_button(
+                    icons::ADD_PLAYLIST,
+                    Message::StartCreatePlaylist,
+                    constants::BUTTON_SIZE_SMALL,
+                    ButtonType::Primary
+                ),
             ]
             .spacing(constants::SPACING_MEDIUM)
             .align_y(Vertical::Center),
-            //).padding(constants::PADDING_SMALL).build(),
 
             // 网格布局的播放列表（自适应高度，滚动条）
             scrollable(
