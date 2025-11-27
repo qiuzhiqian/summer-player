@@ -166,18 +166,6 @@ impl PlayerApp {
         Task::none()
     }
 
-    fn handle_playlist_card_rename_start(&mut self, playlist_path: String) -> Task<Message> {
-        // 进入重命名模式
-        let default_name = std::path::Path::new(&playlist_path)
-            .file_stem()
-            .and_then(|s| s.to_str())
-            .unwrap_or("")
-            .to_string();
-        self.renaming_playlist_path = Some(playlist_path);
-        self.renaming_playlist_name = default_name;
-        Task::none()
-    }
-
     fn handle_playlist_card_rename_confirm(&mut self) -> Task<Message> {
         let Some(old_path_ref) = self.renaming_playlist_path.as_ref() else { return Task::none(); };
         let old_path = old_path_ref.clone();
@@ -300,7 +288,6 @@ impl PlayerApp {
             Message::PlaylistItemSelected(index) => self.handle_playlist_item_selected(index),
             Message::PlaylistCardToggled(playlist_path) => self.handle_playlist_card_toggled(playlist_path),
             Message::PlaylistCardMoreClicked(playlist_path) => self.handle_playlist_card_more_clicked(playlist_path),
-            Message::PlaylistCardActionRenameStart(playlist_path) => Task::none(), //{self.menu_playlist_path = None;self.handle_playlist_card_rename_start(playlist_path)},
             Message::PlaylistCardRenameNameChanged(name) => { self.renaming_playlist_name = name; Task::none() },
             Message::PlaylistCardRenameConfirm => self.handle_playlist_card_rename_confirm(),
             Message::PlaylistCardRenameCancel => { self.renaming_playlist_path = None; self.renaming_playlist_name.clear(); Task::none() },
@@ -455,12 +442,12 @@ impl PlayerApp {
     }
 
     /// 创建应用程序视图
-    pub fn view(&self) -> Element<Message> {
+    pub fn view(&self) -> Element<'_, Message> {
         self.view_with_modal()
     }
     
     /// 创建主视图内容（不包含模态窗口）
-    fn create_main_view(&self) -> Element<Message> {
+    fn create_main_view(&self) -> Element<'_, Message> {
         // 顶部主区域：根据当前页面切换，但底部栏保持不变
         let nav = navigation_sidebar(&self.current_page);
         let top_row: Element<Message> = match self.current_page {
@@ -601,7 +588,7 @@ impl PlayerApp {
     }
 
     /// 创建带模态窗口的视图
-    pub fn view_with_modal(&self) -> Element<Message> {
+    pub fn view_with_modal(&self) -> Element<'_, Message> {
         let main_content = self.create_main_view();
         
         // 如果显示模态窗口，则添加模态窗口覆盖层
@@ -620,7 +607,7 @@ impl PlayerApp {
     }
 
     /// 创建播放列表重命名模态窗口
-    fn create_playlist_rename_modal(&self) -> Element<Message> {
+    fn create_playlist_rename_modal(&self) -> Element<'_, Message> {
         use iced::widget::{column, text, text_input, row, button};
         use iced::Length;
         
@@ -660,7 +647,7 @@ impl PlayerApp {
     }
 
     /// 创建歌曲详情模态窗口
-    fn create_song_details_modal(&self) -> Element<Message> {
+    fn create_song_details_modal(&self) -> Element<'_, Message> {
         use iced::widget::{column, text, button};
         use iced::Length;
         
@@ -717,7 +704,7 @@ impl PlayerApp {
     }
 
     /// 创建编辑标签模态窗口
-    fn create_edit_tags_modal(&self) -> Element<Message> {
+    fn create_edit_tags_modal(&self) -> Element<'_, Message> {
         use iced::widget::{column, text, text_input, row, button};
         use iced::Length;
         
@@ -1514,7 +1501,7 @@ impl PlayerApp {
         Task::none()
     }
 
-    fn create_main_player_view(&self) -> Element<Message> {
+    fn create_main_player_view(&self) -> Element<'_, Message> {
         // 主内容（不包含底部栏与进度条，由首页统一布局承载）
         let main_content = if let Some(playlist) = self.playlist_manager.current_playlist_ref() {
             playlist_view(playlist, self.playlist_loaded, self.is_playing, &self.playlist_manager, self.menu_song_index)
@@ -1532,7 +1519,7 @@ impl PlayerApp {
             .into()
     }
 
-    fn create_welcome_view(&self) -> Element<Message> {
+    fn create_welcome_view(&self) -> Element<'_, Message> {
         let welcome_main = StyledContainer::new(
             column![
                 StyledText::new("🎵").size(32).style(TextStyle::Primary).shaping(Shaping::Advanced).build(),
@@ -1795,27 +1782,6 @@ async fn open_audio_only_files_dialog() -> Vec<String> {
     ).unwrap_or_default()
 }
 
-// 创建SVG图标元素
-fn svg_icon(content: &str, size: f32, color: Color) -> Element<'static, Message> {
-    use iced::widget::svg;
-    svg(svg::Handle::from_memory(content.as_bytes().to_vec()))
-        .width(Length::Fixed(size))
-        .height(Length::Fixed(size))
-        .style(move |theme: &iced::Theme, _status: svg::Status| {
-            let is_dark = {
-                let bg = theme.extended_palette().background.base.color;
-                bg.r + bg.g + bg.b < 1.5
-            };
-            
-            svg::Style {
-                color: Some(if is_dark && color.a <= 0.9 {
-                    Color { r: 0.8, g: 0.8, b: 0.8, a: 1.0 }
-                } else {
-                    color
-                }).into()
-            }
-        }).into()
-}
 
 /// 创建美化的ID3标签编辑页面
 fn create_id3tag_page(id3_tag_data: &Id3TagData, nav: Element<'static, Message>) -> Element<'static, Message> {

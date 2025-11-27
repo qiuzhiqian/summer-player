@@ -23,8 +23,6 @@ pub enum Message {
     PlaylistCardToggled(String),
     /// 播放列表卡片的更多菜单按钮被点击
     PlaylistCardMoreClicked(String),
-    /// 播放列表卡片的重命名操作开始
-    PlaylistCardActionRenameStart(String),
     /// 重命名输入内容变化
     PlaylistCardRenameNameChanged(String),
     /// 重命名确认

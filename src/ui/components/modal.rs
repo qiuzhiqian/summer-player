@@ -3,12 +3,9 @@
 //! 定义应用程序中使用的所有模态窗口组件。
 
 use iced::{
-    widget::{column, container, text, text_input, button, stack, mouse_area, center, row, opaque},
-    Element, Length, Color, Background,
+    widget::{container, stack, mouse_area, center, opaque},
+    Element, Color,
 };
-
-use super::Message;
-use crate::ui::theme::{AppColors, AppTheme};
 
 /// 模态窗口组件函数
 pub fn modal<'a, Message>(

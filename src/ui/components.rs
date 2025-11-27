@@ -89,7 +89,6 @@ pub mod icons {
     pub const SINGLE_LOOP: &str = r#"<svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M17 8.5V6a2 2 0 0 0-2-2H4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><path d="m20 8.5-3-2.5v5l3-2.5Z" fill="currentColor"/><path d="M7 15.5V18a2 2 0 0 0 2 2h11" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><path d="m4 15.5 3 2.5v-5l-3 2.5Z" fill="currentColor"/><circle cx="12" cy="12" r="2" stroke="currentColor" stroke-width="1.5"/><text x="12" y="12" text-anchor="middle" dominant-baseline="central" font-size="6" font-weight="bold" fill="currentColor">1</text></svg>"#;
     pub const RANDOM_PLAY: &str = r#"<svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="m3 17 6-4-6-4v8Z" fill="currentColor"/><path d="M14 6h5v5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/><path d="M19 6 9 16" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><path d="M14 18h5v-5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/><path d="M19 18 9 8" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>"#;
     pub const MUSIC_NOTE: &str = r#"<svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="7" cy="17" r="3" stroke="currentColor" stroke-width="1.5"/><circle cx="17" cy="15" r="3" stroke="currentColor" stroke-width="1.5"/><path d="M10 17V5l10-2v12" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/><path d="M10 9l10-2" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>"#;
-    pub const LIST_VIEW: &str = r#"<svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M3 6h18M3 12h18M3 18h18" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>"#;
     pub const CD_ICON: &str = r#"<?xml version="1.0" encoding="utf-8"?>
 <!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN" "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd">
 <!-- Uploaded to: SVG Repo, www.svgrepo.com, Generator: SVG Repo Mixer Tools -->
@@ -1186,9 +1185,6 @@ fn calculate_display_lines(total_lyrics: usize, window_height: f32) -> usize {
     }
 }
 
-pub fn spacer() -> Element<'static, Message> {
-    Space::new().into()
-}
 
 /// 紧凑的专辑封面视图（用于底部栏下层）
 pub fn compact_album_cover_view(audio_info: Option<&AudioInfo>) -> Element<'static, Message> {
