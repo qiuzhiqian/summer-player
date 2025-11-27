@@ -1055,6 +1055,8 @@ impl PlaylistManager {
         if path.exists() {
             fs::remove_file(&path).map_err(|e| PlayerError::IoError(e))?;
         }
+        // 从内存缓存中移除播放列表
+        self.remove_playlist(playlist_path);
         Ok(())
     }
 
