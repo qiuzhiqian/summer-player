@@ -7,6 +7,7 @@ pub mod device;
 pub mod playback;
 pub mod decoder;
 pub mod stream;
+pub mod tag_writer;
 
 // 重新导出主要类型
 pub use file::{AudioFile, AudioInfo};
@@ -16,4 +17,5 @@ pub use playback::{
     start_audio_playback,
 };
 pub use decoder::create_decoder;
-pub use stream::{create_audio_stream, create_stream}; 
+pub use stream::{create_audio_stream, create_stream};
+pub use tag_writer::write_metadata_to_file;

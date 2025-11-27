@@ -372,36 +372,47 @@ impl PlayerApp {
                 Task::none()
             },
             Message::ConfirmId3TagChanges => {
-                if let Some(index) = self.editing_song_index {
-                        // 先获取文件路径
-                        let file_path = if let Some(playlist) = self.playlist_manager.current_playlist() {
-                            playlist.get_file(index).cloned()
-                        } else {
-                            None
-                        };
-                        
-                        // 然后加载并修改音频文件
-                        if let Some(file_path) = file_path {
-                            if let Ok(audio_file) = self.playlist_manager.get_or_load_audio_file(&file_path) {
-                                let mut audio_file = audio_file;
-                                audio_file.info.metadata.title = Some(self.id3_tag_data.title.clone());
-                                audio_file.info.metadata.album = Some(self.id3_tag_data.album.clone());
-                                audio_file.info.metadata.artist = Some(self.id3_tag_data.artist.clone());
-                                audio_file.info.metadata.year = self.id3_tag_data.year.parse().ok();
-                                audio_file.info.metadata.track_number = self.id3_tag_data.track_number.parse().ok();
-                                audio_file.info.metadata.genre = Some(self.id3_tag_data.genre.clone());
-                                
-                                // 保存播放列表
-                                if let Some(playlist) = self.playlist_manager.current_playlist() {
-                                    if let Err(e) = playlist.save() {
-                                        eprintln!("保存ID3标签失败: {}", e);
-                                    }
+                // 使用模态窗口数据中的文件路径，而不是依赖editing_song_index
+                let file_path = self.modal_data.edit_tags_data.file_path.clone();
+                
+                if !file_path.is_empty() {
+                    // 创建新的元数据对象
+                    let mut metadata = crate::audio::file::AudioMetadata::default();
+                    metadata.title = if self.modal_data.edit_tags_data.title.is_empty() { None } else { Some(self.modal_data.edit_tags_data.title.clone()) };
+                    metadata.album = if self.modal_data.edit_tags_data.album.is_empty() { None } else { Some(self.modal_data.edit_tags_data.album.clone()) };
+                    metadata.artist = if self.modal_data.edit_tags_data.artist.is_empty() { None } else { Some(self.modal_data.edit_tags_data.artist.clone()) };
+                    metadata.year = if self.modal_data.edit_tags_data.year.is_empty() { None } else { self.modal_data.edit_tags_data.year.parse().ok() };
+                    metadata.track_number = if self.modal_data.edit_tags_data.track_number.is_empty() { None } else { self.modal_data.edit_tags_data.track_number.parse().ok() };
+                    metadata.genre = if self.modal_data.edit_tags_data.genre.is_empty() { None } else { Some(self.modal_data.edit_tags_data.genre.clone()) };
+                    
+                    // 将元数据写入音频文件
+                    match crate::audio::write_metadata_to_file(&file_path, &metadata) {
+                        Ok(_) => {
+                            println!("成功保存标签到文件: {}", file_path);
+                            
+                            // 更新播放列表管理器中的音频文件元数据
+                            self.playlist_manager.update_audio_file_metadata(&file_path, metadata);
+                            
+                            // 如果当前正在播放这个文件，也需要更新UI中的音频信息
+                            if self.file_path == file_path {
+                                if let Ok(audio_file) = self.playlist_manager.get_or_load_audio_file(&file_path) {
+                                    self.audio_info = Some(audio_file.info.clone());
                                 }
                             }
+                            
+                            // 关闭模态对话框
+                            self.show_modal = false;
+                            self.modal_type = ModalType::None;
+                            self.modal_data = ModalData::default();
+                            self.editing_song_index = None;
                         }
+                        Err(e) => {
+                            eprintln!("保存ID3标签失败: {}", e);
+                        }
+                    }
+                } else {
+                    eprintln!("错误：文件路径为空，无法保存标签");
                 }
-                // 返回主页
-                self.current_page = PageType::Home;
                 Task::none()
             },
             Message::ReturnFromId3Tag => {
@@ -1710,6 +1721,9 @@ impl PlayerApp {
         if let Some(playlist) = self.playlist_manager.current_playlist() {
             if let Some(file_path) = playlist.get_file(index) {
                 let file_path = file_path.clone();
+                // 设置当前编辑的歌曲索引
+                self.editing_song_index = Some(index);
+                
                 // 尝试从缓存获取音频文件信息
                 if let Ok(audio_file) = self.playlist_manager.get_or_load_audio_file(&file_path) {
                     self.modal_data.edit_tags_data.file_path = file_path.clone();

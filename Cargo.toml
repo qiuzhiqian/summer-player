@@ -29,6 +29,7 @@ rand = "0.8"
 serde = { version = "1.0", features = ["derive"] }
 toml = "0.8"
 dirs = "5.0"
+lofty = "0.22"
 
 [patch.crates-io]
 iced = { git = "https://github.com/iced-rs/iced.git", branch = "master" }

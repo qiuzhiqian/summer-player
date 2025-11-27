@@ -907,6 +907,16 @@ impl PlaylistManager {
         }
     }
     
+    /// 更新已缓存的AudioFile的元数据，并返回是否更新成功
+    pub fn update_audio_file_metadata(&mut self, file_path: &str, metadata: crate::audio::file::AudioMetadata) -> bool {
+        if let Some(audio_file) = self.audio_cache.get_mut(file_path) {
+            audio_file.info.metadata = metadata;
+            true
+        } else {
+            false
+        }
+    }
+    
     /// 加载配置目录下的所有播放列表文件
     /// 
     /// # 返回
